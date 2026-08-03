@@ -100,7 +100,7 @@ checklist gets you paid — arranging the room properly is what earns the third 
 | Tap a piece of furniture | Selects it |
 | Drag a selected piece | Slides it along the floor, kept inside the walls |
 | Drag it near a wall | Sits flush against the wall and squares up to it |
-| Drag a lamp or TV over a table | Lands on top of it |
+| Drag a lamp, vase or TV over a table | Lands on top of it |
 | Twist two fingers over a selection | Turns it; spreading them resizes it |
 | Drag empty space | Orbits the camera |
 | Pinch | Zooms |
@@ -148,6 +148,14 @@ everything unlocked, with its own save and load.
 
 The electronics counter opens at level 2, and the pieces on it are the ones the later
 briefs — media rooms, home offices — ask for.
+
+Seventeen of these have tops you can put things on — every table and desk, the counters
+and the kitchen island, the nightstand, dresser, low cabinet, TV stand, and the bookshelf
+and display cabinet — and twelve small pieces ride on them: the table lamp, vase, stack of
+books, potted plant, televisions, computer, soundbar, games console, printer, kettle,
+toaster and microwave. Drag one over a top and it settles onto it; drag it off and it drops
+back to the floor. A prop too tall to clear the ceiling from a given top stays on the floor
+rather than sticking out through the wall.
 
 | Volt & Wire | A media room fitted out of it |
 |---|---|

@@ -444,7 +444,7 @@ func _build() -> void:
 	})
 	_add({
 		"id": "bookshelf", "against_wall": true, "name": "Bookshelf", "category": "Storage",
-		"price": 290, "level": 1,
+		"price": 290, "level": 1, "surface": 1.855,
 		"tint": Color(0.56, 0.38, 0.24),
 		"parts": [
 			{"shape": "box", "size": Vector3(0.05, 1.85, 0.34), "pos": Vector3(-0.42, 0.93, 0), "mat": "tint"},
@@ -779,7 +779,7 @@ func _build_extras() -> void:
 	})
 	_add({
 		"id": "display_cabinet", "against_wall": true, "name": "Display Cabinet",
-		"category": "Storage", "price": 460, "level": 4,
+		"category": "Storage", "price": 460, "level": 4, "surface": 1.85,
 		"tint": Color(0.40, 0.30, 0.22),
 		"parts": [
 			{"shape": "box", "size": Vector3(0.90, 1.80, 0.40), "pos": Vector3(0, 0.95, 0), "mat": "tint"},

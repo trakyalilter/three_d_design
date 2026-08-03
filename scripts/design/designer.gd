@@ -439,6 +439,7 @@ func _support_height(item: FurnitureItem, at: Vector3) -> float:
 	if not Catalog.is_stackable(item.item_id):
 		return 0.0
 	var point := Vector2(at.x, at.z) + _center_offset(item, at)
+	var headroom: float = room.height - Catalog.height(item.item_id) * item.scale_factor
 	var best := 0.0
 	for other in _items():
 		if other == item or Catalog.surface_height(other.item_id) <= 0.0:
@@ -446,6 +447,10 @@ func _support_height(item: FurnitureItem, at: Vector3) -> float:
 		if not Geometry2D.is_point_in_polygon(point, other.footprint_corners()):
 			continue
 		var top: float = other.position.y + Catalog.surface_height(other.item_id) * other.scale_factor
+		# A tall piece on a tall shelf would stick out through the wall, so it
+		# stays on the floor instead.
+		if top > headroom:
+			continue
 		best = maxf(best, top)
 	return best
 

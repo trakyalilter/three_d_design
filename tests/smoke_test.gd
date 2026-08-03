@@ -80,9 +80,8 @@ func _check_catalogue() -> void:
 
 func _check_placement_aids() -> void:
 	var main := get_tree().current_scene
-	Game.buy_item("wardrobe", 1)
-	Game.buy_item("tv_stand", 1)
-	Game.buy_item("television", 1)
+	for id in ["wardrobe", "tv_stand", "television", "bookshelf", "plant", "table_lamp"]:
+		Game.buy_item(id, 1)
 
 	main.enter_designer("maple_studio")
 	await get_tree().process_frame
@@ -120,7 +119,26 @@ func _check_placement_aids() -> void:
 	_expect(designer._support_height(stand, Vector3.ZERO) == 0.0,
 		"a TV stand should not stack onto anything")
 
-	print("placement       wall snap flush at z=%.2f, stack height %.2f" % [snapped.z, support])
+	# Headroom: the shelf tops are high enough that a big prop on one would
+	# poke out through the wall, so it has to stay on the floor.
+	designer._on_new_requested()
+	designer._on_place_item("bookshelf")
+	designer.selected.global_position = Vector3.ZERO
+	designer._on_place_item("plant")
+	var tall = designer.selected
+	designer._on_place_item("table_lamp")
+	var small = designer.selected
+	var shelf_top := Catalog.surface_height("bookshelf")
+	_expect(shelf_top > 0.0, "the bookshelf has no surface to put anything on")
+	_expect(designer._support_height(small, Vector3.ZERO) == shelf_top,
+		"a table lamp should sit on the bookshelf")
+	_expect(shelf_top + Catalog.height("plant") > designer.room.height,
+		"this check needs a prop too tall for the shelf to hold")
+	_expect(designer._support_height(tall, Vector3.ZERO) == 0.0,
+		"a plant too tall for the room stacked onto the bookshelf anyway")
+
+	print("placement       wall snap flush at z=%.2f, stack height %.2f, shelf top %.2f"
+		% [snapped.z, support, shelf_top])
 	designer._on_new_requested()
 	main.enter_city()
 	await get_tree().process_frame
