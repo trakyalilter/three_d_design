@@ -7,8 +7,13 @@ extends Node3D
 
 const MIN_PITCH := -88.0
 const MAX_PITCH := -6.0
-const MIN_DISTANCE := 2.0
-const MAX_DISTANCE := 26.0
+
+## Zoom range, in metres. The city sets a wider one than the room designer.
+var min_distance: float = 2.0
+var max_distance: float = 26.0
+## Rest pose the designer returns to when leaving the plan view.
+var home_yaw: float = -35.0
+var home_pitch: float = -32.0
 
 var yaw: float = -35.0
 var pitch: float = -32.0
@@ -70,7 +75,7 @@ func orbit(delta_pixels: Vector2) -> void:
 
 
 func zoom(factor: float) -> void:
-	distance = clampf(distance * factor, MIN_DISTANCE, MAX_DISTANCE)
+	distance = clampf(distance * factor, min_distance, max_distance)
 
 
 ## Pans the focus point across the floor, in the camera's screen directions.
@@ -89,7 +94,7 @@ func pan(delta_pixels: Vector2) -> void:
 func frame_room(width: float, depth: float) -> void:
 	pan_limit = Vector2(width * 0.6, depth * 0.6)
 	focus = Vector3.ZERO
-	distance = clampf(maxf(width, depth) * 1.25, MIN_DISTANCE, MAX_DISTANCE)
+	distance = clampf(maxf(width, depth) * 1.35, min_distance, max_distance)
 
 
 func set_top_view(enabled: bool) -> void:
@@ -97,8 +102,8 @@ func set_top_view(enabled: bool) -> void:
 		pitch = MIN_PITCH
 		yaw = 0.0
 	else:
-		pitch = -32.0
-		yaw = -35.0
+		pitch = home_pitch
+		yaw = home_yaw
 
 
 func is_top_view() -> bool:

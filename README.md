@@ -1,17 +1,22 @@
 # Room Designer 3D
 
-A touch-first 3D room planner for Android, built with [Godot](https://godotengine.org) 4.5.
+An Android interior-design game built with [Godot](https://godotengine.org) 4.5.
 
-Lay out a room on your phone or tablet: set the floor plan, drop in furniture, slide it
-around with your finger, spin it, resize it, recolour it, and save the result. Everything
-is drawn from primitives at runtime, so the whole app is a few text files and a 51 MB APK
-with no downloaded assets.
+You start with $3,000 and a city full of clients. Pick a house off the map, read what
+the owner wants, buy furniture out of your own pocket, arrange it until every line of the
+brief is ticked, and hand it over for the fee. Finished jobs pay experience, and levelling
+up opens the pricier shops, the better paints and the larger houses. It is House Flipper's
+loop, shrunk to a phone screen.
 
-![The designer with a furnished living room](docs/screenshot-main.png)
+![The city map with clients and shops](docs/screenshot-city.png)
 
-| Plan view | Building a bedroom |
+| Reading a brief | Fitting the room out |
 |---|---|
-| ![Top-down plan view](docs/screenshot-plan.png) | ![A bed and wardrobe placed in an empty room](docs/screenshot-bedroom.png) |
+| ![A client's brief on the city map](docs/screenshot-brief.png) | ![The designer with the brief checklist ticked off](docs/screenshot-job.png) |
+
+| Browsing a shop | Getting paid |
+|---|---|
+| ![The bathroom shop's stock list](docs/screenshot-shop.png) | ![The hand-over screen showing fee, bonus and XP](docs/screenshot-handover.png) |
 
 ## Getting the app
 
@@ -23,84 +28,144 @@ your device. Android asks you to allow installs from an unknown source the first
 - **Permissions:** none — the app never touches the network or your files outside its own
   storage
 
-## Using it
+## Playing
+
+### The city
+
+Ten houses sit along two residential streets, with eight shops down the avenue between
+them. A floating pin over each house tells you where it stands:
+
+| Pin | Meaning |
+|---|---|
+| Blue | Available — tap for the brief |
+| Amber | Started, furniture already bought |
+| Green | Handed over |
+| Grey | Locked until you reach the level shown |
+
+Tapping a shop opens its window: what it stocks, what each piece costs, and which levels
+still gate it. The Colour House sells floor and wall paint by the square metre instead.
+
+### A job
+
+The briefing sheet gives you the client's words, the room size, the fee, their budget and
+the experience on offer. Take the job and you land in the room with the brief checklist on
+the right — it re-ticks itself live as you work.
+
+Every piece you place is charged to you immediately. Sell it again and you get the whole
+price back, so nothing is ever wasted and you can never get stuck. Once every line is
+ticked, **Hand over** collects the fee, plus a bonus of a quarter of the fee if the final
+bill came in under the client's budget.
 
 | Gesture | Result |
 |---|---|
-| Tap an item in the bottom tray | Adds it to the room and selects it |
+| Tap an item in the tray | Buys it and drops it into the room |
 | Tap a piece of furniture | Selects it |
 | Drag a selected piece | Slides it along the floor, kept inside the walls |
 | Drag empty space | Orbits the camera |
 | Pinch | Zooms |
 | Two-finger drag | Pans across the floor |
-| Back button | Closes the dialog, then clears the selection, then exits |
+| Back button | Closes the dialog, then clears the selection, then leaves |
 
-The bar that appears under a selection rotates in 15° steps, flips 180°, scales between
-50 % and 200 %, recolours, duplicates and deletes. **Top View** switches to a plan view and
-drops the walls; **Walls** turns the shell off entirely; **Snap** toggles the 25 cm grid.
+The bar under a selection rotates in 15° steps, flips 180°, scales between 50 % and 200 %,
+recolours, duplicates and sells. **Top View** switches to a plan view and drops the walls;
+**Snap** toggles the 25 cm grid. Walls between you and the room hide themselves as you
+orbit, and a piece that overlaps another glows red — most briefs ask for a clean room.
 
-Walls between you and the room hide themselves as you orbit, so the interior is always
-visible. A piece that overlaps another glows red — a hint, not a restriction.
+### Progress
 
-The **Room** dialog sets the floor plan from 2 × 2 m up to 14 × 14 m, along with floor and
-wall colours. Layouts are saved to the device under `user://layouts/`, and the arrangement
-you leave behind is restored automatically next time you open the app.
+Experience carries you from level 1 to level 8. Jobs run from a $1,300 studio to a
+$10,500 townhouse, and the whole run takes a careful player from $3,000 to somewhere north
+of $30,000. Everything — money, level, finished jobs and the rooms you left half-done — is
+saved to the device as you go.
 
-### Catalogue
+**Free Build** on the map opens the old sandbox: no client, no bill, everything unlocked,
+with its own save and load.
 
-25 pieces across six categories:
+![Free build mode](docs/screenshot-freebuild.png)
 
-| Category | Pieces |
-|---|---|
-| Living | Sofa, loveseat, armchair, coffee table, TV stand, television |
-| Bedroom | Double bed, single bed, nightstand, dresser |
-| Dining | Dining table, round table, chair, bar stool |
-| Storage | Wardrobe, bookshelf, desk, low cabinet |
-| Kitchen | Counter, refrigerator, stove, sink unit |
-| Decor | Rug, floor lamp, potted plant, side table, partition |
+## The catalogue
+
+32 pieces across seven shops, all built from primitives at runtime:
+
+| Shop | Opens | Stock |
+|---|---|---|
+| Sofa & Co | 1 | Sofa, loveseat, armchair, coffee table, TV stand, television |
+| Dream Beds | 1 | Double bed, single bed, nightstand, dresser |
+| Table Talk | 1 | Dining table, round table, chair, bar stool |
+| Box & Shelf | 1 | Wardrobe, bookshelf, desk, low cabinet |
+| Little Details | 1 | Rug, floor lamp, potted plant, side table, partition |
+| Kitchen Works | 2 | Counter, refrigerator, stove, sink unit |
+| Splash & Tile | 2 | Toilet, basin, bathtub, shower, washing machine, vanity unit, towel rail |
+| Colour House | 1 | Eight floor paints and eight wall paints |
 
 ## How the project fits together
 
 ```
-project.godot            Project settings (mobile renderer, sensor landscape)
-export_presets.cfg       Android export preset
 scenes/main.tscn         One node; everything else is built in code
 scripts/
-  catalog.gd             Autoload. Every model, described as primitive parts
-  furniture_item.gd      A placed piece: meshes, pick body, footprint maths
-  room.gd                Floor, walls, skirting, grid; wall auto-hide
-  camera_rig.gd          Damped orbit camera
-  selection_marker.gd    Floor highlight under the selection
-  layout_store.gd        JSON save/load under user://
-  ui.gd                  The whole interface, built in code
-  main.gd                Scene setup, gestures, selection, overlap tests
-assets/                  App icon and Android launcher icons
+  game.gd                Swaps between the city and the designer
+  data/
+    catalog.gd           Autoload. Every model, price, shop and unlock level
+    jobs.gd              Autoload. The ten houses and the requirement evaluator
+    game_state.gd        Autoload. Money, XP, levels and the saved profile
+    layout_store.gd      Free-build save files under user://
+  city/
+    city_view.gd         The procedural neighbourhood, its pins and pick volumes
+    city_ui.gd           Wallet, XP bar, briefing sheet, shop window
+  design/
+    designer.gd          The room: gestures, buying, overlap tests, hand-over
+    design_ui.gd         Tray, brief checklist, dialogs
+  world/
+    furniture_item.gd    A placed piece: meshes, pick body, footprint maths
+    room.gd              Floor, walls, skirting, grid; wall auto-hide
+    camera_rig.gd        Damped orbit camera, shared by both screens
+    selection_marker.gd  Floor highlight under the selection
+  ui/ui_kit.gd           The theme and widget helpers both screens share
 ```
 
 Furniture is data, not geometry files. A piece is a list of boxes, cylinders and spheres
-with a material role each, so adding one means adding a dictionary to `catalog.gd`:
+with a material role each, plus what it costs and who sells it, so adding one means adding
+a dictionary to `catalog.gd`:
 
 ```gdscript
 _add({
-    "id": "nightstand",
-    "name": "Nightstand",
-    "category": "Bedroom",
-    "tint": Color(0.79, 0.64, 0.45),
+    "id": "toilet", "name": "Toilet", "category": "Bathroom",
+    "price": 280, "level": 1,
+    "tint": Color(0.97, 0.97, 0.96),
     "parts": [
-        {"shape": "box", "size": Vector3(0.46, 0.50, 0.40), "pos": Vector3(0, 0.33, 0), "mat": "tint"},
+        {"shape": "box", "size": Vector3(0.40, 0.58, 0.20), "pos": Vector3(0, 0.34, -0.24), "mat": "tint"},
         ...
     ],
 })
 ```
 
-Parts marked `"mat": "tint"` follow the colour the user picks for that piece; the other
-material roles (`wood`, `metal`, `glass`, …) are fixed. Footprints, heights and pick
-volumes are all derived from the parts, so nothing needs to be measured by hand.
+Parts marked `"mat": "tint"` follow the colour the player picks; the other roles
+(`wood`, `metal`, `porcelain`, `glass`, …) are fixed. Footprints, heights and pick volumes
+are all derived from the parts, so nothing needs measuring by hand.
+
+A job is a dictionary too. Requirements are declarative and checked against the room as it
+stands, so a new contract is a few lines:
+
+```gdscript
+{
+    "id": "cedar_bathroom", "name": "Cedar Guest Bathroom", "client": "Zeynep",
+    "level": 2, "budget": 1550, "payout": 2150, "xp": 160,
+    "room": {"w": 3.5, "d": 3.0, "h": 2.5},
+    "requirements": [
+        {"type": "item", "id": "toilet", "count": 1},
+        {"type": "item", "id": "shower", "count": 1},
+        {"type": "no_overlap"},
+    ],
+}
+```
+
+Supported requirement kinds: `item`, `category`, `total`, `categories` (distinct shops),
+`floor_color`, `wall_color` and `no_overlap`.
 
 ## Building it yourself
 
 The APK is built remotely by [`.github/workflows/android-release.yml`](.github/workflows/android-release.yml)
-on every push, and published as a GitHub Release asset. The workflow installs the Android
+on every push and published as a GitHub Release asset. The workflow installs the Android
 SDK build tools, downloads Godot and its export templates, exports a signed release APK,
 verifies the signature, and attaches it to the release tagged `v<config/version>`.
 

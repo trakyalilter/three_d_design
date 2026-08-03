@@ -1,8 +1,13 @@
+class_name RoomDesigner
 extends Node3D
-## Room Designer 3D — entry point.
+## The room you actually work in.
 ##
-## Owns the scene graph (room, furniture, camera, lighting, UI) and translates
-## touch gestures into camera moves, selection and item dragging.
+## Runs either as a paid job — where the client's brief has to be satisfied and
+## every piece of furniture is bought out of the player's own money — or as a
+## free-build sandbox with no bill and nothing to prove.
+
+signal job_finished(house_id: String)
+signal left()
 
 const GRID_SNAP := 0.25
 const ROTATE_STEP := 15.0
@@ -11,6 +16,9 @@ const TAP_SLOP := 16.0
 const FLAT_ITEM_HEIGHT := 0.12
 
 enum Gesture { NONE, ORBIT, ITEM, PINCH }
+
+var house_id: String = ""
+var job: Dictionary = {}
 
 var room: Room
 var rig: CameraRig
@@ -28,9 +36,18 @@ var _drag_offset := Vector3.ZERO
 var _drag_moved := false
 var _pinch_distance := 0.0
 var _pinch_midpoint := Vector2.ZERO
-var _floor_color := DesignerUI.FLOOR_SWATCHES[0]
-var _wall_color := DesignerUI.WALL_SWATCHES[0]
-var _dirty := false
+var _floor_color: Color = Catalog.PAINT["floor"][0]["color"]
+var _wall_color: Color = Catalog.PAINT["wall"][0]["color"]
+
+
+func job_mode() -> bool:
+	return house_id != ""
+
+
+## Called before the designer enters the tree. An empty id means free build.
+func setup(id: String) -> void:
+	house_id = id
+	job = Jobs.get_job(id) if id != "" else {}
 
 
 func _ready() -> void:
@@ -56,17 +73,39 @@ func _ready() -> void:
 	ui.name = "UI"
 	add_child(ui)
 	_connect_ui()
+	ui.configure(job)
 
-	room.set_floor_color(_floor_color)
-	room.set_wall_color(_wall_color)
+	_start_room()
+	_refresh_stats()
+	_evaluate()
+
+	if job_mode():
+		ui.toast("%s — tap Brief to see what %s wants" % [job["name"], job["client"]], 4.0)
+	else:
+		ui.toast("Free build: everything is unlocked and nothing costs anything", 3.5)
+
+
+## Sets the room up and restores whatever was left here last time.
+func _start_room() -> void:
+	var saved: Dictionary = Game.layout_for(house_id) if job_mode() else LayoutStore.load_autosave()
+
+	if job_mode():
+		var spec: Dictionary = job["room"]
+		room.configure(float(spec["w"]), float(spec["d"]), float(spec["h"]))
+	else:
+		room.configure(6.0, 5.0, 2.6)
+
+	if not saved.is_empty():
+		_restore(saved)
+	else:
+		room.set_floor_color(_floor_color)
+		room.set_wall_color(_wall_color)
+		if not job_mode():
+			_seed_starter_room()
+
+	ui.set_room_values(room.width, room.depth, room.height)
 	rig.frame_room(room.width, room.depth)
 	rig.snap_to_target()
-
-	if not _restore(LayoutStore.load_autosave()):
-		_seed_starter_room()
-
-	_refresh_stats()
-	ui.toast("Tap an item below to add it to the room", 3.5)
 
 
 func _build_environment() -> void:
@@ -120,7 +159,8 @@ func _connect_ui() -> void:
 	ui.command.connect(_on_command)
 	ui.tint_selected.connect(_on_tint_selected)
 	ui.room_changed.connect(_on_room_changed)
-	ui.room_colors_changed.connect(_on_room_colors_changed)
+	ui.floor_paint_selected.connect(_on_floor_paint)
+	ui.wall_paint_selected.connect(_on_wall_paint)
 	ui.walls_toggled.connect(func(on: bool) -> void: room.set_walls_visible(on))
 	ui.snap_toggled.connect(func(on: bool) -> void: snap_enabled = on)
 	ui.top_view_toggled.connect(func(on: bool) -> void: rig.set_top_view(on))
@@ -131,6 +171,8 @@ func _connect_ui() -> void:
 	ui.recenter_requested.connect(func() -> void:
 		rig.frame_room(room.width, room.depth)
 		ui.toast("View recentred", 1.2))
+	ui.finish_requested.connect(_on_finish)
+	ui.leave_requested.connect(_on_leave)
 
 
 func _process(_delta: float) -> void:
@@ -175,7 +217,7 @@ func _handle_touch(event: InputEventScreenTouch) -> void:
 			if was_orbit and was_tap:
 				_select(null)
 			if _gesture == Gesture.ITEM and _drag_moved:
-				_mark_dirty()
+				_persist()
 			_gesture = Gesture.NONE
 			_drag_moved = false
 		elif _gesture == Gesture.PINCH and _touches.size() < 2:
@@ -256,6 +298,7 @@ func _drag_selected(position: Vector2) -> void:
 	_drag_moved = true
 	_update_overlaps()
 	marker.follow(selected)
+	_evaluate()
 
 
 ## Screen point projected onto the floor plane (y = 0).
@@ -297,6 +340,15 @@ func _pick_item(screen_position: Vector2) -> FurnitureItem:
 # ------------------------------------------------------------------ commands
 
 func _on_place_item(item_id: String) -> void:
+	if job_mode():
+		if not Game.is_item_unlocked(item_id):
+			ui.toast("That needs level %d" % Catalog.effective_unlock_level(item_id), 2.0)
+			return
+		var price := Catalog.price(item_id)
+		if not Game.charge_to_job(house_id, price):
+			ui.toast("Not enough money — sell something first", 2.4)
+			return
+
 	var item := FurnitureItem.new()
 	item.setup(item_id)
 	items_root.add_child(item)
@@ -310,9 +362,11 @@ func _on_place_item(item_id: String) -> void:
 	item.global_position = _find_free_spot(item)
 
 	_select(item)
-	_mark_dirty()
-	_refresh_stats()
-	ui.toast("%s added — drag it to move" % Catalog.display_name(item_id), 1.8)
+	_after_change()
+	if job_mode():
+		ui.toast("%s — %s" % [Catalog.display_name(item_id), UIKit.money(Catalog.price(item_id))], 1.6)
+	else:
+		ui.toast("%s added — drag it to move" % Catalog.display_name(item_id), 1.6)
 
 
 func _on_command(name: String) -> void:
@@ -333,15 +387,7 @@ func _on_command(name: String) -> void:
 			_duplicate_selected()
 			return
 		"delete":
-			var label := Catalog.display_name(selected.item_id)
-			var doomed := selected
-			_select(null)
-			items_root.remove_child(doomed)
-			doomed.queue_free()
-			_mark_dirty()
-			_refresh_stats()
-			_update_overlaps()
-			ui.toast("%s removed" % label, 1.4)
+			_sell_selected()
 			return
 		"deselect":
 			_select(null)
@@ -350,11 +396,33 @@ func _on_command(name: String) -> void:
 	ui.set_selection(selected)
 	_update_overlaps()
 	marker.follow(selected)
-	_mark_dirty()
+	_after_change()
+
+
+func _sell_selected() -> void:
+	if selected == null:
+		return
+	var doomed := selected
+	var label := Catalog.display_name(doomed.item_id)
+	var refund := Catalog.price(doomed.item_id)
+	_select(null)
+	items_root.remove_child(doomed)
+	doomed.queue_free()
+	if job_mode():
+		Game.refund_to_job(house_id, refund)
+		ui.toast("%s sold back for %s" % [label, UIKit.money(refund)], 1.6)
+	else:
+		ui.toast("%s removed" % label, 1.4)
+	_update_overlaps()
+	_after_change()
 
 
 func _duplicate_selected() -> void:
 	if selected == null:
+		return
+	var item_id := selected.item_id
+	if job_mode() and not Game.charge_to_job(house_id, Catalog.price(item_id)):
+		ui.toast("Not enough money for another one", 2.2)
 		return
 	var copy := FurnitureItem.from_dict(selected.to_dict())
 	if copy == null:
@@ -362,8 +430,7 @@ func _duplicate_selected() -> void:
 	items_root.add_child(copy)
 	copy.global_position = _find_free_spot(copy)
 	_select(copy)
-	_mark_dirty()
-	_refresh_stats()
+	_after_change()
 	ui.toast("Duplicated", 1.2)
 
 
@@ -372,10 +439,12 @@ func _on_tint_selected(color: Color) -> void:
 		return
 	selected.set_tint(color)
 	selected.set_blocked(selected.is_blocked())
-	_mark_dirty()
+	_after_change()
 
 
 func _on_room_changed(width: float, room_depth: float, height: float) -> void:
+	if job_mode():
+		return
 	room.configure(width, room_depth, height)
 	room.set_floor_color(_floor_color)
 	room.set_wall_color(_wall_color)
@@ -383,16 +452,34 @@ func _on_room_changed(width: float, room_depth: float, height: float) -> void:
 	for item in _items():
 		item.global_position = _clamp_to_room(item, item.global_position)
 	_update_overlaps()
-	_refresh_stats()
-	_mark_dirty()
+	_after_change()
 
 
-func _on_room_colors_changed(floor_color: Color, wall_color: Color) -> void:
-	_floor_color = floor_color
-	_wall_color = wall_color
-	room.set_floor_color(floor_color)
-	room.set_wall_color(wall_color)
-	_mark_dirty()
+func _on_floor_paint(color: Color) -> void:
+	if not _charge_paint("floor"):
+		return
+	_floor_color = color
+	room.set_floor_color(color)
+	_after_change()
+
+
+func _on_wall_paint(color: Color) -> void:
+	if not _charge_paint("wall"):
+		return
+	_wall_color = color
+	room.set_wall_color(color)
+	_after_change()
+
+
+func _charge_paint(surface: String) -> bool:
+	if not job_mode():
+		return true
+	var cost := Catalog.paint_cost(surface, room.area())
+	if not Game.charge_to_job(house_id, cost):
+		ui.toast("Not enough money to repaint", 2.2)
+		return false
+	ui.toast("Repainted for %s" % UIKit.money(cost), 1.6)
+	return true
 
 
 func _on_save_requested(layout_name: String) -> void:
@@ -408,9 +495,10 @@ func _on_load_requested(layout_name: String) -> void:
 	if data.is_empty():
 		ui.toast("Could not open \"%s\"" % layout_name, 2.5)
 		return
-	if _restore(data):
-		ui.toast("Opened \"%s\"" % layout_name, 1.8)
-		_mark_dirty()
+	_restore(data)
+	ui.set_room_values(room.width, room.depth, room.height)
+	ui.toast("Opened \"%s\"" % layout_name, 1.8)
+	_after_change()
 
 
 func _on_delete_layout(layout_name: String) -> void:
@@ -420,10 +508,40 @@ func _on_delete_layout(layout_name: String) -> void:
 
 func _on_new_requested() -> void:
 	_select(null)
+	if job_mode():
+		var refund := 0
+		for item in _items():
+			refund += Catalog.price(item.item_id)
+		if refund > 0:
+			Game.refund_to_job(house_id, refund)
+		ui.toast("Everything sold back for %s" % UIKit.money(refund), 2.2)
+	else:
+		ui.toast("Room cleared", 1.5)
 	_clear_items()
-	_refresh_stats()
-	_mark_dirty()
-	ui.toast("Room cleared", 1.5)
+	_after_change()
+
+
+# --------------------------------------------------------- job hand-over
+
+func _on_finish() -> void:
+	if not job_mode():
+		return
+	var results := Jobs.evaluate(house_id, _context())
+	if not Jobs.all_met(results):
+		ui.toast("The brief is not finished yet", 2.2)
+		return
+
+	var spend := Game.spend_on(house_id)
+	var payout := int(job["payout"])
+	var bonus := Jobs.bonus_for(house_id) if spend <= int(job["budget"]) else 0
+	var result := Game.record_completion(house_id, payout, bonus, int(job["xp"]))
+	Game.store_layout(house_id, _serialize())
+	ui.show_completion(job, result, func() -> void: job_finished.emit(house_id))
+
+
+func _on_leave() -> void:
+	_persist()
+	left.emit()
 
 
 # ----------------------------------------------------------------- selection
@@ -571,7 +689,53 @@ static func _project_range(polygon: PackedVector2Array, axis: Vector2) -> Vector
 	return Vector2(lo, hi)
 
 
-# -------------------------------------------------------- save / load / seed
+# ------------------------------------------------------------- brief tracking
+
+## What the job evaluator needs to know about the room as it stands.
+func _context() -> Dictionary:
+	var entries: Array = []
+	for item in _items():
+		entries.append({
+			"id": item.item_id,
+			"tint": item.tint,
+			"blocked": item.is_blocked(),
+		})
+	return {
+		"items": entries,
+		"room": {
+			"w": room.width, "d": room.depth, "h": room.height,
+			"floor": _floor_color, "wall": _wall_color,
+		},
+		"spend": Game.spend_on(house_id),
+	}
+
+
+func _evaluate() -> void:
+	if not job_mode():
+		return
+	ui.set_requirements(Jobs.evaluate(house_id, _context()))
+	ui.refresh_bill(Game.spend_on(house_id))
+
+
+## Everything that has to happen after the room changes in any way.
+func _after_change() -> void:
+	_refresh_stats()
+	_evaluate()
+	_persist()
+
+
+func _refresh_stats() -> void:
+	ui.set_stats(_items().size(), room.area())
+
+
+func _persist() -> void:
+	if job_mode():
+		Game.store_layout(house_id, _serialize())
+	else:
+		LayoutStore.save_autosave(_serialize())
+
+
+# --------------------------------------------------------- save / load / seed
 
 func _serialize() -> Dictionary:
 	var item_data: Array = []
@@ -589,23 +753,24 @@ func _serialize() -> Dictionary:
 	}
 
 
-func _restore(data: Dictionary) -> bool:
+func _restore(data: Dictionary) -> void:
 	if data.is_empty() or not data.has("items"):
-		return false
+		return
 
 	_select(null)
 	_clear_items()
 
 	var room_data: Dictionary = data.get("room", {})
-	var w := float(room_data.get("w", 6.0))
-	var d := float(room_data.get("d", 5.0))
-	var h := float(room_data.get("h", 2.6))
-	_floor_color = _color_or(room_data.get("floor", ""), DesignerUI.FLOOR_SWATCHES[0])
-	_wall_color = _color_or(room_data.get("wall", ""), DesignerUI.WALL_SWATCHES[0])
-	room.configure(w, d, h)
+	_floor_color = _color_or(room_data.get("floor", ""), Catalog.PAINT["floor"][0]["color"])
+	_wall_color = _color_or(room_data.get("wall", ""), Catalog.PAINT["wall"][0]["color"])
+	if not job_mode():
+		room.configure(
+			float(room_data.get("w", 6.0)),
+			float(room_data.get("d", 5.0)),
+			float(room_data.get("h", 2.6))
+		)
 	room.set_floor_color(_floor_color)
 	room.set_wall_color(_wall_color)
-	ui.set_room_values(room.width, room.depth, room.height, _floor_color, _wall_color)
 	rig.pan_limit = Vector2(room.width * 0.6, room.depth * 0.6)
 
 	for entry: Variant in data["items"]:
@@ -619,7 +784,6 @@ func _restore(data: Dictionary) -> bool:
 
 	_update_overlaps()
 	_refresh_stats()
-	return true
 
 
 static func _color_or(value: Variant, fallback: Color) -> Color:
@@ -629,7 +793,7 @@ static func _color_or(value: Variant, fallback: Color) -> Color:
 	return fallback
 
 
-## A small furnished room so the app never opens on an empty floor.
+## A small furnished room so free build never opens on an empty floor.
 func _seed_starter_room() -> void:
 	var seeds := [
 		{"id": "rug", "pos": Vector2(-1.2, 0.30), "rot": 0.0},
@@ -659,31 +823,10 @@ func _seed_starter_room() -> void:
 	_update_overlaps()
 
 
-func _refresh_stats() -> void:
-	ui.set_stats(_items().size(), room.area())
-
-
-func _mark_dirty() -> void:
-	_dirty = true
-	_autosave()
-
-
-func _autosave() -> void:
-	if not _dirty:
-		return
-	_dirty = false
-	LayoutStore.save_autosave(_serialize())
-
-
 func _notification(what: int) -> void:
 	match what:
-		NOTIFICATION_WM_CLOSE_REQUEST:
-			_dirty = true
-			_autosave()
-			get_tree().quit()
 		NOTIFICATION_APPLICATION_PAUSED:
-			_dirty = true
-			_autosave()
+			_persist()
 		NOTIFICATION_WM_GO_BACK_REQUEST:
 			# Android back button: unwind one level at a time.
 			if ui.is_modal_open():
@@ -691,6 +834,4 @@ func _notification(what: int) -> void:
 			elif selected != null:
 				_select(null)
 			else:
-				_dirty = true
-				_autosave()
-				get_tree().quit()
+				_on_leave()

@@ -2,6 +2,10 @@ extends Node
 ## Furniture catalog: every model in the app is described here as a small list
 ## of primitive parts, so the project ships with no binary mesh assets.
 ##
+## Each entry also carries the economy data the game runs on: what it costs,
+## which shop in the city sells it, and the level the player has to reach
+## before that shop will sell it to them.
+##
 ## Part dictionary keys:
 ##   shape : "box" | "cyl" | "sphere"
 ##   size  : box -> Vector3(width, height, depth)
@@ -13,8 +17,81 @@ extends Node
 ##   rot   : optional Vector3 of euler angles in degrees.
 
 const CATEGORIES: Array[String] = [
-	"Living", "Bedroom", "Dining", "Storage", "Kitchen", "Decor",
+	"Living", "Bedroom", "Dining", "Kitchen", "Bathroom", "Storage", "Decor",
 ]
+
+## The shops that line the avenue in the city. `category` is empty for the
+## paint shop, which sells colours rather than objects.
+const SHOPS: Array[Dictionary] = [
+	{
+		"id": "living", "name": "Sofa & Co", "category": "Living", "level": 1,
+		"tagline": "Sofas, chairs and everything you sink into.",
+		"color": Color(0.90, 0.55, 0.25),
+	},
+	{
+		"id": "bedroom", "name": "Dream Beds", "category": "Bedroom", "level": 1,
+		"tagline": "Beds, dressers and quiet corners.",
+		"color": Color(0.44, 0.42, 0.80),
+	},
+	{
+		"id": "dining", "name": "Table Talk", "category": "Dining", "level": 1,
+		"tagline": "Tables and chairs for long dinners.",
+		"color": Color(0.24, 0.68, 0.62),
+	},
+	{
+		"id": "kitchen", "name": "Kitchen Works", "category": "Kitchen", "level": 2,
+		"tagline": "Counters, cookers and cold storage.",
+		"color": Color(0.85, 0.32, 0.30),
+	},
+	{
+		"id": "bathroom", "name": "Splash & Tile", "category": "Bathroom", "level": 2,
+		"tagline": "Toilets, basins, tubs and showers.",
+		"color": Color(0.32, 0.72, 0.92),
+	},
+	{
+		"id": "storage", "name": "Box & Shelf", "category": "Storage", "level": 1,
+		"tagline": "Wardrobes, shelving and desks.",
+		"color": Color(0.62, 0.46, 0.28),
+	},
+	{
+		"id": "decor", "name": "Little Details", "category": "Decor", "level": 1,
+		"tagline": "Rugs, lamps and the greenery.",
+		"color": Color(0.40, 0.74, 0.42),
+	},
+	{
+		"id": "paint", "name": "Colour House", "category": "", "level": 1,
+		"tagline": "Floors and walls, priced by the square metre.",
+		"color": Color(0.82, 0.40, 0.68),
+	},
+]
+
+## Cost per square metre when the player repaints in the designer.
+const FLOOR_PAINT_RATE := 9
+const WALL_PAINT_RATE := 6
+
+## Palettes sold by the Colour House. Premium shades unlock with level.
+const PAINT: Dictionary = {
+	"floor": [
+		{"name": "Pale Oak", "color": Color(0.72, 0.62, 0.50), "level": 1},
+		{"name": "Walnut", "color": Color(0.55, 0.42, 0.30), "level": 1},
+		{"name": "Espresso", "color": Color(0.36, 0.27, 0.20), "level": 1},
+		{"name": "Chalk", "color": Color(0.85, 0.83, 0.80), "level": 1},
+		{"name": "Concrete", "color": Color(0.62, 0.64, 0.66), "level": 2},
+		{"name": "Slate", "color": Color(0.30, 0.32, 0.36), "level": 3},
+		{"name": "Sandstone", "color": Color(0.74, 0.72, 0.62), "level": 3},
+		{"name": "Sea Glass", "color": Color(0.52, 0.60, 0.55), "level": 4},
+	],
+	"wall": [
+		{"name": "Cotton", "color": Color(0.92, 0.91, 0.88), "level": 1},
+		{"name": "Morning", "color": Color(0.86, 0.88, 0.90), "level": 1},
+		{"name": "Sage", "color": Color(0.80, 0.84, 0.79), "level": 1},
+		{"name": "Linen", "color": Color(0.89, 0.84, 0.78), "level": 1},
+		{"name": "Harbour", "color": Color(0.70, 0.74, 0.80), "level": 2},
+		{"name": "Storm", "color": Color(0.55, 0.58, 0.64), "level": 3},
+		{"name": "Blush", "color": Color(0.78, 0.72, 0.72), "level": 3},
+		{"name": "Ink", "color": Color(0.36, 0.38, 0.44), "level": 4},
+	],
+}
 
 ## Fixed material roles. "tint" is resolved per placed item.
 const MATERIALS := {
@@ -23,12 +100,15 @@ const MATERIALS := {
 	"wood_light": {"color": Color(0.79, 0.64, 0.45), "rough": 0.8, "metal": 0.0},
 	"metal": {"color": Color(0.73, 0.75, 0.78), "rough": 0.28, "metal": 0.9},
 	"white": {"color": Color(0.93, 0.93, 0.9), "rough": 0.65, "metal": 0.0},
+	"porcelain": {"color": Color(0.97, 0.97, 0.96), "rough": 0.18, "metal": 0.0},
 	"dark": {"color": Color(0.16, 0.17, 0.2), "rough": 0.6, "metal": 0.05},
 	"screen": {"color": Color(0.05, 0.06, 0.09), "rough": 0.15, "metal": 0.0},
 	"glass": {"color": Color(0.68, 0.82, 0.86, 0.35), "rough": 0.05, "metal": 0.0},
+	"mirror": {"color": Color(0.80, 0.86, 0.90), "rough": 0.05, "metal": 0.85},
 	"leaf": {"color": Color(0.28, 0.55, 0.26), "rough": 0.85, "metal": 0.0},
 	"soil": {"color": Color(0.29, 0.22, 0.17), "rough": 1.0, "metal": 0.0},
 	"steel": {"color": Color(0.85, 0.86, 0.88), "rough": 0.35, "metal": 0.75},
+	"towel": {"color": Color(0.86, 0.88, 0.92), "rough": 0.95, "metal": 0.0},
 }
 
 ## Colour swatches offered for the selected item's tint.
@@ -49,46 +129,44 @@ const SWATCHES: Array[Color] = [
 
 var _items: Dictionary = {}
 var _order: Array[String] = []
+var _shops_by_id: Dictionary = {}
 
 
 func _ready() -> void:
+	for shop in SHOPS:
+		_shops_by_id[shop["id"]] = shop
 	_build()
 
 
 func _build() -> void:
 	# ---------------------------------------------------------------- Living
 	_add({
-		"id": "sofa",
-		"name": "Sofa",
-		"category": "Living",
+		"id": "sofa", "name": "Sofa", "category": "Living",
+		"price": 480, "level": 1,
 		"tint": Color(0.35, 0.38, 0.44),
 		"parts": _sofa(2.05, 0.9),
 	})
 	_add({
-		"id": "loveseat",
-		"name": "Loveseat",
-		"category": "Living",
+		"id": "loveseat", "name": "Loveseat", "category": "Living",
+		"price": 360, "level": 1,
 		"tint": Color(0.40, 0.62, 0.42),
 		"parts": _sofa(1.45, 0.9),
 	})
 	_add({
-		"id": "armchair",
-		"name": "Armchair",
-		"category": "Living",
+		"id": "armchair", "name": "Armchair", "category": "Living",
+		"price": 240, "level": 1,
 		"tint": Color(0.78, 0.32, 0.29),
 		"parts": _sofa(0.95, 0.88),
 	})
 	_add({
-		"id": "coffee_table",
-		"name": "Coffee Table",
-		"category": "Living",
+		"id": "coffee_table", "name": "Coffee Table", "category": "Living",
+		"price": 150, "level": 1,
 		"tint": Color(0.56, 0.38, 0.24),
 		"parts": _table(1.10, 0.60, 0.42, 0.05),
 	})
 	_add({
-		"id": "tv_stand",
-		"name": "TV Stand",
-		"category": "Living",
+		"id": "tv_stand", "name": "TV Stand", "category": "Living",
+		"price": 220, "level": 2,
 		"tint": Color(0.33, 0.21, 0.13),
 		"parts": [
 			{"shape": "box", "size": Vector3(1.50, 0.06, 0.42), "pos": Vector3(0, 0.49, 0), "mat": "tint"},
@@ -99,9 +177,8 @@ func _build() -> void:
 		],
 	})
 	_add({
-		"id": "television",
-		"name": "Television",
-		"category": "Living",
+		"id": "television", "name": "Television", "category": "Living",
+		"price": 520, "level": 3,
 		"tint": Color(0.16, 0.17, 0.2),
 		"parts": [
 			{"shape": "box", "size": Vector3(0.40, 0.03, 0.22), "pos": Vector3(0, 0.015, 0), "mat": "dark"},
@@ -113,23 +190,20 @@ func _build() -> void:
 
 	# --------------------------------------------------------------- Bedroom
 	_add({
-		"id": "bed_double",
-		"name": "Double Bed",
-		"category": "Bedroom",
+		"id": "bed_double", "name": "Double Bed", "category": "Bedroom",
+		"price": 620, "level": 2,
 		"tint": Color(0.30, 0.53, 0.72),
 		"parts": _bed(1.62, 2.05),
 	})
 	_add({
-		"id": "bed_single",
-		"name": "Single Bed",
-		"category": "Bedroom",
+		"id": "bed_single", "name": "Single Bed", "category": "Bedroom",
+		"price": 380, "level": 1,
 		"tint": Color(0.87, 0.60, 0.28),
 		"parts": _bed(1.00, 1.95),
 	})
 	_add({
-		"id": "nightstand",
-		"name": "Nightstand",
-		"category": "Bedroom",
+		"id": "nightstand", "name": "Nightstand", "category": "Bedroom",
+		"price": 130, "level": 1,
 		"tint": Color(0.79, 0.64, 0.45),
 		"parts": [
 			{"shape": "box", "size": Vector3(0.46, 0.50, 0.40), "pos": Vector3(0, 0.33, 0), "mat": "tint"},
@@ -142,9 +216,8 @@ func _build() -> void:
 		],
 	})
 	_add({
-		"id": "dresser",
-		"name": "Dresser",
-		"category": "Bedroom",
+		"id": "dresser", "name": "Dresser", "category": "Bedroom",
+		"price": 340, "level": 2,
 		"tint": Color(0.62, 0.58, 0.50),
 		"parts": [
 			{"shape": "box", "size": Vector3(1.20, 0.85, 0.48), "pos": Vector3(0, 0.50, 0), "mat": "tint"},
@@ -157,16 +230,14 @@ func _build() -> void:
 
 	# ---------------------------------------------------------------- Dining
 	_add({
-		"id": "dining_table",
-		"name": "Dining Table",
-		"category": "Dining",
+		"id": "dining_table", "name": "Dining Table", "category": "Dining",
+		"price": 420, "level": 1,
 		"tint": Color(0.56, 0.38, 0.24),
 		"parts": _table(1.70, 0.95, 0.74, 0.06),
 	})
 	_add({
-		"id": "round_table",
-		"name": "Round Table",
-		"category": "Dining",
+		"id": "round_table", "name": "Round Table", "category": "Dining",
+		"price": 350, "level": 2,
 		"tint": Color(0.79, 0.64, 0.45),
 		"parts": [
 			{"shape": "cyl", "size": Vector3(0.60, 0.06, 0.60), "pos": Vector3(0, 0.75, 0), "mat": "tint"},
@@ -175,9 +246,8 @@ func _build() -> void:
 		],
 	})
 	_add({
-		"id": "chair",
-		"name": "Chair",
-		"category": "Dining",
+		"id": "chair", "name": "Chair", "category": "Dining",
+		"price": 90, "level": 1,
 		"tint": Color(0.33, 0.21, 0.13),
 		"parts": [
 			{"shape": "box", "size": Vector3(0.44, 0.05, 0.44), "pos": Vector3(0, 0.44, 0), "mat": "tint"},
@@ -189,9 +259,8 @@ func _build() -> void:
 		],
 	})
 	_add({
-		"id": "bar_stool",
-		"name": "Bar Stool",
-		"category": "Dining",
+		"id": "bar_stool", "name": "Bar Stool", "category": "Dining",
+		"price": 110, "level": 3,
 		"tint": Color(0.16, 0.17, 0.2),
 		"parts": [
 			{"shape": "cyl", "size": Vector3(0.19, 0.07, 0.19), "pos": Vector3(0, 0.72, 0), "mat": "tint"},
@@ -201,11 +270,159 @@ func _build() -> void:
 		],
 	})
 
+	# --------------------------------------------------------------- Kitchen
+	_add({
+		"id": "counter", "name": "Counter", "category": "Kitchen",
+		"price": 380, "level": 1,
+		"tint": Color(0.93, 0.93, 0.9),
+		"parts": [
+			{"shape": "box", "size": Vector3(1.20, 0.82, 0.62), "pos": Vector3(0, 0.45, 0), "mat": "tint"},
+			{"shape": "box", "size": Vector3(1.24, 0.05, 0.66), "pos": Vector3(0, 0.885, 0), "mat": "dark"},
+			{"shape": "box", "size": Vector3(0.56, 0.74, 0.02), "pos": Vector3(-0.30, 0.45, 0.315), "mat": "wood_light"},
+			{"shape": "box", "size": Vector3(0.56, 0.74, 0.02), "pos": Vector3(0.30, 0.45, 0.315), "mat": "wood_light"},
+			{"shape": "box", "size": Vector3(1.20, 0.08, 0.58), "pos": Vector3(0, 0.04, 0), "mat": "dark"},
+		],
+	})
+	_add({
+		"id": "fridge", "name": "Refrigerator", "category": "Kitchen",
+		"price": 700, "level": 2,
+		"tint": Color(0.85, 0.86, 0.88),
+		"parts": [
+			{"shape": "box", "size": Vector3(0.72, 1.82, 0.70), "pos": Vector3(0, 0.91, 0), "mat": "tint"},
+			{"shape": "box", "size": Vector3(0.70, 1.14, 0.02), "pos": Vector3(0, 1.23, 0.355), "mat": "steel"},
+			{"shape": "box", "size": Vector3(0.70, 0.60, 0.02), "pos": Vector3(0, 0.32, 0.355), "mat": "steel"},
+			{"shape": "box", "size": Vector3(0.04, 0.60, 0.05), "pos": Vector3(0.28, 1.10, 0.39), "mat": "metal"},
+			{"shape": "box", "size": Vector3(0.04, 0.34, 0.05), "pos": Vector3(0.28, 0.42, 0.39), "mat": "metal"},
+		],
+	})
+	_add({
+		"id": "stove", "name": "Stove", "category": "Kitchen",
+		"price": 540, "level": 3,
+		"tint": Color(0.16, 0.17, 0.2),
+		"parts": [
+			{"shape": "box", "size": Vector3(0.60, 0.86, 0.62), "pos": Vector3(0, 0.47, 0), "mat": "tint"},
+			{"shape": "box", "size": Vector3(0.62, 0.03, 0.64), "pos": Vector3(0, 0.905, 0), "mat": "dark"},
+			{"shape": "cyl", "size": Vector3(0.09, 0.01, 0.09), "pos": Vector3(-0.14, 0.923, -0.14), "mat": "steel"},
+			{"shape": "cyl", "size": Vector3(0.09, 0.01, 0.09), "pos": Vector3(0.14, 0.923, -0.14), "mat": "steel"},
+			{"shape": "cyl", "size": Vector3(0.09, 0.01, 0.09), "pos": Vector3(-0.14, 0.923, 0.14), "mat": "steel"},
+			{"shape": "cyl", "size": Vector3(0.09, 0.01, 0.09), "pos": Vector3(0.14, 0.923, 0.14), "mat": "steel"},
+			{"shape": "box", "size": Vector3(0.48, 0.40, 0.02), "pos": Vector3(0, 0.42, 0.315), "mat": "glass"},
+			{"shape": "box", "size": Vector3(0.44, 0.04, 0.05), "pos": Vector3(0, 0.68, 0.34), "mat": "metal"},
+			{"shape": "box", "size": Vector3(0.60, 0.08, 0.58), "pos": Vector3(0, 0.04, 0), "mat": "dark"},
+		],
+	})
+	_add({
+		"id": "sink_unit", "name": "Sink Unit", "category": "Kitchen",
+		"price": 430, "level": 2,
+		"tint": Color(0.93, 0.93, 0.9),
+		"parts": [
+			{"shape": "box", "size": Vector3(0.90, 0.82, 0.62), "pos": Vector3(0, 0.45, 0), "mat": "tint"},
+			{"shape": "box", "size": Vector3(0.94, 0.05, 0.66), "pos": Vector3(0, 0.885, 0), "mat": "dark"},
+			{"shape": "box", "size": Vector3(0.46, 0.03, 0.36), "pos": Vector3(-0.14, 0.90, 0), "mat": "steel"},
+			{"shape": "cyl", "size": Vector3(0.02, 0.26, 0.02), "pos": Vector3(-0.14, 1.03, -0.20), "mat": "steel"},
+			{"shape": "box", "size": Vector3(0.02, 0.02, 0.18), "pos": Vector3(-0.14, 1.15, -0.12), "mat": "steel"},
+			{"shape": "box", "size": Vector3(0.90, 0.08, 0.58), "pos": Vector3(0, 0.04, 0), "mat": "dark"},
+		],
+	})
+
+	# -------------------------------------------------------------- Bathroom
+	_add({
+		"id": "toilet", "name": "Toilet", "category": "Bathroom",
+		"price": 280, "level": 1,
+		"tint": Color(0.97, 0.97, 0.96),
+		"parts": [
+			{"shape": "box", "size": Vector3(0.40, 0.58, 0.20), "pos": Vector3(0, 0.34, -0.24), "mat": "tint"},
+			{"shape": "box", "size": Vector3(0.42, 0.04, 0.22), "pos": Vector3(0, 0.65, -0.24), "mat": "tint"},
+			{"shape": "cyl", "size": Vector3(0.03, 0.02, 0.03), "pos": Vector3(0, 0.675, -0.24), "mat": "metal"},
+			{"shape": "box", "size": Vector3(0.20, 0.24, 0.26), "pos": Vector3(0, 0.12, 0.02), "mat": "tint"},
+			{"shape": "cyl", "size": Vector3(0.19, 0.22, 0.15), "pos": Vector3(0, 0.33, 0.10), "mat": "tint"},
+			{"shape": "cyl", "size": Vector3(0.20, 0.04, 0.20), "pos": Vector3(0, 0.45, 0.10), "mat": "porcelain"},
+			{"shape": "cyl", "size": Vector3(0.20, 0.03, 0.20), "pos": Vector3(0, 0.49, 0.10), "mat": "dark"},
+		],
+	})
+	_add({
+		"id": "basin", "name": "Basin", "category": "Bathroom",
+		"price": 220, "level": 1,
+		"tint": Color(0.97, 0.97, 0.96),
+		"parts": [
+			{"shape": "cyl", "size": Vector3(0.09, 0.72, 0.14), "pos": Vector3(0, 0.36, 0), "mat": "tint"},
+			{"shape": "box", "size": Vector3(0.56, 0.14, 0.42), "pos": Vector3(0, 0.79, 0), "mat": "tint"},
+			{"shape": "box", "size": Vector3(0.40, 0.05, 0.28), "pos": Vector3(0, 0.865, 0.03), "mat": "porcelain"},
+			{"shape": "cyl", "size": Vector3(0.02, 0.16, 0.025), "pos": Vector3(0, 0.94, -0.15), "mat": "metal"},
+			{"shape": "box", "size": Vector3(0.03, 0.03, 0.13), "pos": Vector3(0, 1.01, -0.10), "mat": "metal"},
+		],
+	})
+	_add({
+		"id": "bathtub", "name": "Bathtub", "category": "Bathroom",
+		"price": 780, "level": 3,
+		"tint": Color(0.97, 0.97, 0.96),
+		"parts": [
+			{"shape": "box", "size": Vector3(1.70, 0.52, 0.76), "pos": Vector3(0, 0.26, 0), "mat": "tint"},
+			{"shape": "box", "size": Vector3(1.56, 0.06, 0.62), "pos": Vector3(0, 0.50, 0), "mat": "porcelain"},
+			{"shape": "box", "size": Vector3(1.50, 0.10, 0.56), "pos": Vector3(0, 0.44, 0), "mat": "glass"},
+			{"shape": "cyl", "size": Vector3(0.02, 0.20, 0.025), "pos": Vector3(-0.78, 0.62, 0), "mat": "metal"},
+			{"shape": "box", "size": Vector3(0.14, 0.03, 0.03), "pos": Vector3(-0.71, 0.71, 0), "mat": "metal"},
+		],
+	})
+	_add({
+		"id": "shower", "name": "Shower", "category": "Bathroom",
+		"price": 620, "level": 2,
+		"tint": Color(0.85, 0.86, 0.88),
+		"parts": [
+			{"shape": "box", "size": Vector3(0.92, 0.12, 0.92), "pos": Vector3(0, 0.06, 0), "mat": "porcelain"},
+			{"shape": "box", "size": Vector3(0.92, 1.98, 0.05), "pos": Vector3(0, 1.11, -0.44), "mat": "tint"},
+			{"shape": "box", "size": Vector3(0.05, 1.98, 0.92), "pos": Vector3(-0.44, 1.11, 0), "mat": "tint"},
+			{"shape": "box", "size": Vector3(0.86, 1.90, 0.03), "pos": Vector3(0, 1.09, 0.44), "mat": "glass"},
+			{"shape": "box", "size": Vector3(0.03, 1.90, 0.86), "pos": Vector3(0.44, 1.09, 0), "mat": "glass"},
+			{"shape": "box", "size": Vector3(0.04, 0.04, 0.26), "pos": Vector3(0, 1.94, -0.30), "mat": "metal"},
+			{"shape": "cyl", "size": Vector3(0.10, 0.03, 0.10), "pos": Vector3(0, 1.90, -0.18), "mat": "metal"},
+		],
+	})
+	_add({
+		"id": "washing_machine", "name": "Washing Machine", "category": "Bathroom",
+		"price": 560, "level": 3,
+		"tint": Color(0.93, 0.93, 0.9),
+		"parts": [
+			{"shape": "box", "size": Vector3(0.60, 0.86, 0.62), "pos": Vector3(0, 0.43, 0), "mat": "tint"},
+			{"shape": "box", "size": Vector3(0.52, 0.10, 0.02), "pos": Vector3(0, 0.76, 0.315), "mat": "dark"},
+			{"shape": "cyl", "size": Vector3(0.20, 0.04, 0.20), "pos": Vector3(0, 0.40, 0.315), "mat": "steel", "rot": Vector3(90, 0, 0)},
+			{"shape": "cyl", "size": Vector3(0.15, 0.03, 0.15), "pos": Vector3(0, 0.40, 0.33), "mat": "glass", "rot": Vector3(90, 0, 0)},
+			{"shape": "cyl", "size": Vector3(0.03, 0.03, 0.03), "pos": Vector3(0.22, 0.76, 0.33), "mat": "metal", "rot": Vector3(90, 0, 0)},
+		],
+	})
+	_add({
+		"id": "vanity_unit", "name": "Vanity Unit", "category": "Bathroom",
+		"price": 340, "level": 2,
+		"tint": Color(0.62, 0.58, 0.50),
+		"parts": [
+			{"shape": "box", "size": Vector3(0.78, 0.62, 0.42), "pos": Vector3(0, 0.35, 0), "mat": "tint"},
+			{"shape": "box", "size": Vector3(0.82, 0.06, 0.46), "pos": Vector3(0, 0.69, 0), "mat": "porcelain"},
+			{"shape": "box", "size": Vector3(0.44, 0.05, 0.30), "pos": Vector3(0, 0.735, 0.02), "mat": "porcelain"},
+			{"shape": "cyl", "size": Vector3(0.02, 0.16, 0.025), "pos": Vector3(0, 0.80, -0.16), "mat": "metal"},
+			{"shape": "box", "size": Vector3(0.72, 1.10, 0.04), "pos": Vector3(0, 1.28, -0.19), "mat": "tint"},
+			{"shape": "box", "size": Vector3(0.60, 0.86, 0.02), "pos": Vector3(0, 1.30, -0.16), "mat": "mirror"},
+			{"shape": "box", "size": Vector3(0.36, 0.02, 0.02), "pos": Vector3(0, 0.42, 0.215), "mat": "metal"},
+		],
+	})
+	_add({
+		"id": "towel_rail", "name": "Towel Rail", "category": "Bathroom",
+		"price": 70, "level": 1,
+		"tint": Color(0.85, 0.86, 0.88),
+		"parts": [
+			{"shape": "box", "size": Vector3(0.46, 0.03, 0.30), "pos": Vector3(0, 0.015, 0), "mat": "metal"},
+			{"shape": "cyl", "size": Vector3(0.02, 0.92, 0.02), "pos": Vector3(-0.22, 0.46, 0), "mat": "tint"},
+			{"shape": "cyl", "size": Vector3(0.02, 0.92, 0.02), "pos": Vector3(0.22, 0.46, 0), "mat": "tint"},
+			{"shape": "box", "size": Vector3(0.46, 0.03, 0.03), "pos": Vector3(0, 0.90, 0), "mat": "tint"},
+			{"shape": "box", "size": Vector3(0.46, 0.03, 0.03), "pos": Vector3(0, 0.60, 0), "mat": "tint"},
+			{"shape": "box", "size": Vector3(0.30, 0.34, 0.05), "pos": Vector3(-0.06, 0.73, 0.03), "mat": "towel"},
+			{"shape": "box", "size": Vector3(0.22, 0.26, 0.05), "pos": Vector3(0.14, 0.48, 0.03), "mat": "towel"},
+		],
+	})
+
 	# --------------------------------------------------------------- Storage
 	_add({
-		"id": "wardrobe",
-		"name": "Wardrobe",
-		"category": "Storage",
+		"id": "wardrobe", "name": "Wardrobe", "category": "Storage",
+		"price": 560, "level": 2,
 		"tint": Color(0.93, 0.93, 0.9),
 		"parts": [
 			{"shape": "box", "size": Vector3(1.25, 2.05, 0.62), "pos": Vector3(0, 1.05, 0), "mat": "tint"},
@@ -217,9 +434,8 @@ func _build() -> void:
 		],
 	})
 	_add({
-		"id": "bookshelf",
-		"name": "Bookshelf",
-		"category": "Storage",
+		"id": "bookshelf", "name": "Bookshelf", "category": "Storage",
+		"price": 290, "level": 1,
 		"tint": Color(0.56, 0.38, 0.24),
 		"parts": [
 			{"shape": "box", "size": Vector3(0.05, 1.85, 0.34), "pos": Vector3(-0.42, 0.93, 0), "mat": "tint"},
@@ -235,9 +451,8 @@ func _build() -> void:
 		],
 	})
 	_add({
-		"id": "desk",
-		"name": "Desk",
-		"category": "Storage",
+		"id": "desk", "name": "Desk", "category": "Storage",
+		"price": 330, "level": 2,
 		"tint": Color(0.93, 0.93, 0.9),
 		"parts": [
 			{"shape": "box", "size": Vector3(1.40, 0.05, 0.68), "pos": Vector3(0, 0.73, 0), "mat": "tint"},
@@ -249,9 +464,8 @@ func _build() -> void:
 		],
 	})
 	_add({
-		"id": "cabinet",
-		"name": "Low Cabinet",
-		"category": "Storage",
+		"id": "cabinet", "name": "Low Cabinet", "category": "Storage",
+		"price": 260, "level": 3,
 		"tint": Color(0.45, 0.38, 0.66),
 		"parts": [
 			{"shape": "box", "size": Vector3(0.90, 0.80, 0.42), "pos": Vector3(0, 0.44, 0), "mat": "tint"},
@@ -261,71 +475,10 @@ func _build() -> void:
 		],
 	})
 
-	# --------------------------------------------------------------- Kitchen
-	_add({
-		"id": "counter",
-		"name": "Counter",
-		"category": "Kitchen",
-		"tint": Color(0.93, 0.93, 0.9),
-		"parts": [
-			{"shape": "box", "size": Vector3(1.20, 0.82, 0.62), "pos": Vector3(0, 0.45, 0), "mat": "tint"},
-			{"shape": "box", "size": Vector3(1.24, 0.05, 0.66), "pos": Vector3(0, 0.885, 0), "mat": "dark"},
-			{"shape": "box", "size": Vector3(0.56, 0.74, 0.02), "pos": Vector3(-0.30, 0.45, 0.315), "mat": "wood_light"},
-			{"shape": "box", "size": Vector3(0.56, 0.74, 0.02), "pos": Vector3(0.30, 0.45, 0.315), "mat": "wood_light"},
-			{"shape": "box", "size": Vector3(1.20, 0.08, 0.58), "pos": Vector3(0, 0.04, 0), "mat": "dark"},
-		],
-	})
-	_add({
-		"id": "fridge",
-		"name": "Refrigerator",
-		"category": "Kitchen",
-		"tint": Color(0.85, 0.86, 0.88),
-		"parts": [
-			{"shape": "box", "size": Vector3(0.72, 1.82, 0.70), "pos": Vector3(0, 0.91, 0), "mat": "tint"},
-			{"shape": "box", "size": Vector3(0.70, 1.14, 0.02), "pos": Vector3(0, 1.23, 0.355), "mat": "steel"},
-			{"shape": "box", "size": Vector3(0.70, 0.60, 0.02), "pos": Vector3(0, 0.32, 0.355), "mat": "steel"},
-			{"shape": "box", "size": Vector3(0.04, 0.60, 0.05), "pos": Vector3(0.28, 1.10, 0.39), "mat": "metal"},
-			{"shape": "box", "size": Vector3(0.04, 0.34, 0.05), "pos": Vector3(0.28, 0.42, 0.39), "mat": "metal"},
-		],
-	})
-	_add({
-		"id": "stove",
-		"name": "Stove",
-		"category": "Kitchen",
-		"tint": Color(0.16, 0.17, 0.2),
-		"parts": [
-			{"shape": "box", "size": Vector3(0.60, 0.86, 0.62), "pos": Vector3(0, 0.47, 0), "mat": "tint"},
-			{"shape": "box", "size": Vector3(0.62, 0.03, 0.64), "pos": Vector3(0, 0.905, 0), "mat": "dark"},
-			{"shape": "cyl", "size": Vector3(0.09, 0.01, 0.09), "pos": Vector3(-0.14, 0.923, -0.14), "mat": "steel"},
-			{"shape": "cyl", "size": Vector3(0.09, 0.01, 0.09), "pos": Vector3(0.14, 0.923, -0.14), "mat": "steel"},
-			{"shape": "cyl", "size": Vector3(0.09, 0.01, 0.09), "pos": Vector3(-0.14, 0.923, 0.14), "mat": "steel"},
-			{"shape": "cyl", "size": Vector3(0.09, 0.01, 0.09), "pos": Vector3(0.14, 0.923, 0.14), "mat": "steel"},
-			{"shape": "box", "size": Vector3(0.48, 0.40, 0.02), "pos": Vector3(0, 0.42, 0.315), "mat": "glass"},
-			{"shape": "box", "size": Vector3(0.04, 0.44, 0.05), "pos": Vector3(0, 0.68, 0.34), "mat": "metal"},
-			{"shape": "box", "size": Vector3(0.04, 0.44, 0.05), "pos": Vector3(0, 0.68, 0.34), "mat": "metal", "rot": Vector3(0, 0, 90)},
-			{"shape": "box", "size": Vector3(0.60, 0.08, 0.58), "pos": Vector3(0, 0.04, 0), "mat": "dark"},
-		],
-	})
-	_add({
-		"id": "sink_unit",
-		"name": "Sink Unit",
-		"category": "Kitchen",
-		"tint": Color(0.93, 0.93, 0.9),
-		"parts": [
-			{"shape": "box", "size": Vector3(0.90, 0.82, 0.62), "pos": Vector3(0, 0.45, 0), "mat": "tint"},
-			{"shape": "box", "size": Vector3(0.94, 0.05, 0.66), "pos": Vector3(0, 0.885, 0), "mat": "dark"},
-			{"shape": "box", "size": Vector3(0.46, 0.03, 0.36), "pos": Vector3(-0.14, 0.90, 0), "mat": "steel"},
-			{"shape": "cyl", "size": Vector3(0.02, 0.26, 0.02), "pos": Vector3(-0.14, 1.03, -0.20), "mat": "steel"},
-			{"shape": "box", "size": Vector3(0.02, 0.02, 0.18), "pos": Vector3(-0.14, 1.15, -0.12), "mat": "steel"},
-			{"shape": "box", "size": Vector3(0.90, 0.08, 0.58), "pos": Vector3(0, 0.04, 0), "mat": "dark"},
-		],
-	})
-
 	# ----------------------------------------------------------------- Decor
 	_add({
-		"id": "rug",
-		"name": "Rug",
-		"category": "Decor",
+		"id": "rug", "name": "Rug", "category": "Decor",
+		"price": 160, "level": 1,
 		"tint": Color(0.78, 0.32, 0.29),
 		"parts": [
 			{"shape": "box", "size": Vector3(2.20, 0.02, 1.55), "pos": Vector3(0, 0.01, 0), "mat": "tint"},
@@ -334,9 +487,8 @@ func _build() -> void:
 		],
 	})
 	_add({
-		"id": "floor_lamp",
-		"name": "Floor Lamp",
-		"category": "Decor",
+		"id": "floor_lamp", "name": "Floor Lamp", "category": "Decor",
+		"price": 140, "level": 1,
 		"tint": Color(0.90, 0.79, 0.44),
 		"parts": [
 			{"shape": "cyl", "size": Vector3(0.20, 0.03, 0.22), "pos": Vector3(0, 0.015, 0), "mat": "dark"},
@@ -345,9 +497,8 @@ func _build() -> void:
 		],
 	})
 	_add({
-		"id": "plant",
-		"name": "Potted Plant",
-		"category": "Decor",
+		"id": "plant", "name": "Potted Plant", "category": "Decor",
+		"price": 90, "level": 1,
 		"tint": Color(0.62, 0.58, 0.50),
 		"parts": [
 			{"shape": "cyl", "size": Vector3(0.20, 0.34, 0.15), "pos": Vector3(0, 0.17, 0), "mat": "tint"},
@@ -359,9 +510,8 @@ func _build() -> void:
 		],
 	})
 	_add({
-		"id": "side_table",
-		"name": "Side Table",
-		"category": "Decor",
+		"id": "side_table", "name": "Side Table", "category": "Decor",
+		"price": 120, "level": 1,
 		"tint": Color(0.16, 0.17, 0.2),
 		"parts": [
 			{"shape": "cyl", "size": Vector3(0.26, 0.04, 0.26), "pos": Vector3(0, 0.52, 0), "mat": "tint"},
@@ -370,9 +520,8 @@ func _build() -> void:
 		],
 	})
 	_add({
-		"id": "partition",
-		"name": "Partition",
-		"category": "Decor",
+		"id": "partition", "name": "Partition", "category": "Decor",
+		"price": 210, "level": 4,
 		"tint": Color(0.62, 0.58, 0.50),
 		"parts": [
 			{"shape": "box", "size": Vector3(1.40, 1.75, 0.06), "pos": Vector3(0, 0.90, 0), "mat": "tint"},
@@ -465,8 +614,18 @@ func _table(width: float, depth: float, height: float, top: float) -> Array:
 
 func _add(def: Dictionary) -> void:
 	def["extents"] = _measure(def["parts"])
+	def["level"] = def.get("level", 1)
+	def["price"] = def.get("price", 100)
+	def["shop"] = _shop_for_category(def["category"])
 	_items[def["id"]] = def
 	_order.append(def["id"])
+
+
+func _shop_for_category(category: String) -> String:
+	for shop in SHOPS:
+		if shop["category"] == category:
+			return shop["id"]
+	return ""
 
 
 ## Axis-aligned bounds of an item in its own local space, as
@@ -521,8 +680,52 @@ func display_name(id: String) -> String:
 	return _items.get(id, {}).get("name", id)
 
 
+func category_of(id: String) -> String:
+	return str(_items.get(id, {}).get("category", ""))
+
+
+func price(id: String) -> int:
+	return int(_items.get(id, {}).get("price", 0))
+
+
+func unlock_level(id: String) -> int:
+	return int(_items.get(id, {}).get("level", 1))
+
+
+## The level that actually matters: an item cannot be bought before the shop
+## that stocks it has opened, however cheap the item itself is.
+func effective_unlock_level(id: String) -> int:
+	var shop: Dictionary = _shops_by_id.get(shop_of(id), {})
+	return maxi(unlock_level(id), int(shop.get("level", 1)))
+
+
+func shop_of(id: String) -> String:
+	return str(_items.get(id, {}).get("shop", ""))
+
+
 func default_tint(id: String) -> Color:
 	return _items.get(id, {}).get("tint", Color.WHITE)
+
+
+func get_shop(shop_id: String) -> Dictionary:
+	return _shops_by_id.get(shop_id, {})
+
+
+func shop_name(shop_id: String) -> String:
+	return str(_shops_by_id.get(shop_id, {}).get("name", shop_id))
+
+
+## Everything a shop sells, in catalog order.
+func shop_stock(shop_id: String) -> Array[String]:
+	var shop: Dictionary = _shops_by_id.get(shop_id, {})
+	if shop.is_empty() or shop["category"] == "":
+		return []
+	return ids_in(shop["category"])
+
+
+func paint_cost(surface: String, area: float) -> int:
+	var rate: int = FLOOR_PAINT_RATE if surface == "floor" else WALL_PAINT_RATE
+	return int(ceil(area * float(rate)))
 
 
 ## Footprint (width, depth) on the floor, in metres.
