@@ -15,8 +15,9 @@ extends Node
 ##   {"type": "no_overlap"}
 ## Any requirement may carry a "label" to override the generated wording.
 
-## Paid on top of the fee when the final bill lands inside the client's budget.
-const ON_BUDGET_BONUS := 0.25
+## Most that can be paid on top of the fee, earned by a three-star room.
+## See RoomReview for what the client is actually judging.
+const MAX_BONUS := 0.30
 
 const HOUSES: Array[Dictionary] = [
 	{
@@ -239,6 +240,54 @@ const HOUSES: Array[Dictionary] = [
 	},
 ]
 
+# ------------------------------------------------------- generated contracts
+
+## Rooms a returning client might ask for. `core` is what the room is really
+## about; the generator picks two or three of them plus some filler.
+const THEMES: Array[Dictionary] = [
+	{
+		"name": "living room", "level": 1,
+		"core": ["sofa", "loveseat", "armchair", "coffee_table", "tv_stand"],
+		"filler": "Decor",
+		"brief": "The room we actually live in. Somewhere to sit, somewhere to put a cup down, and it should not echo.",
+	},
+	{
+		"name": "bedroom", "level": 1,
+		"core": ["bed_single", "bed_double", "nightstand", "wardrobe", "dresser"],
+		"filler": "Decor",
+		"brief": "A room to sleep in and nothing else. Somewhere for the clothes, a lamp within reach, and no clutter.",
+	},
+	{
+		"name": "study", "level": 1,
+		"core": ["desk", "bookshelf", "chair", "cabinet", "armchair"],
+		"filler": "Decor",
+		"brief": "I work from home now. Somewhere to put the books, somewhere to sit that is not the bed.",
+	},
+	{
+		"name": "dining room", "level": 1,
+		"core": ["dining_table", "round_table", "chair", "cabinet"],
+		"filler": "Decor",
+		"brief": "We eat together every night and the current arrangement is not helping.",
+	},
+	{
+		"name": "kitchen", "level": 2,
+		"core": ["counter", "fridge", "sink_unit", "stove"],
+		"filler": "Decor",
+		"brief": "It has to work before it looks good. Counters, cold storage, somewhere to wash up.",
+	},
+	{
+		"name": "bathroom", "level": 2,
+		"core": ["toilet", "basin", "shower", "bathtub", "vanity_unit", "towel_rail"],
+		"filler": "Bathroom",
+		"brief": "Everything a bathroom needs, fitted properly, with somewhere to put a towel.",
+	},
+]
+
+const CLIENTS: Array[String] = [
+	"Deniz", "Cem", "Ece", "Mert", "Sude", "Arda", "Bahar", "Kaan", "İpek",
+	"Tolga", "Yasemin", "Berk", "Elif", "Sinan", "Pelin", "Umut",
+]
+
 var _by_id: Dictionary = {}
 
 
@@ -251,15 +300,100 @@ func all() -> Array[Dictionary]:
 	return HOUSES
 
 
+## The brief currently attached to a house: the generated one if the player
+## took a repeat contract there, otherwise the handcrafted original.
 func get_job(house_id: String) -> Dictionary:
-	return _by_id.get(house_id, {})
+	var base: Dictionary = _by_id.get(house_id, {})
+	if base.is_empty():
+		return {}
+	var contract: Dictionary = Game.active_contracts.get(house_id, {})
+	if contract.is_empty():
+		return base
+	# The house itself never changes — only what is being asked for inside it.
+	var merged := base.duplicate(true)
+	for key: String in contract:
+		merged[key] = contract[key]
+	return merged
 
 
-func bonus_for(house_id: String) -> int:
+func has_repeat_contract(house_id: String) -> bool:
+	return Game.active_contracts.has(house_id)
+
+
+## Invents a fresh brief for a house that has already been handed over. Only
+## JSON-safe values go in, because this is saved with the profile.
+func generate_contract(house_id: String, level: int) -> Dictionary:
+	var base: Dictionary = _by_id.get(house_id, {})
+	if base.is_empty():
+		return {}
+
+	var random := RandomNumberGenerator.new()
+	random.seed = hash("%s/%d/%d" % [house_id, level, Game.repeat_count(house_id)])
+
+	# Pick a theme the player has the shops for.
+	var choices: Array[Dictionary] = []
+	for theme: Dictionary in THEMES:
+		if level >= int(theme["level"]):
+			choices.append(theme)
+	var theme: Dictionary = choices[random.randi() % choices.size()]
+
+	# Two or three of the theme's core pieces, whichever the player can buy.
+	var available: Array[String] = []
+	for id: String in theme["core"]:
+		if level >= Catalog.effective_unlock_level(id):
+			available.append(id)
+	available.shuffle()
+	var wanted: int = clampi(2 + level / 3, 2, mini(4, available.size()))
+
+	var requirements: Array = []
+	var outlay := 0
+	for i in mini(wanted, available.size()):
+		var id: String = available[i]
+		var count: int = 1
+		if id == "chair":
+			count = 2 + random.randi() % 3
+		elif id == "counter" or id == "nightstand":
+			count = 1 + random.randi() % 2
+		requirements.append({"type": "item", "id": id, "count": count})
+		outlay += Catalog.price(id) * count
+
+	var room: Dictionary = base["room"]
+	var total: int = clampi(int(float(room["w"]) * float(room["d"]) / 2.4), 5, 22)
+	requirements.append({"type": "total", "count": total})
+	requirements.append({"type": "no_overlap"})
+	# Filler to reach the piece count, priced in so the budget is fair.
+	var filler_price := _cheapest_price_in(str(theme["filler"]))
+	outlay += maxi(total - requirements.size(), 0) * filler_price
+
+	var budget: int = int(round(float(outlay) * 1.30 / 50.0)) * 50
+	var payout: int = int(round(float(budget) * 1.55 / 50.0)) * 50
+	var repeats := Game.repeat_count(house_id)
+
+	return {
+		"client": CLIENTS[random.randi() % CLIENTS.size()],
+		"level": maxi(int(base["level"]), 1),
+		"brief": str(theme["brief"]),
+		"theme": str(theme["name"]),
+		"budget": budget,
+		"payout": payout,
+		"xp": 70 + level * 35,
+		"requirements": requirements,
+		"repeat": repeats + 1,
+	}
+
+
+func _cheapest_price_in(category: String) -> int:
+	var best := 999999
+	for id in Catalog.ids_in(category):
+		best = mini(best, Catalog.price(id))
+	return best if best < 999999 else 100
+
+
+func max_bonus_for(house_id: String) -> int:
 	var job := get_job(house_id)
 	if job.is_empty():
 		return 0
-	return int(round(float(job["payout"]) * ON_BUDGET_BONUS))
+	return int(round(float(job["payout"]) * MAX_BONUS))
 
 
 ## An estimate of what the required pieces alone will cost, shown in the brief
@@ -442,8 +576,9 @@ func _check(req: Dictionary, context: Dictionary) -> Dictionary:
 				if entry["id"] == wanted:
 					have += 1
 			met = have >= need
-			label = "Fit a %s" % Catalog.display_name(wanted) if need == 1 \
-				else "Fit %d × %s" % [need, Catalog.display_name(wanted)]
+			var piece := Catalog.display_name(wanted)
+			label = "Fit %s %s" % [_article(piece), piece] if need == 1 \
+				else "Fit %d × %s" % [need, piece]
 
 		"category":
 			var category: String = str(req["category"])
@@ -501,6 +636,10 @@ func _check(req: Dictionary, context: Dictionary) -> Dictionary:
 		"need": need,
 		"type": kind,
 	}
+
+
+static func _article(word: String) -> String:
+	return "an" if word.length() > 0 and "AEIOUaeiou".contains(word[0]) else "a"
 
 
 ## True when `color` matches one of the named paints from the Colour House.

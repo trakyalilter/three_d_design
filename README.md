@@ -16,9 +16,9 @@ houses. It is House Flipper's loop, shrunk to a phone screen.
 
 | Your stock | Fitting the room out |
 |---|---|
-| ![The warehouse listing everything owned](docs/screenshot-stock.png) | ![The designer tray showing stock counts instead of prices](docs/screenshot-job.png) |
+| ![The warehouse listing everything owned](docs/screenshot-stock.png) | ![A finished reading room with the bookshelves against the walls](docs/screenshot-job.png) |
 
-![The hand-over screen showing fee, bonus and the furniture left behind](docs/screenshot-handover.png)
+![The hand-over screen: a star rating, what the client noticed, and what it paid](docs/screenshot-stars.png)
 
 ## Getting the app
 
@@ -75,30 +75,55 @@ paint the brief calls for.
 
 Take the job and you land in the room with the brief checklist on the right; it re-ticks
 itself live as you work. The tray shows how many of each piece you have left rather than a
-price. Once every line is ticked, **Hand over** collects the fee, plus a bonus of a quarter
-of the fee if the furniture you left behind came in under the client's budget.
+price. Once every line is ticked, **Hand over** collects the fee — and the client's verdict.
+
+### The verdict
+
+The brief only says what has to be *in* the room. The stars say whether it is any good.
+Five things a person notices walking in, each either satisfied or not:
+
+| | |
+|---|---|
+| Nothing overlaps | No piece is jammed into another |
+| The big pieces sit against the walls | Sofas, beds, wardrobes and the like belong at the edges — at least 70 % of them |
+| The colours hang together | Four distinct tints across the room, at most |
+| There is room to move | Furniture covers between 12 % and 55 % of the floor |
+| Came in on budget | What you left behind cost no more than the client allowed |
+
+Five out of five is three stars and a 30 % bonus on the fee; three or four is two stars and
+15 %; below that, one star and no bonus. Stars scale the experience too. Following the
+checklist gets you paid — arranging the room properly is what earns the third star.
 
 | Gesture | Result |
 |---|---|
 | Tap an item in the tray | Takes one out of stock and drops it into the room |
 | Tap a piece of furniture | Selects it |
 | Drag a selected piece | Slides it along the floor, kept inside the walls |
+| Drag it near a wall | Sits flush against the wall and squares up to it |
+| Drag a lamp or TV over a table | Lands on top of it |
+| Twist two fingers over a selection | Turns it; spreading them resizes it |
 | Drag empty space | Orbits the camera |
 | Pinch | Zooms |
 | Two-finger drag | Pans across the floor |
+| Double tap | Brings the camera to what you tapped |
 | Back button | Closes the dialog, then clears the selection, then leaves |
 
-The bar under a selection rotates in 15° steps, flips 180°, scales between 50 % and 200 %,
-recolours, duplicates and puts back. **Top View** switches to a plan view and drops the walls;
-**Snap** toggles the 25 cm grid. Walls between you and the room hide themselves as you
-orbit, and a piece that overlaps another glows red — most briefs ask for a clean room.
+**Undo** and **Redo** on the left go back through everything and move furniture between the
+room and your stock as they go. The bar under a selection rotates in 15° steps, flips 180°,
+scales between 50 % and 200 %, recolours, duplicates and puts back. **Top View** switches to
+a plan view and drops the walls; **Snap** toggles the 25 cm grid. Walls between you and the
+room hide themselves as you orbit, and a piece that overlaps another glows red.
 
 ### Progress
 
 Experience carries you from level 1 to level 8. Jobs run from a $1,300 studio to a
 $10,500 townhouse, and a run that buys only what each brief asks for finishes all ten with
-around $33,000 in the bank at level 6. Everything — money, level, stock, paints, finished
-jobs and the rooms you left half-done — is saved to the device as you go.
+around $29,000 in the bank. Everything — money, level, stock, paints, finished jobs and the
+rooms you left half-done — is saved to the device as you go.
+
+The map does not run out. Open a house you have already handed over and the owner has a
+fresh room in mind — a kitchen, a study, a bathroom — generated to suit the level you have
+reached, with its own client, brief, budget and fee.
 
 **Free Build** on the map opens the old sandbox: no client, no stock to worry about,
 everything unlocked, with its own save and load.
@@ -107,7 +132,7 @@ everything unlocked, with its own save and load.
 
 ## The catalogue
 
-32 pieces across seven shops, all built from primitives at runtime:
+33 pieces across seven shops, all built from primitives at runtime:
 
 | Shop | Opens | Stock |
 |---|---|---|
@@ -115,7 +140,7 @@ everything unlocked, with its own save and load.
 | Dream Beds | 1 | Double bed, single bed, nightstand, dresser |
 | Table Talk | 1 | Dining table, round table, chair, bar stool |
 | Box & Shelf | 1 | Wardrobe, bookshelf, desk, low cabinet |
-| Little Details | 1 | Rug, floor lamp, potted plant, side table, partition |
+| Little Details | 1 | Rug, floor lamp, table lamp, potted plant, side table, partition |
 | Kitchen Works | 2 | Counter, refrigerator, stove, sink unit |
 | Splash & Tile | 2 | Toilet, basin, bathtub, shower, washing machine, vanity unit, towel rail |
 | Colour House | 1 | Eight floor paints and eight wall paints, $160–$540 each |
@@ -128,19 +153,26 @@ scripts/
   game.gd                Swaps between the city and the designer
   data/
     catalog.gd           Autoload. Every model, price, shop and unlock level
-    jobs.gd              Autoload. The ten houses, the requirement evaluator and
-                         the shopping list a brief still needs
+    jobs.gd              Autoload. The ten houses, the requirement evaluator,
+                         the shopping list a brief needs, and the generator
+                         for repeat contracts
     game_state.gd        Autoload. Money, XP, levels, the warehouse and the
                          saved profile
+    room_review.gd       The five things a client notices, scored out of three
     layout_store.gd      Free-build save files under user://
   city/
     city_view.gd         The procedural neighbourhood, its pins and pick volumes
+    scenery_batch.gd     Welds the whole city into three draw calls
     city_ui.gd           Wallet, XP bar, briefing sheet, shop counters, stock
   design/
-    designer.gd          The room: gestures, stock, overlap tests, hand-over
+    designer.gd          The room: gestures, stock, wall snap, stacking,
+                         overlap tests, hand-over
+    design_history.gd    Undo and redo, by snapshot
     design_ui.gd         Tray, brief checklist, dialogs
   world/
-    furniture_item.gd    A placed piece: meshes, pick body, footprint maths
+    furniture_item.gd    A placed piece: one merged mesh, pick body, footprints
+    mesh_builder.gd      Welds a part list into one shared mesh per item type
+    proc_textures.gd     Floorboards, plaster and contact shadows, generated
     room.gd              Floor, walls, skirting, grid; wall auto-hide
     camera_rig.gd        Damped orbit camera, shared by both screens
     selection_marker.gd  Floor highlight under the selection
@@ -165,7 +197,15 @@ _add({
 
 Parts marked `"mat": "tint"` follow the colour the player picks; the other roles
 (`wood`, `metal`, `porcelain`, `glass`, …) are fixed. Footprints, heights and pick volumes
-are all derived from the parts, so nothing needs measuring by hand.
+are all derived from the parts, so nothing needs measuring by hand. A few optional flags
+change how a piece behaves: `"surface": 0.74` lets things be put on top of it,
+`"stackable": true` marks a piece that belongs on a table, and `"against_wall": true` tells
+the reviewer it should be at the edge of the room.
+
+At load time each part list is welded into a single mesh with one surface per material and
+shared between every copy in the room, so a piece costs one node rather than fifteen. The
+city does the same trick with vertex colours and draws the entire neighbourhood — roads,
+houses, shopfronts, trees, cars — in three calls.
 
 A job is a dictionary too. Requirements are declarative and checked against the room as it
 stands, so a new contract is a few lines:

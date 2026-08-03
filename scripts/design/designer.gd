@@ -29,6 +29,8 @@ var items_root: Node3D
 var selected: FurnitureItem = null
 var snap_enabled := true
 
+var _history := DesignHistory.new()
+
 var _touches: Dictionary = {}
 var _touch_origins: Dictionary = {}
 var _gesture: int = Gesture.NONE
@@ -36,6 +38,12 @@ var _drag_offset := Vector3.ZERO
 var _drag_moved := false
 var _pinch_distance := 0.0
 var _pinch_midpoint := Vector2.ZERO
+var _pinch_angle := 0.0
+## True when a two-finger gesture started over the selected piece, in which
+## case it turns and resizes that piece instead of moving the camera.
+var _pinch_on_item := false
+var _last_tap_time := 0.0
+var _last_tap_position := Vector2.ZERO
 var _floor_color: Color = Catalog.PAINT["floor"][0]["color"]
 var _wall_color: Color = Catalog.PAINT["wall"][0]["color"]
 
@@ -76,8 +84,10 @@ func _ready() -> void:
 	ui.configure(job)
 
 	_start_room()
+	_history.reset(_serialize())
 	_refresh_stats()
 	_evaluate()
+	_sync_history_buttons()
 
 	if job_mode():
 		ui.toast("%s — tap Brief to see what %s wants" % [job["name"], job["client"]], 4.0)
@@ -214,16 +224,44 @@ func _handle_touch(event: InputEventScreenTouch) -> void:
 		_touch_origins.erase(event.index)
 
 		if _touches.is_empty():
-			if was_orbit and was_tap:
-				_select(null)
-			if _gesture == Gesture.ITEM and _drag_moved:
-				_persist()
+			if was_tap:
+				_handle_tap(event.position, was_orbit)
+			if _drag_moved and (_gesture == Gesture.ITEM or _pinch_on_item):
+				# One history entry per gesture, not per frame of it.
+				_after_change()
 			_gesture = Gesture.NONE
 			_drag_moved = false
+			_pinch_on_item = false
 		elif _gesture == Gesture.PINCH and _touches.size() < 2:
 			# Keep the remaining finger inert until it is lifted, so the camera
 			# does not snap when one finger leaves a pinch.
 			_gesture = Gesture.NONE
+
+
+## A tap on empty space clears the selection; a double tap anywhere brings the
+## camera round to what was tapped.
+func _handle_tap(position: Vector2, on_empty_space: bool) -> void:
+	var now := Time.get_ticks_msec() / 1000.0
+	var double_tap: bool = (now - _last_tap_time) < 0.35 \
+		and _last_tap_position.distance_to(position) < 48.0
+	_last_tap_time = now
+	_last_tap_position = position
+
+	if double_tap:
+		var hit := _pick_item(position)
+		var focus := Vector3(hit.footprint_center().x, 0.0, hit.footprint_center().y) \
+			if hit != null else _floor_point(position)
+		rig.focus = Vector3(
+			clampf(focus.x, -rig.pan_limit.x, rig.pan_limit.x),
+			0.0,
+			clampf(focus.z, -rig.pan_limit.y, rig.pan_limit.y)
+		)
+		rig.distance = clampf(rig.distance * 0.7, rig.min_distance, rig.max_distance)
+		_last_tap_time = 0.0
+		return
+
+	if on_empty_space:
+		_select(null)
 
 
 func _begin_single_touch(position: Vector2) -> void:
@@ -247,6 +285,8 @@ func _begin_pinch() -> void:
 		return
 	_pinch_distance = points[0].distance_to(points[1])
 	_pinch_midpoint = (points[0] + points[1]) * 0.5
+	_pinch_angle = (points[1] - points[0]).angle()
+	_pinch_on_item = selected != null and _pick_item(_pinch_midpoint) == selected
 
 
 func _handle_drag(event: InputEventScreenDrag) -> void:
@@ -270,11 +310,27 @@ func _update_pinch() -> void:
 		return
 	var distance := points[0].distance_to(points[1])
 	var midpoint := (points[0] + points[1]) * 0.5
-	if _pinch_distance > 1.0 and distance > 1.0:
-		rig.zoom(_pinch_distance / distance)
-	rig.pan(midpoint - _pinch_midpoint)
+	var angle := (points[1] - points[0]).angle()
+
+	if _pinch_on_item and selected != null:
+		# Twisting two fingers over a piece turns it; spreading them resizes it.
+		# Screen angles grow clockwise, world yaw grows anticlockwise from above.
+		selected.rotation.y -= angle_difference(_pinch_angle, angle)
+		if _pinch_distance > 1.0 and distance > 1.0:
+			selected.set_item_scale(selected.scale_factor * (distance / _pinch_distance))
+		selected.global_position = _clamp_to_room(selected, selected.global_position)
+		ui.set_selection(selected)
+		_update_overlaps()
+		marker.follow(selected)
+		_drag_moved = true
+	else:
+		if _pinch_distance > 1.0 and distance > 1.0:
+			rig.zoom(_pinch_distance / distance)
+		rig.pan(midpoint - _pinch_midpoint)
+
 	_pinch_distance = distance
 	_pinch_midpoint = midpoint
+	_pinch_angle = angle
 
 
 func _touch_points() -> Array[Vector2]:
@@ -290,15 +346,108 @@ func _drag_selected(position: Vector2) -> void:
 	if selected == null:
 		return
 	var target := _floor_point(position) + _drag_offset
-	target.y = selected.position.y
+	target.y = 0.0
 	if snap_enabled:
 		target.x = snappedf(target.x, GRID_SNAP)
 		target.z = snappedf(target.z, GRID_SNAP)
-	selected.global_position = _clamp_to_room(selected, target)
+	target = _snap_to_walls(selected, target)
+	target = _clamp_to_room(selected, target)
+	# Small pieces ride on whatever they are dropped over.
+	target.y = _support_height(selected, target)
+	selected.global_position = target
+	selected.set_elevated(target.y > 0.05)
 	_drag_moved = true
 	_update_overlaps()
 	marker.follow(selected)
 	_evaluate()
+
+
+## Pulls a piece flush against a wall when it comes close, and turns its back
+## to that wall if it was already roughly facing the right way.
+func _snap_to_walls(item: FurnitureItem, desired: Vector3) -> Vector3:
+	if not snap_enabled:
+		return desired
+
+	const REACH := 0.42
+	var bounds := room.bounds()
+	var room_x: float = bounds.size.x * 0.5
+	var room_z: float = bounds.size.y * 0.5
+	var footprint := item.footprint()
+
+	# Work out which wall is in reach using the rotation the piece has now.
+	var half := _half_extents(footprint, item.rotation.y)
+	var probe := Vector2(desired.x, desired.z) + _center_offset(item, desired)
+	# Yaw that puts the piece's back (its local -Z) against each wall.
+	var near_x := INF
+	var near_z := INF
+	if absf((probe.x - half.x) + room_x) < REACH:
+		near_x = deg_to_rad(90.0)
+	elif absf((probe.x + half.x) - room_x) < REACH:
+		near_x = deg_to_rad(-90.0)
+	if absf((probe.y - half.y) + room_z) < REACH:
+		near_z = 0.0
+	elif absf((probe.y + half.y) - room_z) < REACH:
+		near_z = PI
+
+	# Straighten first, but only a piece that is already close to square with
+	# the wall, so a deliberate angle is never yanked away. A corner prefers the
+	# longer wall behind it, which is the one on Z.
+	var facing: float = near_z if near_z != INF else near_x
+	if facing != INF and absf(angle_difference(item.rotation.y, facing)) < deg_to_rad(38.0):
+		item.rotation.y = facing
+
+	# Then place it flush, using whatever rotation it ended up with — the
+	# extents change when it turns, so this has to come second.
+	half = _half_extents(footprint, item.rotation.y)
+	var offset := _center_offset(item, desired)
+	var cx: float = desired.x + offset.x
+	var cz: float = desired.z + offset.y
+	if near_x == deg_to_rad(90.0):
+		cx = -room_x + half.x
+	elif near_x == deg_to_rad(-90.0):
+		cx = room_x - half.x
+	if near_z == 0.0:
+		cz = -room_z + half.y
+	elif near_z == PI:
+		cz = room_z - half.y
+
+	return Vector3(cx - offset.x, desired.y, cz - offset.y)
+
+
+## Half the width and depth a footprint covers once turned by `yaw`.
+static func _half_extents(footprint: Vector2, yaw: float) -> Vector2:
+	var c: float = absf(cos(yaw))
+	var s: float = absf(sin(yaw))
+	return Vector2(
+		(footprint.x * c + footprint.y * s) * 0.5,
+		(footprint.x * s + footprint.y * c) * 0.5
+	)
+
+
+## How far the footprint centre sits from the node origin, in world XZ.
+func _center_offset(item: FurnitureItem, at: Vector3) -> Vector2:
+	var previous := item.global_position
+	item.global_position = at
+	var center := item.footprint_center()
+	item.global_position = previous
+	return Vector2(center.x - at.x, center.y - at.z)
+
+
+## The height a piece should sit at: the top of whatever it is over, or the
+## floor.
+func _support_height(item: FurnitureItem, at: Vector3) -> float:
+	if not Catalog.is_stackable(item.item_id):
+		return 0.0
+	var point := Vector2(at.x, at.z) + _center_offset(item, at)
+	var best := 0.0
+	for other in _items():
+		if other == item or Catalog.surface_height(other.item_id) <= 0.0:
+			continue
+		if not Geometry2D.is_point_in_polygon(point, other.footprint_corners()):
+			continue
+		var top: float = other.position.y + Catalog.surface_height(other.item_id) * other.scale_factor
+		best = maxf(best, top)
+	return best
 
 
 ## Screen point projected onto the floor plane (y = 0).
@@ -370,6 +519,13 @@ func _on_place_item(item_id: String) -> void:
 
 
 func _on_command(name: String) -> void:
+	# History works with nothing selected; everything else needs a selection.
+	if name == "undo":
+		_on_undo()
+		return
+	if name == "redo":
+		_on_redo()
+		return
 	if selected == null:
 		return
 	match name:
@@ -535,10 +691,38 @@ func _on_finish() -> void:
 	# stays with the client.
 	var installed := installed_value()
 	var payout := int(job["payout"])
-	var bonus := Jobs.bonus_for(house_id) if installed <= int(job["budget"]) else 0
-	var result := Game.record_completion(house_id, payout, bonus, int(job["xp"]), installed)
+	var review := RoomReview.score(_review_entries(), room.area(), installed, int(job["budget"]))
+	var bonus := int(round(float(payout) * float(review["bonus_rate"])))
+	# A well-judged room is worth more experience too.
+	var xp_reward := int(round(float(job["xp"]) * (0.8 + 0.2 * float(review["stars"]))))
+
+	var result := Game.record_completion(house_id, payout, bonus, xp_reward, installed, int(review["stars"]))
 	Game.store_layout(house_id, _serialize())
-	ui.show_completion(job, result, func() -> void: job_finished.emit(house_id))
+	ui.show_completion(job, result, review, func() -> void: job_finished.emit(house_id))
+
+
+## What the reviewer needs to know about each piece standing in the room.
+func _review_entries() -> Array:
+	var bounds := room.bounds()
+	var room_x: float = bounds.size.x * 0.5
+	var room_z: float = bounds.size.y * 0.5
+	var entries: Array = []
+	for item in _items():
+		var half := _half_extents(item.footprint(), item.rotation.y)
+		var centre := item.footprint_center()
+		var gap: float = minf(
+			minf((centre.x - half.x) + room_x, room_x - (centre.x + half.x)),
+			minf((centre.y - half.y) + room_z, room_z - (centre.y + half.y))
+		)
+		var footprint := item.footprint()
+		entries.append({
+			"id": item.item_id,
+			"tint": item.tint,
+			"blocked": item.is_blocked(),
+			"wall_gap": maxf(gap, 0.0),
+			"area": footprint.x * footprint.y,
+		})
+	return entries
 
 
 ## Retail value of everything currently standing in the room.
@@ -729,9 +913,61 @@ func _evaluate() -> void:
 
 ## Everything that has to happen after the room changes in any way.
 func _after_change() -> void:
+	_history.record(_serialize())
+	_sync_history_buttons()
 	_refresh_stats()
 	_evaluate()
 	_persist()
+
+
+func _sync_history_buttons() -> void:
+	ui.set_history_available(_history.can_undo(), _history.can_redo())
+
+
+func _on_undo() -> void:
+	_step_history(_history.undo(), "Undone")
+
+
+func _on_redo() -> void:
+	_step_history(_history.redo(), "Redone")
+
+
+## Restores a snapshot and moves furniture between the room and the warehouse
+## so the stock count still matches what is standing here.
+func _step_history(state: Dictionary, label: String) -> void:
+	if state.is_empty():
+		return
+	var before := _item_counts()
+	_select(null)
+	_restore(state)
+	var after := _item_counts()
+
+	if job_mode():
+		var ids: Dictionary = {}
+		for id: String in before:
+			ids[id] = true
+		for id: String in after:
+			ids[id] = true
+		for id: String in ids:
+			var delta: int = int(after.get(id, 0)) - int(before.get(id, 0))
+			if delta > 0:
+				for i in delta:
+					Game.take_from_stock(id)
+			elif delta < 0:
+				Game.return_to_stock(id, -delta)
+
+	_sync_history_buttons()
+	_refresh_stats()
+	_evaluate()
+	_persist()
+	ui.toast(label, 1.0)
+
+
+func _item_counts() -> Dictionary:
+	var counts: Dictionary = {}
+	for item in _items():
+		counts[item.item_id] = int(counts.get(item.item_id, 0)) + 1
+	return counts
 
 
 func _refresh_stats() -> void:

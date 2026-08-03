@@ -32,6 +32,11 @@ var owned_paints: Dictionary = {}
 var finished_jobs: Dictionary = {}
 ## house id -> serialized layout, so an unfinished job can be resumed.
 var saved_jobs: Dictionary = {}
+## house id -> a generated brief the player took on after the original was
+## finished. Jobs.get_job() lays these over the handcrafted entry.
+var active_contracts: Dictionary = {}
+## house id -> how many times it has been handed over.
+var repeats: Dictionary = {}
 
 
 func _ready() -> void:
@@ -241,10 +246,26 @@ func is_job_done(house_id: String) -> bool:
 
 
 func jobs_done() -> int:
-	return finished_jobs.size()
+	var total := 0
+	for house_id: String in repeats:
+		total += int(repeats[house_id])
+	return total
 
 
-func record_completion(house_id: String, payout: int, bonus: int, xp_reward: int, installed: int) -> Dictionary:
+func repeat_count(house_id: String) -> int:
+	return int(repeats.get(house_id, 0))
+
+
+## Takes a fresh brief at a house that has already been finished once. The room
+## is emptied back into stock by the caller before this is called.
+func take_repeat_contract(house_id: String, contract: Dictionary) -> void:
+	active_contracts[house_id] = contract
+	finished_jobs.erase(house_id)
+	saved_jobs.erase(house_id)
+	save_profile()
+
+
+func record_completion(house_id: String, payout: int, bonus: int, xp_reward: int, installed: int, stars: int = 1) -> Dictionary:
 	var levels_gained := add_xp(xp_reward)
 	earn(payout + bonus)
 	var result := {
@@ -253,8 +274,11 @@ func record_completion(house_id: String, payout: int, bonus: int, xp_reward: int
 		"xp": xp_reward,
 		"installed": installed,
 		"levels": levels_gained,
+		"stars": stars,
 	}
 	finished_jobs[house_id] = result
+	repeats[house_id] = repeat_count(house_id) + 1
+	active_contracts.erase(house_id)
 	save_profile()
 	return result
 
@@ -278,6 +302,8 @@ func reset() -> void:
 	owned_paints.clear()
 	finished_jobs.clear()
 	saved_jobs.clear()
+	active_contracts.clear()
+	repeats.clear()
 	_grant_starter_paints()
 	save_profile()
 	money_changed.emit(money)
@@ -299,6 +325,8 @@ func save_profile() -> void:
 		"paints": owned_paints,
 		"finished": finished_jobs,
 		"saved": saved_jobs,
+		"contracts": active_contracts,
+		"repeats": repeats,
 	}, "\t"))
 	file.close()
 
@@ -320,6 +348,8 @@ func load_profile() -> void:
 	level = clampi(int(data.get("level", 1)), 1, MAX_LEVEL)
 	finished_jobs = data.get("finished", {})
 	saved_jobs = data.get("saved", {})
+	active_contracts = data.get("contracts", {})
+	repeats = data.get("repeats", {})
 	# Counts come back from JSON as floats.
 	inventory = {}
 	for item_id: String in data.get("inventory", {}):

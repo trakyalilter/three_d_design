@@ -6,6 +6,7 @@ extends CanvasLayer
 signal start_job(house_id: String)
 signal free_build()
 signal career_reset()
+signal repeat_taken(house_id: String)
 
 var _root: Control
 var _blockers: Array[Control] = []
@@ -133,7 +134,9 @@ func refresh_hud() -> void:
 		_level_label.text = "Level %d" % Game.level
 		_xp_bar.value = Game.xp_fraction()
 		_xp_bar.tooltip_text = "%d / %d XP" % [Game.xp, Game.xp_needed()]
-	_jobs_label.text = "   %d of %d jobs done" % [Game.jobs_done(), Jobs.all().size()]
+	# Repeat contracts mean this can pass the number of houses on the map.
+	var done := Game.jobs_done()
+	_jobs_label.text = "   %d job%s done" % [done, "" if done == 1 else "s"]
 	if _stock_button:
 		var held := Game.total_stock()
 		_stock_button.text = "Stock  %d" % held if held > 0 else "Stock"
@@ -263,7 +266,10 @@ func show_house(house_id: String) -> void:
 	var locked: bool = Game.level < int(job["level"])
 	var in_progress: bool = not Game.layout_for(house_id).is_empty()
 
-	_begin_sheet(str(job["name"]), "%s  ·  needs level %d" % [job["client"], job["level"]])
+	var subtitle := "%s  ·  needs level %d" % [job["client"], job["level"]]
+	if job.has("theme"):
+		subtitle = "%s  ·  a new %s  ·  needs level %d" % [job["client"], job["theme"], job["level"]]
+	_begin_sheet(str(job["name"]), subtitle)
 	_current_sheet = {"kind": "house", "id": house_id}
 
 	var status := "Available"
@@ -285,7 +291,7 @@ func show_house(house_id: String) -> void:
 	var room: Dictionary = job["room"]
 	_sheet_row("Room", "%.1f × %.1f m  (%.0f m²)" % [room["w"], room["d"], float(room["w"]) * float(room["d"])])
 	_sheet_row("Fee", UIKit.money(int(job["payout"])), UIKit.GOLD)
-	_sheet_row("On-budget bonus", "+%s" % UIKit.money(Jobs.bonus_for(house_id)), UIKit.GOLD)
+	_sheet_row("Three-star bonus", "+%s" % UIKit.money(Jobs.max_bonus_for(house_id)), UIKit.GOLD)
 	_sheet_row("Client budget", UIKit.money(int(job["budget"])))
 	_sheet_row("Required pieces cost about", UIKit.money(Jobs.minimum_outlay(house_id)))
 	_sheet_row("Experience", "+%d XP" % int(job["xp"]))
@@ -309,20 +315,37 @@ func show_house(house_id: String) -> void:
 		_divider()
 		var record: Dictionary = Game.finished_jobs[house_id]
 		_sheet_body.add_child(UIKit.label(
-			"Earned %s and %d XP." % [UIKit.money(int(record["payout"]) + int(record["bonus"])), record["xp"]],
-			18, UIKit.GOOD))
+			"%s   %s and %d XP" % [
+				RoomReview.stars_text(int(record.get("stars", 1))),
+				UIKit.money(int(record["payout"]) + int(record["bonus"])),
+				record["xp"],
+			], 19, UIKit.GOOD))
 
-	var action_label := "Start job"
 	if done:
-		action_label = "Redesign"
-	elif in_progress:
-		action_label = "Continue"
-	var action := UIKit.make_primary_button(action_label)
+		# The house is finished, so the only thing on offer is fresh work.
+		var again := UIKit.make_primary_button("Take a new contract")
+		again.disabled = locked
+		again.pressed.connect(func() -> void: _take_repeat(house_id))
+		_sheet_actions.add_child(again)
+		return
+
+	var action := UIKit.make_primary_button("Continue" if in_progress else "Start job")
 	action.disabled = locked
 	action.pressed.connect(func() -> void:
 		close_sheet()
 		start_job.emit(house_id))
 	_sheet_actions.add_child(action)
+
+
+## Invents a new brief for a finished house and puts the player straight on it.
+func _take_repeat(house_id: String) -> void:
+	var contract := Jobs.generate_contract(house_id, Game.level)
+	if contract.is_empty():
+		return
+	Game.take_repeat_contract(house_id, contract)
+	repeat_taken.emit(house_id)
+	show_house(house_id)
+	toast_message("%s has a new job for you" % contract["client"], 2.4)
 
 
 ## What is already standing in a house, as item id -> count.
@@ -607,8 +630,9 @@ func _open_guide() -> void:
 		["Pick up a job", "Tap a house on the map. The client tells you what the room has to contain and what they will pay for it."],
 		["Go shopping", "Buy furniture at the shops on the avenue and it goes into your stock. The brief lists exactly what is missing, and one button fills the basket for you."],
 		["Fit it out", "Inside a room you place pieces from stock — no money changes hands there. Put a piece back and it returns to the warehouse, ready for the next house."],
-		["Hand it over", "Once every line of the brief is ticked, hand the room over. You collect the fee, plus a quarter of it again if the furniture you left behind came in under the client's budget. That furniture stays with them."],
+		["Hand it over", "Once every line of the brief is ticked, hand the room over. The furniture you left behind stays with the client, and they mark the room out of three stars — for keeping the big pieces against the walls, holding to a palette, leaving room to move, and coming in on budget. Three stars pays thirty per cent on top of the fee."],
 		["Grow", "Every finished job pays experience. New levels open the pricier shops, the better paints and the larger, more demanding houses."],
+		["Keep going", "A house you have handed over will take you back: open it again and the owner has a fresh room in mind, scaled to the level you have reached."],
 	]
 	for section: Array in sections:
 		_modal_body.add_child(UIKit.label(section[0], 19, UIKit.ACCENT))

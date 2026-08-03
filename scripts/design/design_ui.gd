@@ -57,6 +57,8 @@ var _swatch_popup: PanelContainer
 var _walls_button: Button
 var _snap_button: Button
 var _top_button: Button
+var _undo_button: Button
+var _redo_button: Button
 
 var _room_w: HSlider
 var _room_d: HSlider
@@ -222,6 +224,28 @@ func _build_view_tools() -> void:
 	var recenter := UIKit.make_button("Recenter")
 	recenter.pressed.connect(func() -> void: recenter_requested.emit())
 	col.add_child(recenter)
+
+	var history := HBoxContainer.new()
+	col.add_child(history)
+
+	_undo_button = UIKit.make_button("Undo")
+	_undo_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_undo_button.disabled = true
+	_undo_button.pressed.connect(func() -> void: command.emit("undo"))
+	history.add_child(_undo_button)
+
+	_redo_button = UIKit.make_button("Redo")
+	_redo_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_redo_button.disabled = true
+	_redo_button.pressed.connect(func() -> void: command.emit("redo"))
+	history.add_child(_redo_button)
+
+
+func set_history_available(can_undo: bool, can_redo: bool) -> void:
+	if _undo_button:
+		_undo_button.disabled = not can_undo
+	if _redo_button:
+		_redo_button.disabled = not can_redo
 
 
 # ------------------------------------------------------------- bottom panels
@@ -787,11 +811,12 @@ func _open_help_dialog() -> void:
 	var body := _begin_dialog("How to use")
 	var sections := [
 		["Add furniture", "Pick a category, then tap an item to drop it into the room. On a job you place pieces from your own stock — buy more at the shops in the city."],
-		["Move", "Drag an item with one finger. It slides along the floor and stays inside the walls."],
-		["Look around", "Drag an empty spot with one finger to orbit. Pinch with two fingers to zoom, and drag with two fingers to pan."],
-		["Adjust", "Select an item, then use the bar at the bottom to rotate, resize, recolour, duplicate or put it back. Anything you put back returns to your stock, ready for another room."],
-		["Red tint", "That item overlaps another. Most briefs ask for a room with no clashes."],
-		["Handing over", "Tick every line of the Brief, then hand the room over to collect the fee."],
+		["Move", "Drag an item with one finger. Push it towards a wall and it sits flush against it and squares up. Small things like a television or a lamp land on whatever table they are dropped over."],
+		["Turn and resize", "With a piece selected, twist two fingers over it to turn it and spread them to resize it. The buttons in the bar do the same in steps."],
+		["Look around", "Drag an empty spot with one finger to orbit. Pinch with two fingers to zoom, drag with two to pan, and double tap anything to bring the camera to it."],
+		["Undo", "Undo and Redo on the left go back through everything, and move the furniture between the room and your stock as they go."],
+		["Red tint", "That piece overlaps another. Most briefs ask for a room with no clashes, and the client notices."],
+		["Handing over", "Tick every line of the Brief, then hand the room over. The client marks it out of three stars — for keeping the big pieces against the walls, holding to a palette, leaving room to move, and coming in on budget — and pays a bonus to match."],
 	]
 	for section: Array in sections:
 		body.add_child(UIKit.label(section[0], 19, UIKit.ACCENT))
@@ -800,14 +825,29 @@ func _open_help_dialog() -> void:
 	(row.get_child(0) as Button).pressed.connect(close_dialog)
 
 
-## The hand-over screen, with the money and experience just earned.
-func show_completion(job: Dictionary, result: Dictionary, on_close: Callable) -> void:
+## The hand-over screen: what the client thought, and what it paid.
+func show_completion(job: Dictionary, result: Dictionary, review: Dictionary, on_close: Callable) -> void:
+	var stars := int(result.get("stars", 1))
 	var body := _begin_dialog("%s — handed over" % job["name"])
-	body.add_child(UIKit.wrapped_label("“%s is delighted.”" % job["client"], 520, UIKit.TEXT))
+
+	var verdict := ["", "“It will do.”", "“I am very happy with this.”", "“It is exactly what I wanted.”"]
+	body.add_child(UIKit.label(RoomReview.stars_text(stars), 30, UIKit.GOLD))
+	body.add_child(UIKit.wrapped_label("%s — %s" % [job["client"], verdict[stars]], 520, UIKit.TEXT))
+
+	body.add_child(UIKit.section_label("What they noticed"))
+	for note: Dictionary in review.get("notes", []):
+		var row := HBoxContainer.new()
+		var good: bool = note["good"]
+		row.add_child(UIKit.label("✓" if good else "·", 19, UIKit.GOOD if good else UIKit.BAD))
+		var text := UIKit.label(str(note["label"]), 17, UIKit.TEXT if good else UIKit.MUTED)
+		text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		text.custom_minimum_size = Vector2(480, 0)
+		row.add_child(text)
+		body.add_child(row)
 
 	var rows := [
 		["Fee", UIKit.money(int(result["payout"]))],
-		["On-budget bonus", UIKit.money(int(result["bonus"]))],
+		["%d-star bonus" % stars, UIKit.money(int(result["bonus"]))],
 		["Furniture left in the house", "-%s" % UIKit.money(int(result["installed"]))],
 		["Net", UIKit.money(int(result["payout"]) + int(result["bonus"]) - int(result["installed"]))],
 		["Experience", "+%d XP" % int(result["xp"])],

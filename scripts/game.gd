@@ -35,6 +35,7 @@ func enter_city(focus_house: String = "") -> void:
 	city_ui.start_job.connect(enter_designer)
 	city_ui.free_build.connect(func() -> void: enter_designer(""))
 	city_ui.career_reset.connect(func() -> void: city.refresh_markers())
+	city_ui.repeat_taken.connect(func(_house_id: String) -> void: city.refresh_markers())
 
 	if focus_house != "":
 		city.focus_on(focus_house)

@@ -31,14 +31,19 @@ const _WALL_SHADES: Array[float] = [1.0, 1.0, 0.86, 0.86]
 
 
 func _ready() -> void:
+	# Near-white greyscale textures carry the grain; albedo_color carries the
+	# colour the player chose.
 	_floor_material = StandardMaterial3D.new()
 	_floor_material.albedo_color = floor_color
-	_floor_material.roughness = 0.85
+	_floor_material.albedo_texture = ProcTextures.floor_planks()
+	_floor_material.roughness = 0.78
 
 	_wall_materials.clear()
 	for shade in _WALL_SHADES:
 		var mat := StandardMaterial3D.new()
 		mat.roughness = 0.95
+		mat.albedo_texture = ProcTextures.wall_plaster()
+		mat.uv1_scale = Vector3(3.0, 2.0, 1.0)
 		_wall_materials.append(mat)
 	set_wall_color(wall_color)
 
@@ -103,6 +108,9 @@ func _build_floor() -> void:
 	_floor.mesh = mesh
 	_floor.position = Vector3(0, -0.05, 0)
 	_floor.material_override = _floor_material
+	# One texture tile every two metres, so boards stay the same size whatever
+	# the room's dimensions.
+	_floor_material.uv1_scale = Vector3(width * 0.5, depth * 0.5, 1.0)
 	add_child(_floor)
 
 
@@ -118,8 +126,10 @@ func _build_grid() -> void:
 
 	var hw := width * 0.5
 	var hd := depth * 0.5
-	var minor := Color(0, 0, 0, 0.10)
-	var major := Color(0, 0, 0, 0.22)
+	# Kept faint: the floor texture already gives the eye something to read,
+	# and this only has to show where things will snap to.
+	var minor := Color(0, 0, 0, 0.06)
+	var major := Color(0, 0, 0, 0.14)
 
 	im.surface_begin(Mesh.PRIMITIVE_LINES, mat)
 	var x := -hw

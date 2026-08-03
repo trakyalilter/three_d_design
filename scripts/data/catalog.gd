@@ -142,13 +142,13 @@ func _ready() -> void:
 func _build() -> void:
 	# ---------------------------------------------------------------- Living
 	_add({
-		"id": "sofa", "name": "Sofa", "category": "Living",
+		"id": "sofa", "against_wall": true, "name": "Sofa", "category": "Living",
 		"price": 480, "level": 1,
 		"tint": Color(0.35, 0.38, 0.44),
 		"parts": _sofa(2.05, 0.9),
 	})
 	_add({
-		"id": "loveseat", "name": "Loveseat", "category": "Living",
+		"id": "loveseat", "against_wall": true, "name": "Loveseat", "category": "Living",
 		"price": 360, "level": 1,
 		"tint": Color(0.40, 0.62, 0.42),
 		"parts": _sofa(1.45, 0.9),
@@ -160,13 +160,13 @@ func _build() -> void:
 		"parts": _sofa(0.95, 0.88),
 	})
 	_add({
-		"id": "coffee_table", "name": "Coffee Table", "category": "Living",
+		"id": "coffee_table", "surface": 0.42, "name": "Coffee Table", "category": "Living",
 		"price": 150, "level": 1,
 		"tint": Color(0.56, 0.38, 0.24),
 		"parts": _table(1.10, 0.60, 0.42, 0.05),
 	})
 	_add({
-		"id": "tv_stand", "name": "TV Stand", "category": "Living",
+		"id": "tv_stand", "against_wall": true, "surface": 0.52, "name": "TV Stand", "category": "Living",
 		"price": 220, "level": 2,
 		"tint": Color(0.33, 0.21, 0.13),
 		"parts": [
@@ -178,7 +178,7 @@ func _build() -> void:
 		],
 	})
 	_add({
-		"id": "television", "name": "Television", "category": "Living",
+		"id": "television", "stackable": true, "name": "Television", "category": "Living",
 		"price": 520, "level": 3,
 		"tint": Color(0.16, 0.17, 0.2),
 		"parts": [
@@ -191,19 +191,19 @@ func _build() -> void:
 
 	# --------------------------------------------------------------- Bedroom
 	_add({
-		"id": "bed_double", "name": "Double Bed", "category": "Bedroom",
+		"id": "bed_double", "against_wall": true, "name": "Double Bed", "category": "Bedroom",
 		"price": 620, "level": 2,
 		"tint": Color(0.30, 0.53, 0.72),
 		"parts": _bed(1.62, 2.05),
 	})
 	_add({
-		"id": "bed_single", "name": "Single Bed", "category": "Bedroom",
+		"id": "bed_single", "against_wall": true, "name": "Single Bed", "category": "Bedroom",
 		"price": 380, "level": 1,
 		"tint": Color(0.87, 0.60, 0.28),
 		"parts": _bed(1.00, 1.95),
 	})
 	_add({
-		"id": "nightstand", "name": "Nightstand", "category": "Bedroom",
+		"id": "nightstand", "against_wall": true, "surface": 0.58, "name": "Nightstand", "category": "Bedroom",
 		"price": 130, "level": 1,
 		"tint": Color(0.79, 0.64, 0.45),
 		"parts": [
@@ -217,7 +217,7 @@ func _build() -> void:
 		],
 	})
 	_add({
-		"id": "dresser", "name": "Dresser", "category": "Bedroom",
+		"id": "dresser", "against_wall": true, "surface": 0.925, "name": "Dresser", "category": "Bedroom",
 		"price": 340, "level": 2,
 		"tint": Color(0.62, 0.58, 0.50),
 		"parts": [
@@ -231,13 +231,13 @@ func _build() -> void:
 
 	# ---------------------------------------------------------------- Dining
 	_add({
-		"id": "dining_table", "name": "Dining Table", "category": "Dining",
+		"id": "dining_table", "surface": 0.74, "name": "Dining Table", "category": "Dining",
 		"price": 420, "level": 1,
 		"tint": Color(0.56, 0.38, 0.24),
 		"parts": _table(1.70, 0.95, 0.74, 0.06),
 	})
 	_add({
-		"id": "round_table", "name": "Round Table", "category": "Dining",
+		"id": "round_table", "surface": 0.78, "name": "Round Table", "category": "Dining",
 		"price": 350, "level": 2,
 		"tint": Color(0.79, 0.64, 0.45),
 		"parts": [
@@ -273,7 +273,7 @@ func _build() -> void:
 
 	# --------------------------------------------------------------- Kitchen
 	_add({
-		"id": "counter", "name": "Counter", "category": "Kitchen",
+		"id": "counter", "against_wall": true, "surface": 0.91, "name": "Counter", "category": "Kitchen",
 		"price": 380, "level": 1,
 		"tint": Color(0.93, 0.93, 0.9),
 		"parts": [
@@ -285,7 +285,7 @@ func _build() -> void:
 		],
 	})
 	_add({
-		"id": "fridge", "name": "Refrigerator", "category": "Kitchen",
+		"id": "fridge", "against_wall": true, "name": "Refrigerator", "category": "Kitchen",
 		"price": 700, "level": 2,
 		"tint": Color(0.85, 0.86, 0.88),
 		"parts": [
@@ -297,7 +297,7 @@ func _build() -> void:
 		],
 	})
 	_add({
-		"id": "stove", "name": "Stove", "category": "Kitchen",
+		"id": "stove", "against_wall": true, "name": "Stove", "category": "Kitchen",
 		"price": 540, "level": 3,
 		"tint": Color(0.16, 0.17, 0.2),
 		"parts": [
@@ -313,7 +313,7 @@ func _build() -> void:
 		],
 	})
 	_add({
-		"id": "sink_unit", "name": "Sink Unit", "category": "Kitchen",
+		"id": "sink_unit", "against_wall": true, "surface": 0.91, "name": "Sink Unit", "category": "Kitchen",
 		"price": 430, "level": 2,
 		"tint": Color(0.93, 0.93, 0.9),
 		"parts": [
@@ -328,7 +328,7 @@ func _build() -> void:
 
 	# -------------------------------------------------------------- Bathroom
 	_add({
-		"id": "toilet", "name": "Toilet", "category": "Bathroom",
+		"id": "toilet", "against_wall": true, "name": "Toilet", "category": "Bathroom",
 		"price": 280, "level": 1,
 		"tint": Color(0.97, 0.97, 0.96),
 		"parts": [
@@ -342,7 +342,7 @@ func _build() -> void:
 		],
 	})
 	_add({
-		"id": "basin", "name": "Basin", "category": "Bathroom",
+		"id": "basin", "against_wall": true, "name": "Basin", "category": "Bathroom",
 		"price": 220, "level": 1,
 		"tint": Color(0.97, 0.97, 0.96),
 		"parts": [
@@ -354,7 +354,7 @@ func _build() -> void:
 		],
 	})
 	_add({
-		"id": "bathtub", "name": "Bathtub", "category": "Bathroom",
+		"id": "bathtub", "against_wall": true, "name": "Bathtub", "category": "Bathroom",
 		"price": 780, "level": 3,
 		"tint": Color(0.97, 0.97, 0.96),
 		"parts": [
@@ -366,7 +366,7 @@ func _build() -> void:
 		],
 	})
 	_add({
-		"id": "shower", "name": "Shower", "category": "Bathroom",
+		"id": "shower", "against_wall": true, "name": "Shower", "category": "Bathroom",
 		"price": 620, "level": 2,
 		"tint": Color(0.85, 0.86, 0.88),
 		"parts": [
@@ -380,7 +380,7 @@ func _build() -> void:
 		],
 	})
 	_add({
-		"id": "washing_machine", "name": "Washing Machine", "category": "Bathroom",
+		"id": "washing_machine", "against_wall": true, "name": "Washing Machine", "category": "Bathroom",
 		"price": 560, "level": 3,
 		"tint": Color(0.93, 0.93, 0.9),
 		"parts": [
@@ -392,7 +392,7 @@ func _build() -> void:
 		],
 	})
 	_add({
-		"id": "vanity_unit", "name": "Vanity Unit", "category": "Bathroom",
+		"id": "vanity_unit", "against_wall": true, "surface": 0.72, "name": "Vanity Unit", "category": "Bathroom",
 		"price": 340, "level": 2,
 		"tint": Color(0.62, 0.58, 0.50),
 		"parts": [
@@ -422,7 +422,7 @@ func _build() -> void:
 
 	# --------------------------------------------------------------- Storage
 	_add({
-		"id": "wardrobe", "name": "Wardrobe", "category": "Storage",
+		"id": "wardrobe", "against_wall": true, "name": "Wardrobe", "category": "Storage",
 		"price": 560, "level": 2,
 		"tint": Color(0.93, 0.93, 0.9),
 		"parts": [
@@ -435,7 +435,7 @@ func _build() -> void:
 		],
 	})
 	_add({
-		"id": "bookshelf", "name": "Bookshelf", "category": "Storage",
+		"id": "bookshelf", "against_wall": true, "name": "Bookshelf", "category": "Storage",
 		"price": 290, "level": 1,
 		"tint": Color(0.56, 0.38, 0.24),
 		"parts": [
@@ -452,7 +452,7 @@ func _build() -> void:
 		],
 	})
 	_add({
-		"id": "desk", "name": "Desk", "category": "Storage",
+		"id": "desk", "against_wall": true, "surface": 0.755, "name": "Desk", "category": "Storage",
 		"price": 330, "level": 2,
 		"tint": Color(0.93, 0.93, 0.9),
 		"parts": [
@@ -465,7 +465,7 @@ func _build() -> void:
 		],
 	})
 	_add({
-		"id": "cabinet", "name": "Low Cabinet", "category": "Storage",
+		"id": "cabinet", "against_wall": true, "surface": 0.84, "name": "Low Cabinet", "category": "Storage",
 		"price": 260, "level": 3,
 		"tint": Color(0.45, 0.38, 0.66),
 		"parts": [
@@ -498,7 +498,7 @@ func _build() -> void:
 		],
 	})
 	_add({
-		"id": "plant", "name": "Potted Plant", "category": "Decor",
+		"id": "plant", "stackable": true, "name": "Potted Plant", "category": "Decor",
 		"price": 90, "level": 1,
 		"tint": Color(0.62, 0.58, 0.50),
 		"parts": [
@@ -511,7 +511,17 @@ func _build() -> void:
 		],
 	})
 	_add({
-		"id": "side_table", "name": "Side Table", "category": "Decor",
+		"id": "table_lamp", "stackable": true, "name": "Table Lamp", "category": "Decor",
+		"price": 80, "level": 1,
+		"tint": Color(0.90, 0.79, 0.44),
+		"parts": [
+			{"shape": "cyl", "size": Vector3(0.11, 0.02, 0.12), "pos": Vector3(0, 0.01, 0), "mat": "dark"},
+			{"shape": "cyl", "size": Vector3(0.025, 0.26, 0.035), "pos": Vector3(0, 0.14, 0), "mat": "metal"},
+			{"shape": "cyl", "size": Vector3(0.10, 0.19, 0.15), "pos": Vector3(0, 0.36, 0), "mat": "tint"},
+		],
+	})
+	_add({
+		"id": "side_table", "surface": 0.52, "name": "Side Table", "category": "Decor",
 		"price": 120, "level": 1,
 		"tint": Color(0.16, 0.17, 0.2),
 		"parts": [
@@ -521,7 +531,7 @@ func _build() -> void:
 		],
 	})
 	_add({
-		"id": "partition", "name": "Partition", "category": "Decor",
+		"id": "partition", "against_wall": true, "name": "Partition", "category": "Decor",
 		"price": 210, "level": 4,
 		"tint": Color(0.62, 0.58, 0.50),
 		"parts": [
@@ -706,6 +716,16 @@ func shop_of(id: String) -> String:
 
 func default_tint(id: String) -> Color:
 	return _items.get(id, {}).get("tint", Color.WHITE)
+
+
+## Height of this piece's usable top, or 0 when nothing can be put on it.
+func surface_height(id: String) -> float:
+	return float(_items.get(id, {}).get("surface", 0.0))
+
+
+## True for the small pieces that belong on a table rather than the floor.
+func is_stackable(id: String) -> bool:
+	return bool(_items.get(id, {}).get("stackable", false))
 
 
 func get_shop(shop_id: String) -> Dictionary:
