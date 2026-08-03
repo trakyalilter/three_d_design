@@ -1,0 +1,297 @@
+name: Android Release
+
+# Builds the Android APK on a GitHub-hosted runner using the Android SDK build
+# tools, then publishes it as an asset on a GitHub Release.
+
+on:
+  push:
+    branches:
+      - main
+      - master
+      - "claude/**"
+    tags:
+      - "v*"
+    paths-ignore:
+      - "**.md"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to publish to (default: v<version from project.godot>)"
+        required: false
+        type: string
+      prerelease:
+        description: "Mark the release as a pre-release"
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: android-release-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GODOT_VERSION: "4.5.1"
+  GODOT_RELEASE: "stable"
+  EXPORT_PRESET: "Android"
+  APK_NAME: "room-designer-3d.apk"
+  BUILD_TOOLS: "34.0.0"
+
+jobs:
+  build:
+    name: Build and publish APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up the Android SDK
+        run: |
+          set -euo pipefail
+          SDK="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-$HOME/android-sdk}}"
+          mkdir -p "$SDK"
+
+          # Runner images normally ship the SDK already; fall back to a fresh
+          # command line tools download when they do not.
+          SDKMANAGER=""
+          for candidate in "$SDK"/cmdline-tools/*/bin/sdkmanager; do
+            if [ -x "$candidate" ]; then SDKMANAGER="$candidate"; fi
+          done
+          if [ -z "$SDKMANAGER" ]; then
+            echo "No sdkmanager found, installing command line tools."
+            curl -sSfL -o /tmp/cmdline-tools.zip \
+              https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
+            unzip -q /tmp/cmdline-tools.zip -d /tmp/cmdline-tools-extracted
+            mkdir -p "$SDK/cmdline-tools"
+            mv /tmp/cmdline-tools-extracted/cmdline-tools "$SDK/cmdline-tools/latest"
+            SDKMANAGER="$SDK/cmdline-tools/latest/bin/sdkmanager"
+          fi
+
+          yes | "$SDKMANAGER" --sdk_root="$SDK" --licenses > /dev/null 2>&1 || true
+          "$SDKMANAGER" --sdk_root="$SDK" \
+            "platform-tools" \
+            "build-tools;${BUILD_TOOLS}" \
+            "platforms;android-34" > /dev/null
+
+          echo "ANDROID_SDK_ROOT=$SDK" >> "$GITHUB_ENV"
+          echo "ANDROID_HOME=$SDK" >> "$GITHUB_ENV"
+          echo "BUILD_TOOLS_DIR=$SDK/build-tools/${BUILD_TOOLS}" >> "$GITHUB_ENV"
+          echo "Using Android SDK at $SDK"
+
+      - name: Cache Godot export templates
+        id: templates-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/godot/export_templates
+          key: godot-templates-${{ env.GODOT_VERSION }}-${{ env.GODOT_RELEASE }}
+
+      - name: Install Godot ${{ env.GODOT_VERSION }}-${{ env.GODOT_RELEASE }}
+        run: |
+          set -euo pipefail
+          BASE="https://github.com/godotengine/godot-builds/releases/download/${GODOT_VERSION}-${GODOT_RELEASE}"
+          NAME="Godot_v${GODOT_VERSION}-${GODOT_RELEASE}"
+
+          curl -sSfL -o /tmp/godot.zip "${BASE}/${NAME}_linux.x86_64.zip"
+          unzip -q /tmp/godot.zip -d /tmp/godot-bin
+          sudo install -m 0755 "/tmp/godot-bin/${NAME}_linux.x86_64" /usr/local/bin/godot
+          godot --headless --version
+
+          TEMPLATE_DIR="$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.${GODOT_RELEASE}"
+          if [ -f "$TEMPLATE_DIR/android_release.apk" ]; then
+            echo "Export templates restored from cache."
+          else
+            curl -sSfL -o /tmp/templates.tpz "${BASE}/${NAME}_export_templates.tpz"
+            unzip -q /tmp/templates.tpz -d /tmp/templates-extracted
+            mkdir -p "$HOME/.local/share/godot/export_templates"
+            rm -rf "$TEMPLATE_DIR"
+            mv /tmp/templates-extracted/templates "$TEMPLATE_DIR"
+          fi
+          ls "$TEMPLATE_DIR"/android_*.apk
+
+      - name: Point Godot at the Android SDK
+        run: |
+          set -euo pipefail
+          EDITOR_VERSION="$(echo "$GODOT_VERSION" | cut -d. -f1,2)"
+          JAVA_HOME_DIR="${JAVA_HOME:-$(dirname "$(dirname "$(readlink -f "$(command -v javac)")")")}"
+
+          mkdir -p "$HOME/.config/godot"
+          cat > "$HOME/.config/godot/editor_settings-${EDITOR_VERSION}.tres" <<EOF
+          [gd_resource type="EditorSettings" format=3]
+
+          [resource]
+          export/android/android_sdk_path = "${ANDROID_SDK_ROOT}"
+          export/android/java_sdk_path = "${JAVA_HOME_DIR}"
+          export/android/debug_keystore = "${HOME}/debug.keystore"
+          export/android/debug_keystore_user = "androiddebugkey"
+          export/android/debug_keystore_pass = "android"
+          export/android/force_system_user = false
+          export/android/shutdown_adb_on_exit = true
+          EOF
+
+          keytool -keyalg RSA -genkeypair -alias androiddebugkey -keypass android \
+            -keystore "$HOME/debug.keystore" -storepass android \
+            -dname "CN=Android Debug,O=Android,C=US" -validity 9999 -deststoretype pkcs12
+
+      - name: Prepare the release signing key
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_ALIAS: ${{ secrets.ANDROID_KEYSTORE_ALIAS }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: |
+          set -euo pipefail
+          KEYSTORE_PATH="$RUNNER_TEMP/release.keystore"
+
+          if [ -n "${KEYSTORE_BASE64:-}" ]; then
+            echo "Signing with the keystore from repository secrets."
+            echo "$KEYSTORE_BASE64" | base64 -d > "$KEYSTORE_PATH"
+            ALIAS="${KEYSTORE_ALIAS}"
+            PASSWORD="${KEYSTORE_PASSWORD}"
+            echo "SIGNED_WITH=repository secret" >> "$GITHUB_ENV"
+          else
+            echo "No ANDROID_KEYSTORE_BASE64 secret set; generating a build key."
+            ALIAS="roomdesigner"
+            PASSWORD="$(head -c 24 /dev/urandom | base64 | tr -d '/+=')"
+            echo "::add-mask::$PASSWORD"
+            keytool -keyalg RSA -genkeypair -alias "$ALIAS" -keypass "$PASSWORD" \
+              -keystore "$KEYSTORE_PATH" -storepass "$PASSWORD" \
+              -dname "CN=Room Designer 3D,O=Room Designer 3D,C=US" \
+              -validity 10000 -deststoretype pkcs12
+            echo "SIGNED_WITH=throwaway key generated during this build" >> "$GITHUB_ENV"
+          fi
+
+          echo "GODOT_ANDROID_KEYSTORE_RELEASE_PATH=$KEYSTORE_PATH" >> "$GITHUB_ENV"
+          echo "GODOT_ANDROID_KEYSTORE_RELEASE_USER=$ALIAS" >> "$GITHUB_ENV"
+          echo "GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD=$PASSWORD" >> "$GITHUB_ENV"
+
+      - name: Stamp the build version
+        id: version
+        run: |
+          set -euo pipefail
+          VERSION="$(sed -n 's/^config\/version="\(.*\)"$/\1/p' project.godot)"
+          VERSION="${VERSION:-0.0.0}"
+          CODE="${GITHUB_RUN_NUMBER}"
+
+          sed -i "s|^version/code=.*|version/code=${CODE}|" export_presets.cfg
+          sed -i "s|^version/name=.*|version/name=\"${VERSION}\"|" export_presets.cfg
+
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "code=$CODE" >> "$GITHUB_OUTPUT"
+          echo "Building version $VERSION (versionCode $CODE)"
+
+      - name: Import project resources
+        run: |
+          set -euo pipefail
+          # The first import populates .godot/; Godot exits non-zero on some
+          # headless runs even when the import itself succeeded.
+          godot --headless --import || true
+          test -d .godot
+
+      - name: Export the signed release APK
+        run: |
+          set -euo pipefail
+          mkdir -p build
+          godot --headless --export-release "$EXPORT_PRESET" "$PWD/build/$APK_NAME"
+          test -s "build/$APK_NAME"
+
+      - name: Verify the APK
+        id: verify
+        run: |
+          set -euo pipefail
+          APK="build/$APK_NAME"
+          "$BUILD_TOOLS_DIR/apksigner" verify --print-certs "$APK"
+          "$BUILD_TOOLS_DIR/aapt2" dump badging "$APK" \
+            | grep -E "^(package|sdkVersion|targetSdkVersion|application-label:|native-code)"
+
+          SIZE="$(du -h "$APK" | cut -f1)"
+          SHA="$(sha256sum "$APK" | cut -d' ' -f1)"
+          ABIS="$("$BUILD_TOOLS_DIR/aapt2" dump badging "$APK" | sed -n "s/^native-code: //p" | tr -d \')"
+          {
+            echo "size=$SIZE"
+            echo "sha256=$SHA"
+            echo "abis=$ABIS"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Upload the APK as a workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: room-designer-3d-apk
+          path: build/${{ env.APK_NAME }}
+          if-no-files-found: error
+
+      - name: Publish the APK to a GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          INPUT_TAG: ${{ inputs.tag }}
+          PRERELEASE: ${{ inputs.prerelease }}
+          VERSION: ${{ steps.version.outputs.version }}
+          BUILD_CODE: ${{ steps.version.outputs.code }}
+          APK_SIZE: ${{ steps.verify.outputs.size }}
+          APK_SHA: ${{ steps.verify.outputs.sha256 }}
+          APK_ABIS: ${{ steps.verify.outputs.abis }}
+        run: |
+          set -euo pipefail
+
+          TAG="${INPUT_TAG:-}"
+          if [ -z "$TAG" ] && [ "$GITHUB_REF_TYPE" = "tag" ]; then
+            TAG="$GITHUB_REF_NAME"
+          fi
+          if [ -z "$TAG" ]; then
+            TAG="v$VERSION"
+          fi
+          echo "Publishing to release $TAG"
+
+          NOTES="$(cat <<EOF
+          **Room Designer 3D $VERSION** — an Android 3D room planner built with Godot ${GODOT_VERSION}.
+
+          Download \`$APK_NAME\` below and install it on your device. Android will ask you
+          to allow installation from an unknown source the first time.
+
+          | | |
+          |---|---|
+          | Version | \`$VERSION\` (versionCode \`$BUILD_CODE\`) |
+          | Size | $APK_SIZE |
+          | ABIs | \`$APK_ABIS\` |
+          | Minimum Android | 7.0 (API 24) |
+          | Built from | \`$GITHUB_SHA\` |
+          | Signed with | $SIGNED_WITH |
+
+          \`\`\`
+          SHA-256  $APK_SHA
+          \`\`\`
+
+          Built remotely by the [Android Release workflow](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}).
+          EOF
+          )"
+
+          PRERELEASE_FLAG=""
+          if [ "${PRERELEASE:-false}" = "true" ]; then
+            PRERELEASE_FLAG="--prerelease"
+          fi
+
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            echo "Release $TAG exists, refreshing its notes and asset."
+            gh release edit "$TAG" \
+              --title "Room Designer 3D $VERSION" \
+              --notes "$NOTES"
+          else
+            gh release create "$TAG" \
+              --title "Room Designer 3D $VERSION" \
+              --notes "$NOTES" \
+              --target "$GITHUB_SHA" \
+              $PRERELEASE_FLAG
+          fi
+
+          gh release upload "$TAG" "build/$APK_NAME" --clobber
+
+          echo "### APK published" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "[$APK_NAME]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/tag/$TAG) — $APK_SIZE, ABIs \`$APK_ABIS\`" >> "$GITHUB_STEP_SUMMARY"

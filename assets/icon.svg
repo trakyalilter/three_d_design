@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="192" height="192" viewBox="0 0 192 192">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2b3550"/>
+      <stop offset="1" stop-color="#141924"/>
+    </linearGradient>
+  </defs>
+  <rect width="192" height="192" rx="42" fill="url(#bg)"/>
+  <!-- floor plane -->
+  <path d="M96 46 L166 88 L96 130 L26 88 Z" fill="#4d8fd6" opacity="0.30"/>
+  <path d="M96 46 L166 88 L96 130 L26 88 Z" fill="none" stroke="#7fc0ff" stroke-width="3" stroke-linejoin="round"/>
+  <!-- back walls -->
+  <path d="M26 88 L96 46 L96 24 L26 66 Z" fill="#7fc0ff" opacity="0.18"/>
+  <path d="M166 88 L96 46 L96 24 L166 66 Z" fill="#7fc0ff" opacity="0.10"/>
+  <!-- sofa -->
+  <path d="M62 92 L92 109 L92 96 L62 79 Z" fill="#f0a24b"/>
+  <path d="M92 109 L124 91 L124 78 L92 96 Z" fill="#d18437"/>
+  <path d="M62 79 L92 96 L124 78 L94 61 Z" fill="#ffc37a"/>
+  <!-- table -->
+  <path d="M104 116 L120 107 L134 115 L118 124 Z" fill="#8fe0c0"/>
+  <path d="M104 116 L104 121 L118 129 L118 124 Z" fill="#5cbf9a"/>
+  <path d="M118 124 L134 115 L134 120 L118 129 Z" fill="#4aa686"/>
+</svg>
