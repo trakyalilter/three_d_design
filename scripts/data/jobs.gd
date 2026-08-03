@@ -276,6 +276,18 @@ const THEMES: Array[Dictionary] = [
 		"brief": "It has to work before it looks good. Counters, cold storage, somewhere to wash up.",
 	},
 	{
+		"name": "media room", "level": 2,
+		"core": ["television", "tv_large", "sofa", "speaker_tower", "soundbar", "tv_stand"],
+		"filler": "Decor",
+		"brief": "One room for films and nothing else. A screen worth watching, something to sit on, and sound that fills it.",
+	},
+	{
+		"name": "home office", "level": 2,
+		"core": ["desk", "computer", "printer", "bookshelf", "cabinet"],
+		"filler": "Decor",
+		"brief": "I am on calls all day. Somewhere to work properly, and somewhere to file the things that pile up.",
+	},
+	{
 		"name": "bathroom", "level": 2,
 		"core": ["toilet", "basin", "shower", "bathtub", "vanity_unit", "towel_rail"],
 		"filler": "Bathroom",
@@ -471,10 +483,15 @@ func _count_in_category(wanted: Dictionary, category: String) -> int:
 	return total
 
 
+## The cheapest thing in a category that stands on the floor. Tabletop props
+## are skipped: a brief asking for another piece of furniture should not be
+## satisfied by a stack of books left on the boards.
 func _cheapest_in(category: String) -> String:
 	var best := ""
 	var best_price := 1 << 30
 	for id in Catalog.ids_in(category):
+		if Catalog.is_stackable(id):
+			continue
 		if Catalog.price(id) < best_price:
 			best_price = Catalog.price(id)
 			best = id

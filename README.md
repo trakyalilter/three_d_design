@@ -34,7 +34,7 @@ your device. Android asks you to allow installs from an unknown source the first
 
 ### The city
 
-Ten houses sit along two residential streets, with eight shops down the avenue between
+Ten houses sit along two residential streets, with nine shops down the avenue between
 them. A floating pin over each house tells you where it stands:
 
 | Pin | Meaning |
@@ -118,7 +118,7 @@ room hide themselves as you orbit, and a piece that overlaps another glows red.
 
 Experience carries you from level 1 to level 8. Jobs run from a $1,300 studio to a
 $10,500 townhouse, and a run that buys only what each brief asks for finishes all ten with
-around $29,000 in the bank. Everything — money, level, stock, paints, finished jobs and the
+around $28,000 in the bank. Everything — money, level, stock, paints, finished jobs and the
 rooms you left half-done — is saved to the device as you go.
 
 The map does not run out. Open a house you have already handed over and the owner has a
@@ -132,18 +132,26 @@ everything unlocked, with its own save and load.
 
 ## The catalogue
 
-33 pieces across seven shops, all built from primitives at runtime:
+66 pieces across eight shops, all built from primitives at runtime, $45 to $880 each:
 
 | Shop | Opens | Stock |
 |---|---|---|
-| Sofa & Co | 1 | Sofa, loveseat, armchair, coffee table, TV stand, television |
-| Dream Beds | 1 | Double bed, single bed, nightstand, dresser |
-| Table Talk | 1 | Dining table, round table, chair, bar stool |
-| Box & Shelf | 1 | Wardrobe, bookshelf, desk, low cabinet |
-| Little Details | 1 | Rug, floor lamp, table lamp, potted plant, side table, partition |
-| Kitchen Works | 2 | Counter, refrigerator, stove, sink unit |
-| Splash & Tile | 2 | Toilet, basin, bathtub, shower, washing machine, vanity unit, towel rail |
+| Sofa & Co | 1 | Sofa, loveseat, armchair, coffee table, TV stand, recliner, footstool, console table |
+| Dream Beds | 1 | Double bed, single bed, nightstand, dresser, bunk bed, crib, dressing table, laundry basket |
+| Table Talk | 1 | Dining table, round table, chair, bar stool, dining bench, kitchen island |
+| Box & Shelf | 1 | Wardrobe, bookshelf, desk, low cabinet, shoe rack, coat stand, display cabinet |
+| Little Details | 1 | Rug, round rug, floor lamp, table lamp, potted plant, side table, partition, floor mirror, vase, stack of books |
+| Kitchen Works | 2 | Counter, refrigerator, stove, sink unit, dishwasher, pantry cupboard, kettle, toaster |
+| Splash & Tile | 2 | Toilet, basin, bathtub, shower, washing machine, vanity unit, towel rail, bath mat, tall cabinet |
+| Volt & Wire | 2 | Television, wide television, computer, floor speaker, soundbar, games console, printer, portable air con, floor fan, microwave |
 | Colour House | 1 | Eight floor paints and eight wall paints, $160–$540 each |
+
+The electronics counter opens at level 2, and the pieces on it are the ones the later
+briefs — media rooms, home offices — ask for.
+
+| Volt & Wire | A media room fitted out of it |
+|---|---|
+| ![The electronics shop counter](docs/screenshot-electronics.png) | ![A media room with a wide TV, floor speaker, soundbar and games console](docs/screenshot-media-room.png) |
 
 ## How the project fits together
 
@@ -177,6 +185,9 @@ scripts/
     camera_rig.gd        Damped orbit camera, shared by both screens
     selection_marker.gd  Floor highlight under the selection
   ui/ui_kit.gd           The theme and widget helpers both screens share
+tests/smoke_test.gd      Plays the whole career headless, then checks the
+                         catalogue, the placement aids, undo, the star review
+                         and a generated contract
 ```
 
 Furniture is data, not geometry files. A piece is a list of boxes, cylinders and spheres
@@ -225,6 +236,22 @@ stands, so a new contract is a few lines:
 
 Supported requirement kinds: `item`, `category`, `total`, `categories` (distinct shops),
 `floor_color`, `wall_color` and `no_overlap`.
+
+## Checking it still works
+
+`tests/smoke_test.gd` is autoloaded but does nothing unless you ask for it:
+
+```bash
+godot --headless -- --smoke
+```
+
+It resets the profile, plays all ten jobs — shopping for each brief out of the money it
+has actually earned, fitting the room from stock, handing it over — then checks that every
+catalogue entry is priced, stocked and physically sane, that wall snap lands flush and
+stacking finds the right height, that undo and redo keep the room and the warehouse in
+step, that a properly arranged room really does reach three stars, and that a generated
+repeat contract can be shopped for and finished. It exits non-zero on the first thing that
+does not hold.
 
 ## Building it yourself
 

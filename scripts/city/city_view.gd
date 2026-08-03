@@ -174,10 +174,12 @@ func _build_roads() -> void:
 # -------------------------------------------------------------------- shops
 
 func _build_shops() -> void:
-	# Four shops down each side of the avenue, between the cross streets.
+	# Five shops down each side of the avenue, between the cross streets.
 	var slots := [
-		Vector2(-9.5, -12.0), Vector2(-9.5, -4.0), Vector2(-9.5, 4.0), Vector2(-9.5, 12.0),
-		Vector2(9.5, -12.0), Vector2(9.5, -4.0), Vector2(9.5, 4.0), Vector2(9.5, 12.0),
+		Vector2(-9.5, -14.0), Vector2(-9.5, -7.0), Vector2(-9.5, 0.0),
+		Vector2(-9.5, 7.0), Vector2(-9.5, 14.0),
+		Vector2(9.5, -14.0), Vector2(9.5, -7.0), Vector2(9.5, 0.0),
+		Vector2(9.5, 7.0), Vector2(9.5, 14.0),
 	]
 	var shops := Catalog.SHOPS
 	for i in mini(shops.size(), slots.size()):
