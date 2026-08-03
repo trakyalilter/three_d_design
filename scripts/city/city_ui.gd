@@ -19,8 +19,14 @@ var _level_label: Label
 var _xp_bar: ProgressBar
 var _jobs_label: Label
 var _hint: Label
+var _toast: Label
+var _toast_timer: Timer
 var _modal: Control
 var _modal_body: VBoxContainer
+var _stock_button: Button
+## What the side sheet is currently showing, so it can be redrawn after a
+## purchase without the player losing their place.
+var _current_sheet: Dictionary = {}
 
 
 func _ready() -> void:
@@ -39,7 +45,27 @@ func _ready() -> void:
 
 	Game.money_changed.connect(func(_amount: int) -> void: refresh_hud())
 	Game.progress_changed.connect(func(_l: int, _x: int, _n: int) -> void: refresh_hud())
+	Game.stock_changed.connect(_on_stock_changed)
 	refresh_hud()
+
+
+func _on_stock_changed() -> void:
+	refresh_hud()
+	_redraw_sheet()
+
+
+## Re-opens whatever the sheet was showing, so counts and buttons stay honest.
+func _redraw_sheet() -> void:
+	if _current_sheet.is_empty() or not _sheet.visible:
+		return
+	var showing := _current_sheet.duplicate()
+	match str(showing.get("kind", "")):
+		"house":
+			show_house(str(showing["id"]))
+		"shop":
+			show_shop(str(showing["id"]))
+		"stock":
+			show_warehouse()
 
 
 # ------------------------------------------------------------------- top bar
@@ -84,7 +110,11 @@ func _build_top_bar() -> void:
 
 	row.add_child(UIKit.spacer())
 
-	var sandbox := UIKit.make_button("Free Build", "Design a room with no client and no bill")
+	_stock_button = UIKit.make_button("Stock", "Everything you own and have not fitted yet")
+	_stock_button.pressed.connect(show_warehouse)
+	row.add_child(_stock_button)
+
+	var sandbox := UIKit.make_button("Free Build", "Design a room with no client and no stock to worry about")
 	sandbox.pressed.connect(func() -> void: free_build.emit())
 	row.add_child(sandbox)
 
@@ -104,10 +134,13 @@ func refresh_hud() -> void:
 		_xp_bar.value = Game.xp_fraction()
 		_xp_bar.tooltip_text = "%d / %d XP" % [Game.xp, Game.xp_needed()]
 	_jobs_label.text = "   %d of %d jobs done" % [Game.jobs_done(), Jobs.all().size()]
+	if _stock_button:
+		var held := Game.total_stock()
+		_stock_button.text = "Stock  %d" % held if held > 0 else "Stock"
 
 
 func _build_hint() -> void:
-	_hint = UIKit.label("Tap a house to see what the client wants. Tap a shop to browse its stock.", 18, UIKit.TEXT)
+	_hint = UIKit.label("Tap a house for its brief, then buy what it needs at the shops before you start.", 18, UIKit.TEXT)
 	_hint.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
 	_hint.offset_left = 16
 	_hint.offset_top = -46
@@ -117,6 +150,31 @@ func _build_hint() -> void:
 	_hint.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.85))
 	_hint.add_theme_constant_override("outline_size", 6)
 	_root.add_child(_hint)
+
+	_toast = UIKit.label("", 19, Color.WHITE)
+	_toast.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	_toast.offset_top = 84
+	_toast.offset_bottom = 84
+	_toast.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	_toast.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_toast.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_toast.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.85))
+	_toast.add_theme_constant_override("outline_size", 6)
+	_toast.visible = false
+	_root.add_child(_toast)
+
+	_toast_timer = Timer.new()
+	_toast_timer.one_shot = true
+	_toast_timer.timeout.connect(func() -> void: _toast.visible = false)
+	add_child(_toast_timer)
+
+
+func toast_message(text: String, seconds: float = 2.2) -> void:
+	if _toast == null:
+		return
+	_toast.text = text
+	_toast.visible = true
+	_toast_timer.start(seconds)
 
 
 # --------------------------------------------------------------- side sheet
@@ -206,6 +264,7 @@ func show_house(house_id: String) -> void:
 	var in_progress: bool = not Game.layout_for(house_id).is_empty()
 
 	_begin_sheet(str(job["name"]), "%s  ·  needs level %d" % [job["client"], job["level"]])
+	_current_sheet = {"kind": "house", "id": house_id}
 
 	var status := "Available"
 	var status_color := UIKit.ACCENT
@@ -230,8 +289,6 @@ func show_house(house_id: String) -> void:
 	_sheet_row("Client budget", UIKit.money(int(job["budget"])))
 	_sheet_row("Required pieces cost about", UIKit.money(Jobs.minimum_outlay(house_id)))
 	_sheet_row("Experience", "+%d XP" % int(job["xp"]))
-	if in_progress and not done:
-		_sheet_row("Already spent here", UIKit.money(Game.spend_on(house_id)), UIKit.GOLD)
 	_divider()
 
 	_sheet_body.add_child(UIKit.section_label("The brief"))
@@ -241,16 +298,19 @@ func show_house(house_id: String) -> void:
 		bullet.custom_minimum_size = Vector2(440, 0)
 		_sheet_body.add_child(bullet)
 
+	var close := UIKit.make_button("Close")
+	close.pressed.connect(close_sheet)
+	_sheet_actions.add_child(close)
+
+	if not done and not locked:
+		_build_shopping_list(house_id)
+
 	if done:
 		_divider()
 		var record: Dictionary = Game.finished_jobs[house_id]
 		_sheet_body.add_child(UIKit.label(
 			"Earned %s and %d XP." % [UIKit.money(int(record["payout"]) + int(record["bonus"])), record["xp"]],
 			18, UIKit.GOOD))
-
-	var close := UIKit.make_button("Close")
-	close.pressed.connect(close_sheet)
-	_sheet_actions.add_child(close)
 
 	var action_label := "Start job"
 	if done:
@@ -265,6 +325,82 @@ func show_house(house_id: String) -> void:
 	_sheet_actions.add_child(action)
 
 
+## What is already standing in a house, as item id -> count.
+static func _placed_counts(house_id: String) -> Dictionary:
+	var counts: Dictionary = {}
+	var layout := Game.layout_for(house_id)
+	for entry: Variant in layout.get("items", []):
+		if typeof(entry) != TYPE_DICTIONARY:
+			continue
+		var id := str((entry as Dictionary).get("id", ""))
+		counts[id] = int(counts.get(id, 0)) + 1
+	return counts
+
+
+## The gap between what the brief needs and what the player has, with a button
+## that fills the whole basket in one go.
+func _build_shopping_list(house_id: String) -> void:
+	var missing := Jobs.shopping_list(house_id, _placed_counts(house_id))
+	var paints := Jobs.missing_paints(house_id)
+	_divider()
+
+	if missing.is_empty() and paints.is_empty():
+		_sheet_body.add_child(UIKit.label(
+			"You already have everything this brief needs.", 18, UIKit.GOOD))
+		return
+
+	_sheet_body.add_child(UIKit.section_label("Still to buy"))
+	var total := Jobs.list_cost(missing)
+	for item_id: String in missing:
+		var row := HBoxContainer.new()
+		var count := int(missing[item_id])
+		row.add_child(UIKit.label("%d × %s" % [count, Catalog.display_name(item_id)], 17, UIKit.TEXT))
+		row.add_child(UIKit.spacer())
+		if Game.is_item_unlocked(item_id):
+			row.add_child(UIKit.label(UIKit.money(Catalog.price(item_id) * count), 17, UIKit.GOLD))
+		else:
+			row.add_child(UIKit.label("Level %d" % Catalog.effective_unlock_level(item_id), 17, UIKit.BAD))
+		_sheet_body.add_child(row)
+
+	for paint: Dictionary in paints:
+		var entry: Dictionary = paint["entry"]
+		var price := Catalog.paint_price(entry)
+		total += price
+		var row := HBoxContainer.new()
+		row.add_child(UIKit.label("%s paint — %s" % [
+			"Floor" if paint["surface"] == "floor" else "Wall", entry["name"]], 17, UIKit.TEXT))
+		row.add_child(UIKit.spacer())
+		row.add_child(UIKit.label(UIKit.money(price), 17, UIKit.GOLD))
+		_sheet_body.add_child(row)
+
+	var summary := HBoxContainer.new()
+	summary.add_child(UIKit.label("Basket", 18, UIKit.MUTED))
+	summary.add_child(UIKit.spacer())
+	summary.add_child(UIKit.label(UIKit.money(total), 18,
+		UIKit.GOLD if Game.can_afford(total) else UIKit.BAD))
+	_sheet_body.add_child(summary)
+
+	# The basket button lives in the pinned action row rather than at the
+	# bottom of a long brief, so it is always within reach.
+	var buy_all := UIKit.make_button("Buy all  %s" % UIKit.money(total))
+	buy_all.disabled = not Game.can_afford(total)
+	buy_all.pressed.connect(func() -> void: _buy_basket(house_id, missing, paints))
+	_sheet_actions.add_child(buy_all)
+
+
+func _buy_basket(house_id: String, missing: Dictionary, paints: Array[Dictionary]) -> void:
+	var bought := 0
+	for item_id: String in missing:
+		if not Game.is_item_unlocked(item_id):
+			continue
+		if Game.buy_item(item_id, int(missing[item_id])):
+			bought += int(missing[item_id])
+	for paint: Dictionary in paints:
+		Game.buy_paint(str(paint["surface"]), paint["entry"])
+	toast_message("%d piece%s added to your stock" % [bought, "" if bought == 1 else "s"])
+	show_house(house_id)
+
+
 # ---------------------------------------------------------------- shop sheet
 
 func show_shop(shop_id: String) -> void:
@@ -272,80 +408,155 @@ func show_shop(shop_id: String) -> void:
 	if shop.is_empty():
 		return
 
-	var unlocked := Game.is_shop_unlocked(shop_id)
 	_begin_sheet(str(shop["name"]), str(shop["tagline"]))
+	_current_sheet = {"kind": "shop", "id": shop_id}
 
-	if not unlocked:
+	if not Game.is_shop_unlocked(shop_id):
 		_sheet_body.add_child(UIKit.label(
 			"Opens at level %d." % int(shop["level"]), 18, UIKit.BAD))
 		_divider()
 
 	if shop_id == "paint":
-		_build_paint_stock()
+		_build_paint_counter()
 	else:
-		_build_item_stock(shop_id)
+		_build_furniture_counter(shop_id)
 
 	var close := UIKit.make_button("Close")
 	close.pressed.connect(close_sheet)
 	_sheet_actions.add_child(close)
 
 
-func _build_item_stock(shop_id: String) -> void:
-	_sheet_body.add_child(UIKit.section_label("Stock"))
+func _build_furniture_counter(shop_id: String) -> void:
+	_sheet_body.add_child(UIKit.section_label("On sale"))
 	for item_id in Catalog.shop_stock(shop_id):
-		var row := HBoxContainer.new()
-		var available: bool = Game.is_item_unlocked(item_id)
-
-		var chip := ColorRect.new()
-		chip.color = Catalog.default_tint(item_id) if available else Color(0.35, 0.36, 0.40)
-		chip.custom_minimum_size = Vector2(10, 34)
-		row.add_child(chip)
-
-		var name_label := UIKit.label(Catalog.display_name(item_id), 18, UIKit.TEXT if available else UIKit.MUTED)
-		name_label.custom_minimum_size = Vector2(200, 0)
-		row.add_child(name_label)
-
-		var footprint := Catalog.footprint(item_id)
-		row.add_child(UIKit.label("%.2f × %.2f m" % [footprint.x, footprint.y], 15, UIKit.MUTED))
-		row.add_child(UIKit.spacer())
-
-		if available:
-			row.add_child(UIKit.label(UIKit.money(Catalog.price(item_id)), 18, UIKit.GOLD))
-		else:
-			row.add_child(UIKit.label("Level %d" % Catalog.effective_unlock_level(item_id), 17, UIKit.BAD))
-		_sheet_body.add_child(row)
+		_sheet_body.add_child(_shop_row(item_id))
 
 	_divider()
 	_sheet_body.add_child(UIKit.wrapped_label(
-		"Buy from the tray while you are working on a house. Anything you take out again is refunded in full.",
+		"What you buy waits in your stock until you fit it into a room. Sell anything back at the same price — you only pay for a piece for good when you hand over the house it is standing in.",
 		440))
 
 
-func _build_paint_stock() -> void:
+## One line of a shop counter: a buy button, and a sell button once owned.
+func _shop_row(item_id: String) -> HBoxContainer:
+	var row := HBoxContainer.new()
+	var available: bool = Game.is_item_unlocked(item_id)
+	var price := Catalog.price(item_id)
+	var held := Game.stock_of(item_id)
+
+	var chip := ColorRect.new()
+	chip.color = Catalog.default_tint(item_id) if available else Color(0.35, 0.36, 0.40)
+	chip.custom_minimum_size = Vector2(10, 38)
+	row.add_child(chip)
+
+	var name_label := UIKit.label(
+		Catalog.display_name(item_id), 18, UIKit.TEXT if available else UIKit.MUTED)
+	name_label.custom_minimum_size = Vector2(176, 0)
+	name_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	row.add_child(name_label)
+
+	var owned_label := UIKit.label("×%d" % held if held > 0 else "", 17, UIKit.GOOD)
+	owned_label.custom_minimum_size = Vector2(44, 0)
+	owned_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	row.add_child(owned_label)
+	row.add_child(UIKit.spacer())
+
+	if not available:
+		row.add_child(UIKit.label(
+			"Level %d" % Catalog.effective_unlock_level(item_id), 17, UIKit.BAD))
+		return row
+
+	if held > 0:
+		var sell := UIKit.make_button("Sell", "Sell one back for %s" % UIKit.money(price))
+		sell.pressed.connect(func() -> void:
+			Game.sell_item(item_id, 1))
+		row.add_child(sell)
+
+	var buy := UIKit.make_button("Buy  %s" % UIKit.money(price))
+	buy.disabled = not Game.can_afford(price)
+	buy.pressed.connect(func() -> void:
+		if not Game.buy_item(item_id, 1):
+			toast_message("Not enough money")
+	)
+	row.add_child(buy)
+	return row
+
+
+func _build_paint_counter() -> void:
 	for surface: String in ["floor", "wall"]:
 		_sheet_body.add_child(UIKit.section_label(
-			"%s  ·  %s per m²" % [
-				"Floors" if surface == "floor" else "Walls",
-				UIKit.money(Catalog.FLOOR_PAINT_RATE if surface == "floor" else Catalog.WALL_PAINT_RATE),
-			]))
-		var grid := GridContainer.new()
-		grid.columns = 4
-		for entry: Dictionary in Catalog.PAINT[surface]:
-			var cell := VBoxContainer.new()
-			cell.add_theme_constant_override("separation", 2)
-			var unlocked: bool = Game.is_paint_unlocked(entry)
-			var swatch := UIKit.swatch_button(entry["color"] if unlocked else Color(0.30, 0.31, 0.35), Vector2(96, 40))
-			swatch.disabled = true
-			cell.add_child(swatch)
-			cell.add_child(UIKit.label(str(entry["name"]), 15, UIKit.TEXT if unlocked else UIKit.MUTED))
-			if not unlocked:
-				cell.add_child(UIKit.label("Level %d" % int(entry["level"]), 13, UIKit.BAD))
-			grid.add_child(cell)
-		_sheet_body.add_child(grid)
+			"Floor paint" if surface == "floor" else "Wall paint"))
+		for entry: Dictionary in Catalog.paints(surface):
+			_sheet_body.add_child(_paint_row(surface, entry))
 	_divider()
 	_sheet_body.add_child(UIKit.wrapped_label(
-		"Repainting is charged on the room's floor area, so a bigger job costs more. Pick colours from the Room panel while you work.",
+		"A colour is bought once and then yours to use in every room, as often as you like.",
 		440))
+
+
+func _paint_row(surface: String, entry: Dictionary) -> HBoxContainer:
+	var row := HBoxContainer.new()
+	var paint_name := str(entry["name"])
+	var unlocked: bool = Game.is_paint_unlocked(entry)
+	var owned: bool = Game.owns_paint(surface, paint_name)
+	var price := Catalog.paint_price(entry)
+
+	var swatch := ColorRect.new()
+	swatch.color = entry["color"] if unlocked else Color(0.30, 0.31, 0.35)
+	swatch.custom_minimum_size = Vector2(64, 34)
+	row.add_child(swatch)
+
+	var name_label := UIKit.label(paint_name, 18, UIKit.TEXT if unlocked else UIKit.MUTED)
+	name_label.custom_minimum_size = Vector2(170, 0)
+	name_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	row.add_child(name_label)
+	row.add_child(UIKit.spacer())
+
+	if not unlocked:
+		row.add_child(UIKit.label("Level %d" % int(entry["level"]), 17, UIKit.BAD))
+	elif owned:
+		row.add_child(UIKit.label("In your store", 17, UIKit.GOOD))
+	else:
+		var buy := UIKit.make_button("Buy  %s" % UIKit.money(price))
+		buy.disabled = not Game.can_afford(price)
+		buy.pressed.connect(func() -> void:
+			if not Game.buy_paint(surface, entry):
+				toast_message("Not enough money")
+		)
+		row.add_child(buy)
+	return row
+
+
+# ------------------------------------------------------------- the warehouse
+
+func show_warehouse() -> void:
+	_begin_sheet("Your stock", "Bought and waiting to be fitted.")
+	_current_sheet = {"kind": "stock"}
+
+	var owned := Game.owned_item_ids()
+	if owned.is_empty():
+		_sheet_body.add_child(UIKit.wrapped_label(
+			"Nothing in stock yet. Tap a shop on the avenue to buy furniture, then fit it into a client's room.",
+			440, UIKit.TEXT))
+	else:
+		_sheet_row("Pieces held", str(Game.total_stock()))
+		_sheet_row("Tied up in stock", UIKit.money(Game.stock_value()), UIKit.GOLD)
+		_divider()
+		for item_id in owned:
+			_sheet_body.add_child(_shop_row(item_id))
+
+	_divider()
+	var paints: Array[String] = []
+	for surface: String in ["floor", "wall"]:
+		for entry: Dictionary in Catalog.paints(surface):
+			if Game.owns_paint(surface, str(entry["name"])):
+				paints.append(str(entry["name"]))
+	_sheet_body.add_child(UIKit.section_label("Paints owned"))
+	_sheet_body.add_child(UIKit.wrapped_label(", ".join(paints), 440))
+
+	var close := UIKit.make_button("Close")
+	close.pressed.connect(close_sheet)
+	_sheet_actions.add_child(close)
 
 
 # -------------------------------------------------------------------- modal
@@ -394,8 +605,9 @@ func _open_guide() -> void:
 
 	var sections := [
 		["Pick up a job", "Tap a house on the map. The client tells you what the room has to contain and what they will pay for it."],
-		["Spend to earn", "Furniture comes out of your own pocket while you work. Take a piece out again and the shop refunds it in full, so nothing is ever wasted."],
-		["Hand it over", "Once every line of the brief is ticked, hand the room over. You collect the fee, plus a quarter of it again if the bill came in under the client's budget."],
+		["Go shopping", "Buy furniture at the shops on the avenue and it goes into your stock. The brief lists exactly what is missing, and one button fills the basket for you."],
+		["Fit it out", "Inside a room you place pieces from stock — no money changes hands there. Put a piece back and it returns to the warehouse, ready for the next house."],
+		["Hand it over", "Once every line of the brief is ticked, hand the room over. You collect the fee, plus a quarter of it again if the furniture you left behind came in under the client's budget. That furniture stays with them."],
 		["Grow", "Every finished job pays experience. New levels open the pricier shops, the better paints and the larger, more demanding houses."],
 	]
 	for section: Array in sections:

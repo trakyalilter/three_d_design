@@ -2,21 +2,23 @@
 
 An Android interior-design game built with [Godot](https://godotengine.org) 4.5.
 
-You start with $3,000 and a city full of clients. Pick a house off the map, read what
-the owner wants, buy furniture out of your own pocket, arrange it until every line of the
-brief is ticked, and hand it over for the fee. Finished jobs pay experience, and levelling
-up opens the pricier shops, the better paints and the larger houses. It is House Flipper's
-loop, shrunk to a phone screen.
+You start with $3,000 and a city full of clients. Pick a house off the map, read what the
+owner wants, go and buy the furniture into your own stock, then fit the room out from that
+stock until every line of the brief is ticked and hand it over for the fee. Finished jobs
+pay experience, and levelling up opens the pricier shops, the better paints and the larger
+houses. It is House Flipper's loop, shrunk to a phone screen.
 
 ![The city map with clients and shops](docs/screenshot-city.png)
 
-| Reading a brief | Fitting the room out |
+| Reading a brief | Buying at a shop |
 |---|---|
-| ![A client's brief on the city map](docs/screenshot-brief.png) | ![The designer with the brief checklist ticked off](docs/screenshot-job.png) |
+| ![A client's brief with its shopping list and a buy-all button](docs/screenshot-brief.png) | ![The bed shop counter with buy buttons and level gates](docs/screenshot-shop.png) |
 
-| Browsing a shop | Getting paid |
+| Your stock | Fitting the room out |
 |---|---|
-| ![The bathroom shop's stock list](docs/screenshot-shop.png) | ![The hand-over screen showing fee, bonus and XP](docs/screenshot-handover.png) |
+| ![The warehouse listing everything owned](docs/screenshot-stock.png) | ![The designer tray showing stock counts instead of prices](docs/screenshot-job.png) |
+
+![The hand-over screen showing fee, bonus and the furniture left behind](docs/screenshot-handover.png)
 
 ## Getting the app
 
@@ -42,23 +44,43 @@ them. A floating pin over each house tells you where it stands:
 | Green | Handed over |
 | Grey | Locked until you reach the level shown |
 
-Tapping a shop opens its window: what it stocks, what each piece costs, and which levels
-still gate it. The Colour House sells floor and wall paint by the square metre instead.
+Tapping a shop opens its counter: what it sells, what each piece costs, how many you
+already own, and a **Buy** button. Anything you own can be sold straight back at the price
+you paid. The Colour House works the same way, except a colour is bought once and is then
+yours to use in every room forever.
+
+**Stock** in the top bar is your warehouse: everything bought and not yet fitted, with the
+money tied up in it.
+
+### Money, stock and the room
+
+Money only ever moves in the city. Inside a room you spend *stock*, never cash:
+
+1. **Buy** furniture at a shop — it goes into your warehouse.
+2. **Place** it in a client's room — it leaves the warehouse.
+3. **Put it back** and it returns to the warehouse, ready for the next house.
+4. **Hand the job over** and the pieces standing in that room stay with the client. That is
+   the moment they are finally paid for.
+
+Nothing is ever wasted: a piece is only spent for good when a client keeps it, and until
+then you can always sell it back for what you paid. That also means you can never be
+stranded with no money and no way out.
 
 ### A job
 
 The briefing sheet gives you the client's words, the room size, the fee, their budget and
-the experience on offer. Take the job and you land in the room with the brief checklist on
-the right — it re-ticks itself live as you work.
+the experience on offer. Under the brief it lists exactly what you are still missing, and
+the **Buy all** button next to *Start job* fills the whole basket in one tap — including any
+paint the brief calls for.
 
-Every piece you place is charged to you immediately. Sell it again and you get the whole
-price back, so nothing is ever wasted and you can never get stuck. Once every line is
-ticked, **Hand over** collects the fee, plus a bonus of a quarter of the fee if the final
-bill came in under the client's budget.
+Take the job and you land in the room with the brief checklist on the right; it re-ticks
+itself live as you work. The tray shows how many of each piece you have left rather than a
+price. Once every line is ticked, **Hand over** collects the fee, plus a bonus of a quarter
+of the fee if the furniture you left behind came in under the client's budget.
 
 | Gesture | Result |
 |---|---|
-| Tap an item in the tray | Buys it and drops it into the room |
+| Tap an item in the tray | Takes one out of stock and drops it into the room |
 | Tap a piece of furniture | Selects it |
 | Drag a selected piece | Slides it along the floor, kept inside the walls |
 | Drag empty space | Orbits the camera |
@@ -67,19 +89,19 @@ bill came in under the client's budget.
 | Back button | Closes the dialog, then clears the selection, then leaves |
 
 The bar under a selection rotates in 15° steps, flips 180°, scales between 50 % and 200 %,
-recolours, duplicates and sells. **Top View** switches to a plan view and drops the walls;
+recolours, duplicates and puts back. **Top View** switches to a plan view and drops the walls;
 **Snap** toggles the 25 cm grid. Walls between you and the room hide themselves as you
 orbit, and a piece that overlaps another glows red — most briefs ask for a clean room.
 
 ### Progress
 
 Experience carries you from level 1 to level 8. Jobs run from a $1,300 studio to a
-$10,500 townhouse, and the whole run takes a careful player from $3,000 to somewhere north
-of $30,000. Everything — money, level, finished jobs and the rooms you left half-done — is
-saved to the device as you go.
+$10,500 townhouse, and a run that buys only what each brief asks for finishes all ten with
+around $33,000 in the bank at level 6. Everything — money, level, stock, paints, finished
+jobs and the rooms you left half-done — is saved to the device as you go.
 
-**Free Build** on the map opens the old sandbox: no client, no bill, everything unlocked,
-with its own save and load.
+**Free Build** on the map opens the old sandbox: no client, no stock to worry about,
+everything unlocked, with its own save and load.
 
 ![Free build mode](docs/screenshot-freebuild.png)
 
@@ -96,7 +118,7 @@ with its own save and load.
 | Little Details | 1 | Rug, floor lamp, potted plant, side table, partition |
 | Kitchen Works | 2 | Counter, refrigerator, stove, sink unit |
 | Splash & Tile | 2 | Toilet, basin, bathtub, shower, washing machine, vanity unit, towel rail |
-| Colour House | 1 | Eight floor paints and eight wall paints |
+| Colour House | 1 | Eight floor paints and eight wall paints, $160–$540 each |
 
 ## How the project fits together
 
@@ -106,14 +128,16 @@ scripts/
   game.gd                Swaps between the city and the designer
   data/
     catalog.gd           Autoload. Every model, price, shop and unlock level
-    jobs.gd              Autoload. The ten houses and the requirement evaluator
-    game_state.gd        Autoload. Money, XP, levels and the saved profile
+    jobs.gd              Autoload. The ten houses, the requirement evaluator and
+                         the shopping list a brief still needs
+    game_state.gd        Autoload. Money, XP, levels, the warehouse and the
+                         saved profile
     layout_store.gd      Free-build save files under user://
   city/
     city_view.gd         The procedural neighbourhood, its pins and pick volumes
-    city_ui.gd           Wallet, XP bar, briefing sheet, shop window
+    city_ui.gd           Wallet, XP bar, briefing sheet, shop counters, stock
   design/
-    designer.gd          The room: gestures, buying, overlap tests, hand-over
+    designer.gd          The room: gestures, stock, overlap tests, hand-over
     design_ui.gd         Tray, brief checklist, dialogs
   world/
     furniture_item.gd    A placed piece: meshes, pick body, footprint maths

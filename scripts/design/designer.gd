@@ -344,9 +344,8 @@ func _on_place_item(item_id: String) -> void:
 		if not Game.is_item_unlocked(item_id):
 			ui.toast("That needs level %d" % Catalog.effective_unlock_level(item_id), 2.0)
 			return
-		var price := Catalog.price(item_id)
-		if not Game.charge_to_job(house_id, price):
-			ui.toast("Not enough money — sell something first", 2.4)
+		if not Game.take_from_stock(item_id):
+			ui.toast("None in stock — buy one at %s" % Catalog.shop_name(Catalog.shop_of(item_id)), 2.6)
 			return
 
 	var item := FurnitureItem.new()
@@ -364,7 +363,8 @@ func _on_place_item(item_id: String) -> void:
 	_select(item)
 	_after_change()
 	if job_mode():
-		ui.toast("%s — %s" % [Catalog.display_name(item_id), UIKit.money(Catalog.price(item_id))], 1.6)
+		ui.toast("%s placed — %d left in stock" % [
+			Catalog.display_name(item_id), Game.stock_of(item_id)], 1.6)
 	else:
 		ui.toast("%s added — drag it to move" % Catalog.display_name(item_id), 1.6)
 
@@ -387,7 +387,7 @@ func _on_command(name: String) -> void:
 			_duplicate_selected()
 			return
 		"delete":
-			_sell_selected()
+			_store_selected()
 			return
 		"deselect":
 			_select(null)
@@ -399,18 +399,20 @@ func _on_command(name: String) -> void:
 	_after_change()
 
 
-func _sell_selected() -> void:
+## Takes a piece out of the room. It goes back to the warehouse rather than
+## being destroyed, so nothing the player paid for is ever lost.
+func _store_selected() -> void:
 	if selected == null:
 		return
 	var doomed := selected
-	var label := Catalog.display_name(doomed.item_id)
-	var refund := Catalog.price(doomed.item_id)
+	var item_id := doomed.item_id
+	var label := Catalog.display_name(item_id)
 	_select(null)
 	items_root.remove_child(doomed)
 	doomed.queue_free()
 	if job_mode():
-		Game.refund_to_job(house_id, refund)
-		ui.toast("%s sold back for %s" % [label, UIKit.money(refund)], 1.6)
+		Game.return_to_stock(item_id)
+		ui.toast("%s back in stock (%d)" % [label, Game.stock_of(item_id)], 1.6)
 	else:
 		ui.toast("%s removed" % label, 1.4)
 	_update_overlaps()
@@ -421,8 +423,8 @@ func _duplicate_selected() -> void:
 	if selected == null:
 		return
 	var item_id := selected.item_id
-	if job_mode() and not Game.charge_to_job(house_id, Catalog.price(item_id)):
-		ui.toast("Not enough money for another one", 2.2)
+	if job_mode() and not Game.take_from_stock(item_id):
+		ui.toast("No more %s in stock" % Catalog.display_name(item_id), 2.2)
 		return
 	var copy := FurnitureItem.from_dict(selected.to_dict())
 	if copy == null:
@@ -456,7 +458,7 @@ func _on_room_changed(width: float, room_depth: float, height: float) -> void:
 
 
 func _on_floor_paint(color: Color) -> void:
-	if not _charge_paint("floor"):
+	if not _may_paint("floor", color):
 		return
 	_floor_color = color
 	room.set_floor_color(color)
@@ -464,22 +466,21 @@ func _on_floor_paint(color: Color) -> void:
 
 
 func _on_wall_paint(color: Color) -> void:
-	if not _charge_paint("wall"):
+	if not _may_paint("wall", color):
 		return
 	_wall_color = color
 	room.set_wall_color(color)
 	_after_change()
 
 
-func _charge_paint(surface: String) -> bool:
-	if not job_mode():
+## Colours are bought once at the Colour House; using one costs nothing.
+func _may_paint(surface: String, color: Color) -> bool:
+	if not job_mode() or Game.owns_color(surface, color):
 		return true
-	var cost := Catalog.paint_cost(surface, room.area())
-	if not Game.charge_to_job(house_id, cost):
-		ui.toast("Not enough money to repaint", 2.2)
-		return false
-	ui.toast("Repainted for %s" % UIKit.money(cost), 1.6)
-	return true
+	var entry := Game.paint_entry_for(surface, color)
+	var label := str(entry.get("name", "That colour"))
+	ui.toast("%s is not in your paint store — buy it at the Colour House" % label, 2.8)
+	return false
 
 
 func _on_save_requested(layout_name: String) -> void:
@@ -509,12 +510,11 @@ func _on_delete_layout(layout_name: String) -> void:
 func _on_new_requested() -> void:
 	_select(null)
 	if job_mode():
-		var refund := 0
+		var returned := 0
 		for item in _items():
-			refund += Catalog.price(item.item_id)
-		if refund > 0:
-			Game.refund_to_job(house_id, refund)
-		ui.toast("Everything sold back for %s" % UIKit.money(refund), 2.2)
+			Game.return_to_stock(item.item_id)
+			returned += 1
+		ui.toast("%d piece%s back in stock" % [returned, "" if returned == 1 else "s"], 2.2)
 	else:
 		ui.toast("Room cleared", 1.5)
 	_clear_items()
@@ -531,12 +531,22 @@ func _on_finish() -> void:
 		ui.toast("The brief is not finished yet", 2.2)
 		return
 
-	var spend := Game.spend_on(house_id)
+	# The furniture standing in the room is what the job actually costs: it
+	# stays with the client.
+	var installed := installed_value()
 	var payout := int(job["payout"])
-	var bonus := Jobs.bonus_for(house_id) if spend <= int(job["budget"]) else 0
-	var result := Game.record_completion(house_id, payout, bonus, int(job["xp"]))
+	var bonus := Jobs.bonus_for(house_id) if installed <= int(job["budget"]) else 0
+	var result := Game.record_completion(house_id, payout, bonus, int(job["xp"]), installed)
 	Game.store_layout(house_id, _serialize())
 	ui.show_completion(job, result, func() -> void: job_finished.emit(house_id))
+
+
+## Retail value of everything currently standing in the room.
+func installed_value() -> int:
+	var total := 0
+	for item in _items():
+		total += Catalog.price(item.item_id)
+	return total
 
 
 func _on_leave() -> void:
@@ -706,7 +716,7 @@ func _context() -> Dictionary:
 			"w": room.width, "d": room.depth, "h": room.height,
 			"floor": _floor_color, "wall": _wall_color,
 		},
-		"spend": Game.spend_on(house_id),
+		"spend": installed_value(),
 	}
 
 
@@ -714,7 +724,7 @@ func _evaluate() -> void:
 	if not job_mode():
 		return
 	ui.set_requirements(Jobs.evaluate(house_id, _context()))
-	ui.refresh_bill(Game.spend_on(house_id))
+	ui.refresh_bill(installed_value())
 
 
 ## Everything that has to happen after the room changes in any way.

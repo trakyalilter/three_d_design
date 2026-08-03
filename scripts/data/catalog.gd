@@ -65,9 +65,10 @@ const SHOPS: Array[Dictionary] = [
 	},
 ]
 
-## Cost per square metre when the player repaints in the designer.
-const FLOOR_PAINT_RATE := 9
-const WALL_PAINT_RATE := 6
+## A colour is bought once at the Colour House and then free to use in any
+## room, so no money ever changes hands inside the designer. Price is set by
+## the level tier the shade sits in.
+const PAINT_PRICE_BY_LEVEL := [0, 160, 280, 400, 540]
 
 ## Palettes sold by the Colour House. Premium shades unlock with level.
 const PAINT: Dictionary = {
@@ -723,9 +724,14 @@ func shop_stock(shop_id: String) -> Array[String]:
 	return ids_in(shop["category"])
 
 
-func paint_cost(surface: String, area: float) -> int:
-	var rate: int = FLOOR_PAINT_RATE if surface == "floor" else WALL_PAINT_RATE
-	return int(ceil(area * float(rate)))
+func paint_price(entry: Dictionary) -> int:
+	var tier: int = clampi(int(entry.get("level", 1)), 1, PAINT_PRICE_BY_LEVEL.size() - 1)
+	return PAINT_PRICE_BY_LEVEL[tier]
+
+
+## Every shade in a palette, for the shop window and the designer's picker.
+func paints(surface: String) -> Array:
+	return PAINT.get(surface, [])
 
 
 ## Footprint (width, depth) on the floor, in metres.

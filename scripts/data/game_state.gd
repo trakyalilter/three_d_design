@@ -1,10 +1,18 @@
 extends Node
-## The player's career: money, experience, level, and which jobs are done.
+## The player's career: money, experience, level, the stock they own, and
+## which jobs are done.
 ##
 ## Autoloaded as `Game`. Everything here persists to user://profile.json so a
 ## session survives closing the app.
+##
+## Money only ever changes in the city: furniture is bought into stock at the
+## shops and can be sold back at the same price. Inside a room the player
+## spends stock, never cash — a piece leaves the warehouse when it is placed
+## and returns to it when it is taken out again. Handing a job over is what
+## finally consumes the furniture standing in that room.
 
 signal money_changed(amount: int)
+signal stock_changed()
 signal progress_changed(level: int, xp: int, xp_needed: int)
 signal levelled_up(level: int)
 
@@ -16,16 +24,19 @@ var money: int = STARTING_MONEY
 var xp: int = 0
 var level: int = 1
 
-## house id -> {"payout": int, "xp": int, "spend": int, "bonus": int}
+## item id -> how many are sitting in the warehouse, ready to place.
+var inventory: Dictionary = {}
+## "<surface>/<name>" -> true for every paint the player has bought.
+var owned_paints: Dictionary = {}
+## house id -> {"payout": int, "bonus": int, "xp": int, "installed": int}
 var finished_jobs: Dictionary = {}
 ## house id -> serialized layout, so an unfinished job can be resumed.
 var saved_jobs: Dictionary = {}
-## house id -> money already sunk into that job, refundable until it is handed in.
-var job_spend: Dictionary = {}
 
 
 func _ready() -> void:
 	load_profile()
+	_grant_starter_paints()
 
 
 # ---------------------------------------------------------------- levelling
@@ -98,6 +109,131 @@ func is_paint_unlocked(entry: Dictionary) -> bool:
 	return level >= int(entry.get("level", 1))
 
 
+# -------------------------------------------------------------------- stock
+
+func stock_of(item_id: String) -> int:
+	return int(inventory.get(item_id, 0))
+
+
+func total_stock() -> int:
+	var total := 0
+	for count: int in inventory.values():
+		total += count
+	return total
+
+
+## Value of everything sitting unused in the warehouse.
+func stock_value() -> int:
+	var total := 0
+	for item_id: String in inventory:
+		total += Catalog.price(item_id) * int(inventory[item_id])
+	return total
+
+
+func owned_item_ids() -> Array[String]:
+	var out: Array[String] = []
+	for item_id in Catalog.ids():
+		if stock_of(item_id) > 0:
+			out.append(item_id)
+	return out
+
+
+## Buys `count` of an item into the warehouse. All or nothing.
+func buy_item(item_id: String, count: int = 1) -> bool:
+	if count <= 0 or not is_item_unlocked(item_id):
+		return false
+	var cost := Catalog.price(item_id) * count
+	if not spend(cost):
+		return false
+	inventory[item_id] = stock_of(item_id) + count
+	stock_changed.emit()
+	save_profile()
+	return true
+
+
+## Sells stock back at the price it was bought for, so a mistake at the shop
+## never costs the player anything.
+func sell_item(item_id: String, count: int = 1) -> int:
+	var sellable: int = mini(count, stock_of(item_id))
+	if sellable <= 0:
+		return 0
+	var refund := Catalog.price(item_id) * sellable
+	_set_stock(item_id, stock_of(item_id) - sellable)
+	earn(refund)
+	stock_changed.emit()
+	save_profile()
+	return refund
+
+
+## Placing a piece in a room. Returns false when the warehouse is empty.
+func take_from_stock(item_id: String) -> bool:
+	if stock_of(item_id) <= 0:
+		return false
+	_set_stock(item_id, stock_of(item_id) - 1)
+	stock_changed.emit()
+	return true
+
+
+## Taking a piece back out of a room.
+func return_to_stock(item_id: String, count: int = 1) -> void:
+	if count <= 0:
+		return
+	inventory[item_id] = stock_of(item_id) + count
+	stock_changed.emit()
+
+
+func _set_stock(item_id: String, count: int) -> void:
+	if count <= 0:
+		inventory.erase(item_id)
+	else:
+		inventory[item_id] = count
+
+
+# -------------------------------------------------------------------- paint
+
+static func paint_key(surface: String, paint_name: String) -> String:
+	return "%s/%s" % [surface, paint_name]
+
+
+func owns_paint(surface: String, paint_name: String) -> bool:
+	return owned_paints.has(paint_key(surface, paint_name))
+
+
+## Finds the palette entry a colour belongs to, or an empty dictionary.
+func paint_entry_for(surface: String, color: Color) -> Dictionary:
+	for entry: Dictionary in Catalog.PAINT[surface]:
+		var target: Color = entry["color"]
+		if Vector3(color.r - target.r, color.g - target.g, color.b - target.b).length() < 0.01:
+			return entry
+	return {}
+
+
+func owns_color(surface: String, color: Color) -> bool:
+	var entry := paint_entry_for(surface, color)
+	return not entry.is_empty() and owns_paint(surface, str(entry["name"]))
+
+
+func buy_paint(surface: String, entry: Dictionary) -> bool:
+	if not is_paint_unlocked(entry):
+		return false
+	var paint_name := str(entry["name"])
+	if owns_paint(surface, paint_name):
+		return true
+	if not spend(Catalog.paint_price(entry)):
+		return false
+	owned_paints[paint_key(surface, paint_name)] = true
+	stock_changed.emit()
+	save_profile()
+	return true
+
+
+## The plainest colour in each palette comes with the toolbox.
+func _grant_starter_paints() -> void:
+	for surface: String in ["floor", "wall"]:
+		var first: Dictionary = Catalog.PAINT[surface][0]
+		owned_paints[paint_key(surface, str(first["name"]))] = true
+
+
 # --------------------------------------------------------------------- jobs
 
 func is_job_done(house_id: String) -> bool:
@@ -108,38 +244,17 @@ func jobs_done() -> int:
 	return finished_jobs.size()
 
 
-func spend_on(house_id: String) -> int:
-	return int(job_spend.get(house_id, 0))
-
-
-## Buying for a job: takes the money and remembers it against the house so it
-## can be refunded if the player changes their mind.
-func charge_to_job(house_id: String, amount: int) -> bool:
-	if not spend(amount):
-		return false
-	job_spend[house_id] = spend_on(house_id) + amount
-	return true
-
-
-## Selling something back gives the full price; the player is never punished
-## for rearranging.
-func refund_to_job(house_id: String, amount: int) -> void:
-	earn(amount)
-	job_spend[house_id] = maxi(spend_on(house_id) - amount, 0)
-
-
-func record_completion(house_id: String, payout: int, bonus: int, xp_reward: int) -> Dictionary:
+func record_completion(house_id: String, payout: int, bonus: int, xp_reward: int, installed: int) -> Dictionary:
 	var levels_gained := add_xp(xp_reward)
 	earn(payout + bonus)
 	var result := {
 		"payout": payout,
 		"bonus": bonus,
 		"xp": xp_reward,
-		"spend": spend_on(house_id),
+		"installed": installed,
 		"levels": levels_gained,
 	}
 	finished_jobs[house_id] = result
-	job_spend.erase(house_id)
 	save_profile()
 	return result
 
@@ -153,29 +268,20 @@ func layout_for(house_id: String) -> Dictionary:
 	return saved_jobs.get(house_id, {})
 
 
-## Walking away from a job: the furniture goes back to the shops and the money
-## returns to the player.
-func abandon_job(house_id: String) -> int:
-	var refund := spend_on(house_id)
-	if refund > 0:
-		earn(refund)
-	job_spend.erase(house_id)
-	saved_jobs.erase(house_id)
-	save_profile()
-	return refund
-
-
 # -------------------------------------------------------------- persistence
 
 func reset() -> void:
 	money = STARTING_MONEY
 	xp = 0
 	level = 1
+	inventory.clear()
+	owned_paints.clear()
 	finished_jobs.clear()
 	saved_jobs.clear()
-	job_spend.clear()
+	_grant_starter_paints()
 	save_profile()
 	money_changed.emit(money)
+	stock_changed.emit()
 	progress_changed.emit(level, xp, xp_needed())
 
 
@@ -185,13 +291,14 @@ func save_profile() -> void:
 		push_warning("Could not save the profile (%d)" % FileAccess.get_open_error())
 		return
 	file.store_string(JSON.stringify({
-		"version": 1,
+		"version": 2,
 		"money": money,
 		"xp": xp,
 		"level": level,
+		"inventory": inventory,
+		"paints": owned_paints,
 		"finished": finished_jobs,
 		"saved": saved_jobs,
-		"spend": job_spend,
 	}, "\t"))
 	file.close()
 
@@ -213,4 +320,8 @@ func load_profile() -> void:
 	level = clampi(int(data.get("level", 1)), 1, MAX_LEVEL)
 	finished_jobs = data.get("finished", {})
 	saved_jobs = data.get("saved", {})
-	job_spend = data.get("spend", {})
+	# Counts come back from JSON as floats.
+	inventory = {}
+	for item_id: String in data.get("inventory", {}):
+		_set_stock(item_id, int(data["inventory"][item_id]))
+	owned_paints = data.get("paints", {})

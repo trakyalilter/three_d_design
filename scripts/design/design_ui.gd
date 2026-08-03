@@ -84,7 +84,8 @@ func _ready() -> void:
 	_build_swatch_popup()
 	_build_modal_layer()
 
-	Game.money_changed.connect(func(_amount: int) -> void: refresh_affordability())
+	Game.money_changed.connect(func(_amount: int) -> void: refresh_stock())
+	Game.stock_changed.connect(refresh_stock)
 
 
 # ------------------------------------------------------------------- top bar
@@ -163,17 +164,17 @@ func configure(job: Dictionary) -> void:
 	_job_label.text = "   %s" % job.get("name", "") if job_mode else ""
 	_brief_sheet.visible = false
 	refresh_bill(0)
-	refresh_affordability()
+	refresh_stock()
 
 
-func refresh_bill(spend: int) -> void:
+func refresh_bill(installed: int) -> void:
 	_money_label.text = UIKit.money(Game.money)
 	if not job_mode:
 		return
 	var budget := int(_job.get("budget", 0))
-	_bill_label.text = "   spent %s of %s" % [UIKit.money(spend), UIKit.money(budget)]
+	_bill_label.text = "   fitted %s of %s budget" % [UIKit.money(installed), UIKit.money(budget)]
 	_bill_label.add_theme_color_override(
-		"font_color", UIKit.MUTED if spend <= budget else UIKit.BAD)
+		"font_color", UIKit.MUTED if installed <= budget else UIKit.BAD)
 
 
 func set_stats(item_count: int, floor_area: float) -> void:
@@ -276,7 +277,7 @@ func _build_selection_bar(parent: Control) -> void:
 	copy_btn.pressed.connect(func() -> void: command.emit("duplicate"))
 	row.add_child(copy_btn)
 
-	var del_btn := UIKit.make_button("Sell")
+	var del_btn := UIKit.make_button("Put back", "Return this piece to your stock")
 	del_btn.add_theme_color_override("font_color", UIKit.BAD)
 	del_btn.pressed.connect(func() -> void: command.emit("delete"))
 	row.add_child(del_btn)
@@ -339,7 +340,7 @@ func _select_category(category: String) -> void:
 		var button := _make_catalog_button(id)
 		_catalog_items.add_child(button)
 		_item_buttons[id] = button
-	refresh_affordability()
+	refresh_stock()
 
 
 func _make_catalog_button(id: String) -> Button:
@@ -373,15 +374,15 @@ func _make_catalog_button(id: String) -> Button:
 	return b
 
 
-## Greys out anything the player has not unlocked or cannot pay for.
-func refresh_affordability() -> void:
+## Shows how many of each piece are sitting in the warehouse, and greys out
+## anything that is out of stock or still locked.
+func refresh_stock() -> void:
 	if _money_label:
 		_money_label.text = UIKit.money(Game.money)
 	for item_id: String in _item_buttons:
 		var button: Button = _item_buttons[item_id]
 		var footer := button.get_node("Footer") as Label
 		var strip := button.get_node("Strip") as ColorRect
-		var price := Catalog.price(item_id)
 		var footprint := Catalog.footprint(item_id)
 
 		if not job_mode:
@@ -389,20 +390,23 @@ func refresh_affordability() -> void:
 			footer.text = "%.2f × %.2f m" % [footprint.x, footprint.y]
 			footer.add_theme_color_override("font_color", UIKit.MUTED)
 			strip.color = Catalog.default_tint(item_id)
-		elif not Game.is_item_unlocked(item_id):
+			continue
+
+		var stock := Game.stock_of(item_id)
+		if not Game.is_item_unlocked(item_id):
 			button.disabled = true
 			footer.text = "Level %d" % Catalog.effective_unlock_level(item_id)
 			footer.add_theme_color_override("font_color", UIKit.BAD)
 			strip.color = Color(0.34, 0.35, 0.40)
-		elif not Game.can_afford(price):
+		elif stock <= 0:
 			button.disabled = true
-			footer.text = UIKit.money(price)
-			footer.add_theme_color_override("font_color", UIKit.BAD)
-			strip.color = Catalog.default_tint(item_id).darkened(0.55)
+			footer.text = "none in stock"
+			footer.add_theme_color_override("font_color", UIKit.MUTED)
+			strip.color = Catalog.default_tint(item_id).darkened(0.6)
 		else:
 			button.disabled = false
-			footer.text = UIKit.money(price)
-			footer.add_theme_color_override("font_color", UIKit.GOLD)
+			footer.text = "%d in stock" % stock
+			footer.add_theme_color_override("font_color", UIKit.GOOD)
 			strip.color = Catalog.default_tint(item_id)
 
 
@@ -606,34 +610,33 @@ func _open_room_dialog() -> void:
 		_room_d = _slider_row(body, "Depth", 2.0, 14.0, 0.25, _room_dims.z)
 		_room_h = _slider_row(body, "Height", 2.2, 3.6, 0.1, _room_dims.y)
 
-	var area: float = _room_dims.x * _room_dims.z
-	_paint_section(body, "floor", area)
-	_paint_section(body, "wall", area)
+	_paint_section(body, "floor")
+	_paint_section(body, "wall")
+	if job_mode:
+		body.add_child(UIKit.wrapped_label(
+			"Only colours you have bought at the Colour House can be used here.", 520))
 
 	_emit_room_changes = true
 	var row := _dialog_buttons(["Done"])
 	(row.get_child(0) as Button).pressed.connect(close_dialog)
 
 
-func _paint_section(body: Control, surface: String, area: float) -> void:
-	var cost := Catalog.paint_cost(surface, area)
-	var heading := "Floor" if surface == "floor" else "Walls"
-	if job_mode:
-		heading += "  ·  %s to repaint" % UIKit.money(cost)
-	body.add_child(UIKit.section_label(heading))
+func _paint_section(body: Control, surface: String) -> void:
+	body.add_child(UIKit.section_label("Floor" if surface == "floor" else "Walls"))
 
 	var grid := GridContainer.new()
 	grid.columns = 4
 	for entry: Dictionary in Catalog.PAINT[surface]:
+		var paint_name := str(entry["name"])
+		var owned: bool = not job_mode or Game.owns_paint(surface, paint_name)
 		var unlocked: bool = Game.is_paint_unlocked(entry)
-		var affordable: bool = not job_mode or Game.can_afford(cost)
 		var color: Color = entry["color"]
 		var cell := VBoxContainer.new()
 		cell.add_theme_constant_override("separation", 2)
 
 		var swatch := UIKit.swatch_button(
-			color if unlocked else Color(0.30, 0.31, 0.35), Vector2(104, 42))
-		swatch.disabled = not unlocked or not affordable
+			color if (owned or not job_mode) else color.darkened(0.62), Vector2(104, 42))
+		swatch.disabled = job_mode and not owned
 		swatch.pressed.connect(func() -> void:
 			if surface == "floor":
 				floor_paint_selected.emit(color)
@@ -641,13 +644,16 @@ func _paint_section(body: Control, surface: String, area: float) -> void:
 				wall_paint_selected.emit(color))
 		cell.add_child(swatch)
 
-		var caption := UIKit.label(str(entry["name"]), 14, UIKit.TEXT if unlocked else UIKit.MUTED)
+		var caption := UIKit.label(paint_name, 14, UIKit.TEXT if owned else UIKit.MUTED)
 		caption.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		cell.add_child(caption)
-		if not unlocked:
-			var lock := UIKit.label("Level %d" % int(entry["level"]), 13, UIKit.BAD)
-			lock.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-			cell.add_child(lock)
+
+		if job_mode and not owned:
+			var note := UIKit.label(
+				"Level %d" % int(entry["level"]) if not unlocked else UIKit.money(Catalog.paint_price(entry)),
+				13, UIKit.BAD if not unlocked else UIKit.MUTED)
+			note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			cell.add_child(note)
 		grid.add_child(cell)
 	body.add_child(grid)
 
@@ -768,7 +774,7 @@ func _confirm_leave() -> void:
 		return
 	var body := _begin_dialog("Back to the city")
 	body.add_child(UIKit.wrapped_label(
-		"The room is kept exactly as it is. The money you have spent stays in it until you hand the job over.",
+		"The room is kept exactly as it is, and the pieces you have placed stay in it. Go and buy whatever else the brief needs, then come back.",
 		520, UIKit.TEXT))
 	var row := _dialog_buttons(["Stay", "Back to city"])
 	(row.get_child(0) as Button).pressed.connect(close_dialog)
@@ -780,10 +786,10 @@ func _confirm_leave() -> void:
 func _open_help_dialog() -> void:
 	var body := _begin_dialog("How to use")
 	var sections := [
-		["Add furniture", "Pick a category, then tap an item to drop it into the room. On a job the price comes straight out of your money."],
+		["Add furniture", "Pick a category, then tap an item to drop it into the room. On a job you place pieces from your own stock — buy more at the shops in the city."],
 		["Move", "Drag an item with one finger. It slides along the floor and stays inside the walls."],
 		["Look around", "Drag an empty spot with one finger to orbit. Pinch with two fingers to zoom, and drag with two fingers to pan."],
-		["Adjust", "Select an item, then use the bar at the bottom to rotate, resize, recolour, duplicate or sell it. Selling refunds the full price."],
+		["Adjust", "Select an item, then use the bar at the bottom to rotate, resize, recolour, duplicate or put it back. Anything you put back returns to your stock, ready for another room."],
 		["Red tint", "That item overlaps another. Most briefs ask for a room with no clashes."],
 		["Handing over", "Tick every line of the Brief, then hand the room over to collect the fee."],
 	]
@@ -802,8 +808,8 @@ func show_completion(job: Dictionary, result: Dictionary, on_close: Callable) ->
 	var rows := [
 		["Fee", UIKit.money(int(result["payout"]))],
 		["On-budget bonus", UIKit.money(int(result["bonus"]))],
-		["Spent on furniture", "-%s" % UIKit.money(int(result["spend"]))],
-		["Net", UIKit.money(int(result["payout"]) + int(result["bonus"]) - int(result["spend"]))],
+		["Furniture left in the house", "-%s" % UIKit.money(int(result["installed"]))],
+		["Net", UIKit.money(int(result["payout"]) + int(result["bonus"]) - int(result["installed"]))],
 		["Experience", "+%d XP" % int(result["xp"])],
 	]
 	for entry: Array in rows:
@@ -833,7 +839,7 @@ func set_selection(item: FurnitureItem) -> void:
 	_selection_bar.visible = true
 	var text := "%s   %d%%" % [Catalog.display_name(item.item_id), roundi(item.scale_factor * 100.0)]
 	if job_mode:
-		text += "   sells back for %s" % UIKit.money(Catalog.price(item.item_id))
+		text += "   %s fitted" % UIKit.money(Catalog.price(item.item_id))
 	_selection_label.text = text
 
 

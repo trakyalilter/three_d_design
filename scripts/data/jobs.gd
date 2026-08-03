@@ -265,14 +265,133 @@ func bonus_for(house_id: String) -> int:
 ## An estimate of what the required pieces alone will cost, shown in the brief
 ## so the player can judge whether they can afford to take the job on.
 func minimum_outlay(house_id: String) -> int:
+	var total := 0
+	for item_id: String in _needed_pieces(house_id):
+		total += Catalog.price(item_id) * int(_needed_pieces(house_id)[item_id])
+	return total
+
+
+## Everything the brief calls for, as item id -> count, ignoring what the
+## player already owns. Open-ended lines (a plain count of pieces, or a spread
+## across shops) are filled with the cheapest thing that satisfies them.
+func _needed_pieces(house_id: String) -> Dictionary:
 	var job := get_job(house_id)
 	if job.is_empty():
-		return 0
-	var total := 0
+		return {}
+
+	var wanted: Dictionary = {}
+	var categories_used: Dictionary = {}
+
 	for req: Dictionary in job["requirements"]:
-		if req.get("type", "") == "item":
-			total += Catalog.price(req["id"]) * int(req.get("count", 1))
+		match str(req.get("type", "")):
+			"item":
+				var id: String = str(req["id"])
+				wanted[id] = int(wanted.get(id, 0)) + int(req.get("count", 1))
+				categories_used[Catalog.category_of(id)] = true
+			"category":
+				var category := str(req["category"])
+				var have := _count_in_category(wanted, category)
+				var pick := _cheapest_in(category)
+				if pick != "":
+					var missing: int = maxi(int(req.get("count", 1)) - have, 0)
+					if missing > 0:
+						wanted[pick] = int(wanted.get(pick, 0)) + missing
+					categories_used[category] = true
+
+	# "Buy from N different shops" — add a cheap piece from categories not yet
+	# represented until enough of them are.
+	for req: Dictionary in job["requirements"]:
+		if str(req.get("type", "")) != "categories":
+			continue
+		for category in Catalog.CATEGORIES:
+			if categories_used.size() >= int(req.get("count", 1)):
+				break
+			if categories_used.has(category):
+				continue
+			var pick := _cheapest_in(category)
+			if pick != "":
+				wanted[pick] = int(wanted.get(pick, 0)) + 1
+				categories_used[category] = true
+
+	# "Furnish with at least N pieces" — top up with the cheapest decor.
+	for req: Dictionary in job["requirements"]:
+		if str(req.get("type", "")) != "total":
+			continue
+		var placed := 0
+		for count: int in wanted.values():
+			placed += count
+		var filler := _cheapest_in("Decor")
+		if filler != "":
+			var missing: int = maxi(int(req.get("count", 1)) - placed, 0)
+			if missing > 0:
+				wanted[filler] = int(wanted.get(filler, 0)) + missing
+
+	return wanted
+
+
+func _count_in_category(wanted: Dictionary, category: String) -> int:
+	var total := 0
+	for item_id: String in wanted:
+		if Catalog.category_of(item_id) == category:
+			total += int(wanted[item_id])
 	return total
+
+
+func _cheapest_in(category: String) -> String:
+	var best := ""
+	var best_price := 1 << 30
+	for id in Catalog.ids_in(category):
+		if Catalog.price(id) < best_price:
+			best_price = Catalog.price(id)
+			best = id
+	return best
+
+
+## What still has to be bought for a job: the brief's pieces, minus whatever is
+## already standing in the room and whatever is sitting in the warehouse.
+## Returns item id -> count.
+func shopping_list(house_id: String, placed: Dictionary = {}) -> Dictionary:
+	var missing: Dictionary = {}
+	for item_id: String in _needed_pieces(house_id):
+		var need := int(_needed_pieces(house_id)[item_id])
+		var have := int(placed.get(item_id, 0)) + Game.stock_of(item_id)
+		if need > have:
+			missing[item_id] = need - have
+	return missing
+
+
+static func list_cost(list: Dictionary) -> int:
+	var total := 0
+	for item_id: String in list:
+		total += Catalog.price(item_id) * int(list[item_id])
+	return total
+
+
+## Colours the brief asks for that the player does not own yet, as
+## [{"surface": String, "entry": Dictionary}].
+func missing_paints(house_id: String) -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	var job := get_job(house_id)
+	if job.is_empty():
+		return out
+	for req: Dictionary in job["requirements"]:
+		var kind := str(req.get("type", ""))
+		if kind != "floor_color" and kind != "wall_color":
+			continue
+		var surface := "floor" if kind == "floor_color" else "wall"
+		var satisfied := false
+		var candidate: Dictionary = {}
+		for entry: Dictionary in Catalog.PAINT[surface]:
+			if not req["names"].has(entry["name"]):
+				continue
+			if Game.owns_paint(surface, str(entry["name"])):
+				satisfied = true
+				break
+			if candidate.is_empty() and Game.is_paint_unlocked(entry):
+				candidate = entry
+		if not satisfied and not candidate.is_empty():
+			out.append({"surface": surface, "entry": candidate})
+	return out
 
 
 # ---------------------------------------------------------------- reporting
