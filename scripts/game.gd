@@ -20,8 +20,13 @@ var title: TitleScreen
 var city: CityView
 var city_ui: CityUI
 var designer: RoomDesigner
+var shop: ShopFloor
+var shop_ui: ShopUI
 
 var _loading: LoadingScreen
+## The house the player was last looking at, so leaving a shop puts the map
+## back where they left it rather than at the centre.
+var _last_house := ""
 ## True while a screen change is in flight. Every entry point below is a
 ## coroutine, so without this a second tap could start a build on top of one.
 var _changing := false
@@ -84,12 +89,13 @@ func enter_city(focus_house: String = "") -> void:
 	city.house_picked.connect(func(house_id: String) -> void:
 		city_ui.show_house(house_id)
 		city.focus_on(house_id))
-	city.shop_picked.connect(city_ui.show_shop)
+	city.shop_picked.connect(func(shop_id: String) -> void: enter_shop(shop_id))
 	city.district_picked.connect(city_ui.show_district)
 	city.nothing_picked.connect(city_ui.close_sheet)
 
 	city_ui.start_job.connect(enter_designer)
 	city_ui.free_build.connect(func() -> void: enter_designer(""))
+	city_ui.shop_entered.connect(func(shop_id: String) -> void: enter_shop(shop_id))
 	# A career reset can hand back quarters as well as money, so redraw the map.
 	city_ui.career_reset.connect(func() -> void: city.rebuild())
 	city_ui.repeat_taken.connect(func(_house_id: String) -> void: city.refresh_markers())
@@ -99,6 +105,7 @@ func enter_city(focus_house: String = "") -> void:
 	city_ui.district_focused.connect(func(district_id: String) -> void:
 		city.focus_district(district_id))
 
+	_last_house = focus_house
 	if focus_house != "":
 		city.focus_on(focus_house)
 		city_ui.show_house(focus_house)
@@ -131,6 +138,81 @@ func enter_designer(house_id: String) -> void:
 	designer.left.connect(func() -> void: enter_city(house_id))
 
 	await _uncover(screen)
+
+
+## A shop, from the inside. The stock stands on the floor rather than sitting
+## in a list, so this is a screen of its own like the map and the designer.
+func enter_shop(shop_id: String) -> void:
+	if _changing:
+		return
+	var counter: Dictionary = Catalog.get_shop(shop_id)
+	if counter.is_empty():
+		return
+	_changing = true
+
+	var quarter := Catalog.shop_district(shop_id)
+	var kicker := str(Jobs.get_district(quarter)["name"]) if quarter != "" else "The parade"
+	var screen: LoadingScreen = await _cover(kicker, str(counter["name"]), "Walking over")
+
+	var from_house := _last_house
+	shop_ui = ShopUI.new()
+	shop_ui.name = "ShopUI"
+	add_child(shop_ui)
+
+	shop = ShopFloor.new()
+	shop.name = "Shop"
+	shop.staged_build = true
+	shop.setup(shop_id)
+	add_child(shop)
+	shop.ui_probe = shop_ui.is_point_over_ui
+
+	await _run_stages(screen, shop.build_stages())
+	shop_ui.configure(counter)
+
+	shop.picked.connect(shop_ui.show_item)
+	shop.picked_paint.connect(shop_ui.show_paint)
+	shop.nothing_picked.connect(shop_ui.close_card)
+
+	shop_ui.leave_requested.connect(func() -> void: enter_city(from_house))
+	shop_ui.buy_requested.connect(_buy_in_shop)
+	shop_ui.sell_requested.connect(_sell_in_shop)
+	shop_ui.buy_paint_requested.connect(_buy_paint_in_shop)
+
+	await _uncover(screen)
+
+
+func _buy_in_shop(item_id: String) -> void:
+	if not Game.buy_item(item_id, 1):
+		Audio.play("deny")
+		shop_ui.toast("Not enough money")
+		return
+	Audio.play("buy")
+	shop_ui.toast("%s — %d in stock" % [
+		Catalog.display_name(item_id), Game.stock_of(item_id)], 1.6)
+	# The floor is laid out again so the ticket and the greying stay honest.
+	shop.restock()
+	shop.reselect(item_id)
+
+
+func _sell_in_shop(item_id: String) -> void:
+	if Game.sell_item(item_id, 1) <= 0:
+		Audio.play("deny")
+		return
+	Audio.play("sell")
+	shop_ui.toast("Sold back — %d left" % Game.stock_of(item_id), 1.6)
+	shop.restock()
+	shop.reselect(item_id)
+
+
+func _buy_paint_in_shop(surface: String, entry: Dictionary) -> void:
+	if not Game.buy_paint(surface, entry):
+		Audio.play("deny")
+		shop_ui.toast("Not enough money")
+		return
+	Audio.play("buy")
+	shop_ui.toast("%s is yours to use in any room" % entry["name"], 2.0)
+	shop.restock()
+	shop.reselect_paint(surface, str(entry["name"]))
 
 
 # ------------------------------------------------------------- the changeover
@@ -175,7 +257,7 @@ func _uncover(screen: LoadingScreen) -> void:
 
 
 func _clear() -> void:
-	for node in [designer, city, city_ui, title]:
+	for node in [designer, city, city_ui, title, shop, shop_ui]:
 		if is_instance_valid(node):
 			remove_child(node)
 			node.queue_free()
@@ -183,6 +265,8 @@ func _clear() -> void:
 	city = null
 	city_ui = null
 	title = null
+	shop = null
+	shop_ui = null
 
 
 func _notification(what: int) -> void:
@@ -196,9 +280,13 @@ func _notification(what: int) -> void:
 			# There is nothing to go back to while a screen is still building.
 			if _changing:
 				return
-			# The designer handles its own back button; from the city, back
-			# closes whatever is open and then returns to the front page.
+			# The designer handles its own back button; from a shop, back is
+			# the way out to the map; from the city, back closes whatever is
+			# open and then returns to the front page.
 			if designer != null:
+				return
+			if shop != null:
+				enter_city(_last_house)
 				return
 			if city_ui == null:
 				Game.save_profile()

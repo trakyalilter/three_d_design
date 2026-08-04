@@ -27,6 +27,9 @@ func _ready() -> void:
 	print("=== the map ===")
 	await _check_life()
 
+	print("=== the shops ===")
+	await _check_shop()
+
 	print("=== sound ===")
 	_check_sound()
 
@@ -270,6 +273,80 @@ func _check_life() -> void:
 
 	print("map             %d moving in %d draw calls, %d of them shifted in 20 frames"
 		% [instances, pools, moved])
+
+
+# -------------------------------------------------------------------- shops
+
+## A shop is a room you walk into. Everything it sells stands on the floor with
+## a ticket in front of it, and buying happens by picking the piece up rather
+## than reading a list.
+func _check_shop() -> void:
+	var main := get_tree().current_scene
+
+	var shop_id := "living"
+	main.enter_shop(shop_id)
+	await _settle()
+	_expect(main.shop != null, "the shop did not open")
+	_expect(main.city == null, "the map was left running under the shop")
+	if main.shop == null:
+		return
+
+	var floor_stock: Node = main.shop.get_node("Stock")
+	var expected := Catalog.shop_stock(shop_id).size()
+	_expect(floor_stock.get_child_count() == expected,
+		"%s put %d of its %d pieces on the floor"
+			% [shop_id, floor_stock.get_child_count(), expected])
+	_expect(main.shop.get_node("Tickets").get_child_count() == expected,
+		"not every piece on the floor has a price ticket")
+
+	# Nothing may be standing inside anything else, or on top of the counter.
+	var spots: Array[Vector3] = []
+	for child: Node in floor_stock.get_children():
+		var piece := child as FurnitureItem
+		_expect(piece != null, "something that is not a piece is on the shop floor")
+		if piece == null:
+			continue
+		for other in spots:
+			_expect(other.distance_to(piece.global_position) > 1.2,
+				"two pieces are standing on the same spot in %s" % shop_id)
+		spots.append(piece.global_position)
+		_expect(absf(piece.global_position.x) < ShopFloor.WIDTH * 0.5
+			and absf(piece.global_position.z) < ShopFloor.DEPTH * 0.5,
+			"%s is standing outside the shop" % piece.item_id)
+
+	# Buying off the floor: the card's button is what the player presses.
+	var item_id: String = Catalog.shop_stock(shop_id)[0]
+	var before := Game.stock_of(item_id)
+	var money := Game.money
+	main.shop_ui.buy_requested.emit(item_id)
+	await get_tree().process_frame
+	_expect(Game.stock_of(item_id) == before + 1,
+		"buying %s off the shop floor did not add it to stock" % item_id)
+	_expect(Game.money == money - Catalog.price(item_id),
+		"buying %s did not cost what the ticket said" % item_id)
+	_expect(main.shop.get_node("Stock").get_child_count() == expected,
+		"the floor was not laid out again after a purchase")
+
+	main.shop_ui.sell_requested.emit(item_id)
+	await get_tree().process_frame
+	_expect(Game.stock_of(item_id) == before, "selling it back did not take it out of stock")
+	_expect(Game.money == money, "selling it back did not return the money")
+
+	# The Colour House sells shades, so its floor is racks of tins.
+	main.enter_shop("paint")
+	await _settle()
+	_expect(main.shop != null and main.shop.is_paint_shop(), "the Colour House did not open")
+	var tins := 0
+	if main.shop != null:
+		tins = main.shop.get_node("Tins").get_child_count()
+	var shades := Catalog.paints("floor").size() + Catalog.paints("wall").size()
+	_expect(tins == shades, "the Colour House put out %d tins for %d shades" % [tins, shades])
+
+	main.enter_city()
+	await _settle()
+	_expect(main.city != null and main.shop == null, "leaving the shop did not land on the map")
+	print("shops           %d pieces on the floor, priced and pickable; %d tins of paint"
+		% [expected, tins])
 
 
 # -------------------------------------------------------------------- sound

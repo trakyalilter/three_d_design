@@ -21,9 +21,9 @@ come back here for them.
 
 ![The whole city: six quarters on a grid, one of them yours to begin with](docs/screenshot-city.png)
 
-| Reading a brief | Buying at a shop |
+| Reading a brief | Buying on the shop floor |
 |---|---|
-| ![A client's brief with the list of what is still to buy and the basket total](docs/screenshot-brief.png) | ![The bed shop counter: a thumbnail of every piece, with buy buttons and level gates](docs/screenshot-shop.png) |
+| ![A client's brief with the list of what is still to buy and the basket total](docs/screenshot-brief.png) | ![Inside a shop: a piece tapped on the floor, with its card showing the price and a Buy button](docs/screenshot-shop.png) |
 
 | Your stock | Fitting the room out |
 |---|---|
@@ -169,11 +169,30 @@ A floating pin over each house in a quarter you own tells you where it stands:
 | Green | Handed over |
 | Grey | Locked until you reach the level shown |
 
-Tapping a shop opens its counter: a picture of each piece — the same rendered thumbnails the
-designer's tray uses, not a colour swatch — what it costs, how many you already own, and a
-**Buy** button. Anything you own can be sold straight back at the price
-you paid. The Colour House works the same way, except a colour is bought once and is then
+### Going shopping
+
+Tapping a shop on the map shows you its window — what is on the floor, at a glance — and a
+door. **Go in** and you are standing in the shop.
+
+![Inside Sofa & Co: the stock standing on the floor with price tickets in front of it](docs/screenshot-shopfloor.png)
+
+Everything the shop sells is out on the floor where you can walk round it, with a ticket in
+front of each piece giving its name and price. Nothing is bought from a list: you tap the
+piece itself, and a card tells you what it is, what it costs and how many you already own,
+with **Buy** and **Sell one** on it. A piece you cannot buy yet is still put out, drained of
+colour, with what it is waiting for on the ticket — a level, or a quarter of the city you do
+not own.
+
+The shop is dressed like a shop: a counter with a till, wall shelving, pendant lights, plants
+by the door, a shopfront with the trade's colour on the sill, and the shop's own name and
+tagline over the back wall.
+
+The Colour House works the same way, except its floor is racks of tins rather than rows of
+furniture. Tap a tin to see the shade and its price; a colour is bought once and is then
 yours to use in every room forever.
+
+Anything you own can be sold straight back at the price you paid, either off the shop floor
+or from **Stock** in the top bar.
 
 **Stock** in the top bar is your warehouse: everything bought and not yet fitted, with the
 money tied up in it.
@@ -451,6 +470,11 @@ scripts/
     audio.gd             Autoload. Builds the bank on a worker thread, fires
                          cues through a pool of six voices, and holds the two
                          switches
+  shop/
+    shop_floor.gd        The inside of a shop: fittings welded into a batch,
+                         the stock standing on the floor as real pieces, and
+                         the tins for the Colour House
+    shop_ui.gd           The wallet, and the card for whatever was tapped
   city/
     city_view.gd         The six procedural quarters, their house archetypes,
                          planting, pins, hoardings and pick volumes
