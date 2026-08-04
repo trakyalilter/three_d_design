@@ -39,13 +39,13 @@ The map is four quarters laid out on a grid, joined by the roads between them.
 
 | Quarter | Costs | Opens at | Houses | Shops | Fees |
 |---|---|---|---|---|---|
-| Maple Quarter | — | level 1 | 11 | 9 | $1,300 – $10,500 |
-| Riverside Wharf | $10,000 | level 4 | 6 | 2 | $4,700 – $8,800 |
-| Hillside Terrace | $22,000 | level 5 | 6 | 2 | $5,800 – $13,000 |
-| Skyline Heights | $34,000 | level 6 | 6 | 2 | $9,100 – $21,500 |
+| Maple Quarter | — | level 1 | 12 | 10 | $1,300 – $10,500 |
+| Riverside Wharf | $18,000 | level 4 | 9 | 3 | $4,900 – $9,500 |
+| Hillside Terrace | $36,000 | level 5 | 9 | 3 | $5,200 – $13,000 |
+| Skyline Heights | $58,000 | level 6 | 10 | 3 | $8,800 – $24,800 |
 
-Maple Quarter comes with the business — eleven houses along two residential streets, with
-the nine shops down the avenue between them. The other three sit behind builders' hoardings
+Maple Quarter comes with the business — twelve houses along two residential streets, with
+the ten shops down the avenue between them. The other three sit behind builders' hoardings
 in a drained-out grey, with the asking price on a sign in the middle, and each has its own
 parade of shops that will not serve you until you hold the deeds. You can fly the camera
 over them from the first minute; you just cannot work or shop there.
@@ -64,7 +64,7 @@ from every shop in the city.
 
 ### Whole floors
 
-Most jobs are one room. Seven of them are a whole floor — two to five rooms with walls and
+Most jobs are one room. Eleven of them are a whole floor — two to five rooms with walls and
 doorways between them — and their briefs say which room each thing belongs in. A bed in the
 bathroom does not tick the bedroom's line.
 
@@ -87,6 +87,10 @@ work room by room, so a sofa against the living room's partition counts as again
 | Fell View, Upstairs | living room, dining room, bedroom, bathroom | 84 m² |
 | Cloud Court, Floor 22 | living room, kitchen, bedroom, study | 114 m² |
 | The Observatory | living room, dining room, bedroom, bathroom, study | 131 m² |
+| Tide House, Ground Floor | living room, kitchen | 43 m² |
+| Zenith Guest Suite | bedroom, bathroom | 48 m² |
+| Heather House, Upstairs | bedroom, children's room, bathroom | 47 m² |
+| The Apex Residence | living room, dining room, bedroom, study | 114 m² |
 
 A floating pin over each house in a quarter you own tells you where it stands:
 
@@ -169,10 +173,10 @@ room hide themselves as you orbit, and a piece that overlaps another glows red.
 
 ### Progress
 
-Experience carries you from level 1 to level 8. Jobs run from a $1,300 studio to a $21,500
+Experience carries you from level 1 to level 8. Jobs run from a $1,300 studio to a $24,800
 five-room penthouse. A run that buys only what each brief asks for clears Maple Quarter with
-around $30,000 — enough to buy Riverside outright — and owns the whole city, all 29 houses
-handed over, with about $78,000 left. Everything — money, level, stock, paints, the quarters you
+around $31,000 — enough to buy Riverside outright — and owns the whole city, all 40 houses
+handed over, with about $106,000 left. Owning every quarter costs $112,000 in total. Everything — money, level, stock, paints, the quarters you
 have bought, finished jobs and the rooms you left half-done — is saved to the device as you
 go.
 
@@ -188,32 +192,36 @@ everything unlocked, with its own save and load.
 
 ## The catalogue
 
-96 pieces across fifteen shops, all built from primitives at runtime, $45 to $1,250 each.
-Nine of the shops stand on Maple Quarter's avenue and sell to you from the first minute:
+138 pieces across nineteen shops, all built from primitives at runtime, $45 to $1,250 each.
+Ten of the shops stand on Maple Quarter's avenue:
 
 | Shop | Opens | Stock |
 |---|---|---|
-| Sofa & Co | 1 | Sofa, loveseat, armchair, coffee table, TV stand, recliner, footstool, console table |
-| Dream Beds | 1 | Double bed, single bed, nightstand, dresser, bunk bed, crib, dressing table, laundry basket |
-| Table Talk | 1 | Dining table, round table, chair, bar stool, dining bench, kitchen island |
-| Box & Shelf | 1 | Wardrobe, bookshelf, desk, low cabinet, shoe rack, coat stand, display cabinet |
-| Little Details | 1 | Rug, round rug, floor lamp, table lamp, potted plant, side table, partition, floor mirror, vase, stack of books |
-| Kitchen Works | 2 | Counter, refrigerator, stove, sink unit, dishwasher, pantry cupboard, kettle, toaster |
-| Splash & Tile | 2 | Toilet, basin, bathtub, shower, washing machine, vanity unit, towel rail, bath mat, tall cabinet |
-| Volt & Wire | 2 | Television, wide television, computer, floor speaker, soundbar, games console, printer, portable air con, floor fan, microwave |
+| Sofa & Co | 1 | Sofa, loveseat, armchair, chaise longue, corner sofa, recliner, footstool, coffee table, console table, TV stand |
+| Dream Beds | 1 | King bed, double bed, single bed, bunk bed, crib, nightstand, bedside shelf, dresser, dressing table, laundry basket |
+| Table Talk | 1 | Dining table, round table, bistro table, kitchen island, chair, bar stool, dining bench, long bench |
+| Box & Shelf | 1 | Wardrobe, bookshelf, ladder shelf, desk, low cabinet, filing cabinet, display cabinet, shoe rack, coat stand |
+| Little Details | 1 | Rug, round rug, floor lamp, table lamp, potted plant, side table, partition, floor mirror, framed print, vase, stack of books, umbrella stand |
+| Kitchen Works | 2 | Counter, refrigerator, stove, sink unit, dishwasher, range hood, kitchen trolley, pantry cupboard, kettle, toaster |
+| Splash & Tile | 2 | Toilet, basin, bathtub, shower, corner shower, bath screen, washing machine, vanity unit, tall cabinet, towel rail, bath mat |
+| Volt & Wire | 2 | Television, wide television, computer, floor speaker, soundbar, games console, turntable, printer, portable air con, floor fan, microwave, robot vacuum |
+| Attic & Loft | 3 | Blanket box, stacked trunks, step ladder, hat stand, mantel clock |
 | Colour House | 1 | Eight floor paints and eight wall paints, $160–$540 each |
 
-The other six stand on the avenues of the quarters you buy, and they will not serve anyone
-who does not hold the deeds. Thirty pieces are sold nowhere else in the city:
+The other nine stand on the avenues of the quarters you buy, and they will not serve anyone
+who does not hold the deeds. Fifty-one pieces are sold nowhere else in the city:
 
 | Shop | Quarter | Stock |
 |---|---|---|
-| Dock & Salvage | Riverside Wharf | Crate shelving, pipe clothes rail, salvage workbench, steamer trunk, barrel table |
-| Ropewalk & Co | Riverside Wharf | Deck chair, net hammock, porthole mirror, rope lamp, sail screen |
-| Hearth & Home | Hillside Terrace | Window seat, ottoman, sideboard, rocking chair, high chair |
-| The Potting Shed | Hillside Terrace | Planter trough, garden bench, fern stand, herb rack, potting shelf |
-| Atelier Nine | Skyline Heights | Gallery sofa, wing chair, marble table, sculpture plinth, drinks cabinet |
-| Lumen | Skyline Heights | Arc lamp, pendant cluster, uplighter, smart panel, projector and screen |
+| Dock & Salvage | Riverside Wharf | Crate shelving, girder shelving, pipe clothes rail, salvage workbench, steamer trunk, barrel table |
+| Ropewalk & Co | Riverside Wharf | Deck chair, net hammock, rope swing, porthole mirror, rope lamp, sail screen |
+| The Chandlery | Riverside Wharf | Deck lantern, coil of rope, galley shelf, cask stand, signal flags |
+| Hearth & Home | Hillside Terrace | Window seat, ottoman, sideboard, rocking chair, high chair, fireside set |
+| The Potting Shed | Hillside Terrace | Planter trough, tall planter, garden bench, fern stand, herb rack, potting shelf |
+| The Toy Cupboard | Hillside Terrace | Toy chest, low bookcase, play mat, rocking horse, night light |
+| Atelier Nine | Skyline Heights | Gallery sofa, wing chair, marble table, marble console, sculpture plinth, drinks cabinet |
+| Lumen | Skyline Heights | Arc lamp, light column, pendant cluster, uplighter, smart panel, projector and screen |
+| Vitrine | Skyline Heights | Glass case, gallery mirror, pedestal vase, art easel, crystal bowl |
 
 Each quarter's briefs ask for its own trade, so buying Riverside is not only four more
 clients — it is a shopfront full of things you could not get before. A brief only ever
@@ -248,9 +256,9 @@ scenes/main.tscn         One node; everything else is built in code
 scripts/
   game.gd                Swaps between the city and the designer
   data/
-    catalog.gd           Autoload. Every model and price, and the fifteen
+    catalog.gd           Autoload. Every model and price, and the nineteen
                          shops, with the quarter and level each one opens at
-    jobs.gd              Autoload. The four quarters and the 29 houses in them,
+    jobs.gd              Autoload. The four quarters and the 40 houses in them,
                          the requirement evaluator, the shopping list a brief
                          needs, and the generator for repeat contracts
     game_state.gd        Autoload. Money, XP, levels, the warehouse, the
@@ -376,7 +384,7 @@ towards grey while it is still locked, so adding one costs no new geometry.
 godot --headless -- --smoke
 ```
 
-It resets the profile and plays the whole city: all 29 jobs, quarter by quarter, buying
+It resets the profile and plays the whole city: all 40 jobs, quarter by quarter, buying
 each quarter out of the money it has actually earned — taking repeat contracts at the
 houses it has already finished when it is short — shopping for each brief, fitting the room
 from stock and handing it over. Then it checks that every quarter is priced above the one
