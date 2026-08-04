@@ -24,6 +24,9 @@ func _ready() -> void:
 	await _check_loading()
 	await _check_brief_sheet()
 
+	print("=== the map ===")
+	await _check_life()
+
 	print("=== sound ===")
 	_check_sound()
 
@@ -215,6 +218,58 @@ static func _collect_text(node: Node, into: Array[String]) -> void:
 		into.append((node as Label).text)
 	for child in node.get_children():
 		_collect_text(child, into)
+
+
+# ---------------------------------------------------------------- the map
+
+## The map has traffic on it, people on the pavements and weather over the two
+## quarters that get any. All of it is meant to be moving.
+func _check_life() -> void:
+	var main := get_tree().current_scene
+	if main.city == null:
+		_failures.append("the map check needs the city open")
+		return
+	var life: CityLife = main.city.get_node_or_null("Life")
+	_expect(life != null, "the map has no moving layer on it")
+	if life == null:
+		return
+
+	var census := life.census()
+	var instances: int = int(census["cars"]) + int(census["walkers"]) \
+		+ int(census["petals"]) + int(census["birds"])
+	var pools: int = census["pools"]
+	_expect(instances > 0 and pools > 0, "nothing was put on the map to move")
+	_expect(int(census["cars"]) > 0, "there is no traffic on the roads")
+	_expect(int(census["walkers"]) > 0, "there is nobody on the pavements")
+	# One draw call a pool, so this is the whole cost of the layer.
+	_expect(pools <= 12, "the moving layer costs %d draw calls" % pools)
+
+	# Everything has to actually move, and stay on the map while it does.
+	await get_tree().process_frame
+	var before: Array[Vector3] = life.positions()
+	for _i in 20:
+		await get_tree().process_frame
+	var after: Array[Vector3] = life.positions()
+	var moved := 0
+	for i in mini(before.size(), after.size()):
+		if before[i].distance_to(after[i]) > 0.01:
+			moved += 1
+	_expect(moved > before.size() / 2,
+		"only %d of %d things on the map moved" % [moved, before.size()])
+
+	var bounds := 0.0
+	for district: Dictionary in Jobs.districts():
+		var origin: Vector2 = district["origin"]
+		bounds = maxf(bounds, maxf(absf(origin.x), absf(origin.y)))
+	bounds += 60.0
+	var strays := 0
+	for spot in after:
+		if absf(spot.x) > bounds or absf(spot.z) > bounds or spot.y < -1.0 or spot.y > 40.0:
+			strays += 1
+	_expect(strays == 0, "%d things on the map have wandered off it" % strays)
+
+	print("map             %d moving in %d draw calls, %d of them shifted in 20 frames"
+		% [instances, pools, moved])
 
 
 # -------------------------------------------------------------------- sound

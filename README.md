@@ -97,6 +97,21 @@ The briefs get longer as you go: ten lines instead of four, six shops represente
 three, thirty pieces in a room instead of five. One house in Skyline Heights wants something
 from every shop in the city.
 
+### The map is not a diagram
+
+Traffic runs the length of the city: the quarters share a road grid and the link
+roads join it up, so a car leaving Maple carries on into Riverside rather than stopping at
+the boundary. Cars are evenly spaced and every car on a lane holds the lane's speed, which
+is the cheap way to stop the quick ones catching the slow ones and driving through them.
+People walk the pavements outside the shops and turn round at the ends. Both quarters that
+have weather get it: blossom drifts down across Hanami all day, and something circles over
+Hollow Row.
+
+None of it is a node. Five hundred-odd moving things across four shapes are drawn as nine
+MultiMeshes — nine draw calls and about half a millisecond of transform writes a frame,
+against five hundred nodes each with its own script. The static city is still welded into
+three meshes underneath; this is the layer that moves over the top.
+
 ### Whole floors
 
 Most jobs are one room. Seventeen of them are a whole floor — two to five rooms with walls and
@@ -425,6 +440,9 @@ scripts/
   city/
     city_view.gd         The six procedural quarters, their house archetypes,
                          planting, pins, hoardings and pick volumes
+    city_life.gd         The layer that moves: traffic, people on the
+                         pavements, blossom over Hanami and birds over Hollow,
+                         all of it MultiMeshed
     scenery_batch.gd     Welds the whole city into three draw calls
     city_ui.gd           Wallet, XP bar, briefing sheet, shop counters, stock,
                          and the quarter you are thinking about buying

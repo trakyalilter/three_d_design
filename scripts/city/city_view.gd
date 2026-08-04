@@ -58,6 +58,7 @@ var _shop_labels: Array[Label3D] = []
 var _house_labels: Array[Label3D] = []
 var _pickables: Node3D
 var _scenery: Node3D
+var _life: CityLife
 var _batch: SceneryBatch
 var _touches: Dictionary = {}
 var _touch_origins: Dictionary = {}
@@ -88,6 +89,10 @@ func _ready() -> void:
 	_pickables = Node3D.new()
 	_pickables.name = "Buildings"
 	add_child(_pickables)
+
+	_life = CityLife.new()
+	_life.name = "Life"
+	add_child(_life)
 
 	rig = CameraRig.new()
 	rig.name = "CameraRig"
@@ -134,9 +139,10 @@ func build_stages() -> Array:
 		stages.append(["Laying out %s" % quarter["name"], func() -> void:
 			_build_district(quarter)])
 
-	stages.append(["Putting up the signs", func() -> void:
+	stages.append(["Letting the traffic out", func() -> void:
 		_batch.commit(_scenery)
 		_batch = null
+		_life.populate()
 		_apply_camera_limits()
 		refresh_markers()])
 	return stages
@@ -879,11 +885,9 @@ func _build_greenery(planting: String = "street") -> void:
 			_batch.box(post, Vector3(0.9, 0.14, 0.3), _at(Vector3(x - sx * 0.4, 4.45, z)), SceneryBatch.Layer.SHINY)
 			_batch.box(glow, Vector3(0.5, 0.18, 0.26), _at(Vector3(x - sx * 0.72, 4.32, z)))
 
-	# A couple of parked cars to give the street some life.
-	var car_colors := [Color(0.78, 0.24, 0.22), Color(0.24, 0.36, 0.66), Color(0.90, 0.88, 0.84)]
-	var car_spots := [Vector2(-3.4, -22.0), Vector2(3.4, 8.0), Vector2(-3.4, 16.0)]
-	for i in car_spots.size():
-		_build_car(car_spots[i], _tone(car_colors[i]), 0.0 if i % 2 == 0 else 180.0)
+	# One car parked up on the kerb. The rest of the traffic is moving, and
+	# lives in CityLife rather than in the batch.
+	_build_car(Vector2(-7.6, -34.0), _tone(Color(0.62, 0.64, 0.68)), 0.0)
 
 
 func _build_car(spot: Vector2, color: Color, yaw: float) -> void:
