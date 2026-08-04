@@ -175,6 +175,20 @@ func _check_brief_sheet() -> void:
 		_collect_text(row, labels)
 	_expect(labels.has("Still to buy"), "the brief did not list what is still to buy")
 
+	# Every missing piece stands under the counter that sells it, so the list
+	# can be walked round the city.
+	var wanted: Dictionary = {}
+	for item_id: String in Jobs.shopping_list(house_id):
+		var shop_name := str(Catalog.get_shop(Catalog.shop_of(item_id)).get("name", ""))
+		wanted[shop_name] = true
+		_expect(labels.has("%d × %s" % [
+			int(Jobs.shopping_list(house_id)[item_id]), Catalog.display_name(item_id)]),
+			"%s is missing from the brief's shopping list" % item_id)
+	for shop_name: String in wanted:
+		_expect(labels.has(shop_name),
+			"the shopping list did not say to go to %s" % shop_name)
+	_expect(not wanted.is_empty(), "this brief needed nothing, so it checks nothing")
+
 	var actions: Array[String] = []
 	for button: Node in main.city_ui._sheet_actions.get_children():
 		if button is Button:
@@ -186,8 +200,8 @@ func _check_brief_sheet() -> void:
 
 	main.city_ui.close_sheet()
 	await get_tree().process_frame
-	print("brief           lists the shopping and leaves the buying to the shops: %s"
-		% ", ".join(actions))
+	print("brief           %d counter%s to visit, buying left to them: %s" % [
+		wanted.size(), "" if wanted.size() == 1 else "s", ", ".join(actions)])
 
 
 static func _collect_text(node: Node, into: Array[String]) -> void:

@@ -391,27 +391,40 @@ func _build_shopping_list(house_id: String) -> void:
 
 	_sheet_body.add_child(UIKit.section_label("Still to buy"))
 	var total := Jobs.list_cost(missing)
-	for item_id: String in missing:
-		var row := HBoxContainer.new()
-		var count := int(missing[item_id])
-		row.add_child(UIKit.label("%d × %s" % [count, Catalog.display_name(item_id)], 17, UIKit.TEXT))
-		row.add_child(UIKit.spacer())
-		if Game.is_item_unlocked(item_id):
-			row.add_child(UIKit.label(UIKit.money(Catalog.price(item_id) * count), 17, UIKit.GOLD))
-		else:
-			row.add_child(UIKit.label("Level %d" % Catalog.effective_unlock_level(item_id), 17, UIKit.BAD))
-		_sheet_body.add_child(row)
 
-	for paint: Dictionary in paints:
-		var entry: Dictionary = paint["entry"]
-		var price := Catalog.paint_price(entry)
-		total += price
-		var row := HBoxContainer.new()
-		row.add_child(UIKit.label("%s paint — %s" % [
-			"Floor" if paint["surface"] == "floor" else "Wall", entry["name"]], 17, UIKit.TEXT))
-		row.add_child(UIKit.spacer())
-		row.add_child(UIKit.label(UIKit.money(price), 17, UIKit.GOLD))
-		_sheet_body.add_child(row)
+	# Grouped by shop, so the list reads as a round of the city rather than a
+	# heap of names: one heading per counter, and everything you want there
+	# under it.
+	var by_shop: Dictionary = {}
+	var order: Array[String] = []
+	for item_id: String in missing:
+		var shop_id := Catalog.shop_of(item_id)
+		if not by_shop.has(shop_id):
+			by_shop[shop_id] = []
+			order.append(shop_id)
+		(by_shop[shop_id] as Array).append(item_id)
+
+	for shop_id in order:
+		_sheet_body.add_child(_shop_heading(shop_id))
+		for item_id: String in by_shop[shop_id]:
+			var count := int(missing[item_id])
+			var right := UIKit.money(Catalog.price(item_id) * count)
+			var tone := UIKit.GOLD
+			if not Game.is_item_unlocked(item_id):
+				right = "Level %d" % Catalog.effective_unlock_level(item_id)
+				tone = UIKit.BAD
+			_sheet_body.add_child(_list_row(
+				"%d × %s" % [count, Catalog.display_name(item_id)], right, tone))
+
+	if not paints.is_empty():
+		_sheet_body.add_child(_shop_heading("paint"))
+		for paint: Dictionary in paints:
+			var entry: Dictionary = paint["entry"]
+			var price := Catalog.paint_price(entry)
+			total += price
+			_sheet_body.add_child(_list_row("%s — %s" % [
+				"Floor" if paint["surface"] == "floor" else "Wall", entry["name"]],
+				UIKit.money(price), UIKit.GOLD))
 
 	var summary := HBoxContainer.new()
 	summary.add_child(UIKit.label("Basket", 18, UIKit.MUTED))
@@ -421,7 +434,36 @@ func _build_shopping_list(house_id: String) -> void:
 	_sheet_body.add_child(summary)
 
 	_sheet_body.add_child(UIKit.wrapped_label(
-		"Buy these at the shops before you start.", 520, UIKit.MUTED))
+		"Buy these at the counters above before you start.", 520, UIKit.MUTED))
+
+
+## The name of a shop, standing over the things the brief wants from it. Once
+## the player holds more than one quarter it says which one to drive to; while
+## they only own Maple there is nowhere else it could be.
+func _shop_heading(shop_id: String) -> Control:
+	var shop: Dictionary = Catalog.get_shop(shop_id)
+	var name := str(shop.get("name", "The shops"))
+	var district_id := Catalog.shop_district(shop_id)
+	if district_id != "" and Game.owned_districts.size() > 1:
+		name += "  ·  %s" % Jobs.get_district(district_id)["name"]
+
+	var heading := UIKit.label(name, 15, UIKit.ACCENT)
+	var holder := MarginContainer.new()
+	holder.add_theme_constant_override("margin_top", 8)
+	holder.add_child(heading)
+	return holder
+
+
+## An indented line of the shopping list: what to ask for, and what it costs.
+func _list_row(left: String, right: String, tone: Color) -> HBoxContainer:
+	var row := HBoxContainer.new()
+	var indent := Control.new()
+	indent.custom_minimum_size = Vector2(14, 0)
+	row.add_child(indent)
+	row.add_child(UIKit.label(left, 17, UIKit.TEXT))
+	row.add_child(UIKit.spacer())
+	row.add_child(UIKit.label(right, 17, tone))
+	return row
 
 
 # ------------------------------------------------------------ district sheet
@@ -590,6 +632,37 @@ func _build_furniture_counter(shop_id: String) -> void:
 		440))
 
 
+## A picture of the piece, for the shop counter. The same rendered thumbnails
+## the designer's tray uses — a colour chip told you nothing about what you
+## were buying. It arrives a frame or two late, and the tint stands in for it
+## until then, which is also what headless and the smoke test see.
+func _thumbnail(item_id: String, available: bool) -> Control:
+	var holder := PanelContainer.new()
+	holder.custom_minimum_size = Vector2(46, 44)
+	# A neutral tile under every piece: the thumbnail carries its own colour,
+	# and tinting the backing to match only muddied both.
+	var backing := UIKit.panel_box(Color(0.17, 0.18, 0.22), 8)
+	backing.content_margin_left = 2
+	backing.content_margin_right = 2
+	backing.content_margin_top = 2
+	backing.content_margin_bottom = 2
+	holder.add_theme_stylebox_override("panel", backing)
+
+	var picture := TextureRect.new()
+	picture.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	picture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	if not available:
+		picture.modulate = Color(0.62, 0.63, 0.66)
+	holder.add_child(picture)
+
+	# A shop sheet is rebuilt on every purchase, so a thumbnail can come back
+	# to a row that is already gone.
+	Icons.request(item_id, func(texture: Texture2D) -> void:
+		if is_instance_valid(picture):
+			picture.texture = texture)
+	return holder
+
+
 ## One line of a shop counter: a buy button, and a sell button once owned.
 func _shop_row(item_id: String) -> HBoxContainer:
 	var row := HBoxContainer.new()
@@ -597,10 +670,7 @@ func _shop_row(item_id: String) -> HBoxContainer:
 	var price := Catalog.price(item_id)
 	var held := Game.stock_of(item_id)
 
-	var chip := ColorRect.new()
-	chip.color = Catalog.default_tint(item_id) if available else Color(0.35, 0.36, 0.40)
-	chip.custom_minimum_size = Vector2(10, 38)
-	row.add_child(chip)
+	row.add_child(_thumbnail(item_id, available))
 
 	var name_label := UIKit.label(
 		Catalog.display_name(item_id), 18, UIKit.TEXT if available else UIKit.MUTED)

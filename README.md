@@ -21,7 +21,7 @@ the catalogue, lit and furnished by the same code the game runs on.
 
 | Reading a brief | Buying at a shop |
 |---|---|
-| ![A client's brief with the list of what is still to buy and the basket total](docs/screenshot-brief.png) | ![The bed shop counter with buy buttons and level gates](docs/screenshot-shop.png) |
+| ![A client's brief with the list of what is still to buy and the basket total](docs/screenshot-brief.png) | ![The bed shop counter: a thumbnail of every piece, with buy buttons and level gates](docs/screenshot-shop.png) |
 
 | Your stock | Fitting the room out |
 |---|---|
@@ -123,8 +123,9 @@ A floating pin over each house in a quarter you own tells you where it stands:
 | Green | Handed over |
 | Grey | Locked until you reach the level shown |
 
-Tapping a shop opens its counter: what it sells, what each piece costs, how many you
-already own, and a **Buy** button. Anything you own can be sold straight back at the price
+Tapping a shop opens its counter: a picture of each piece — the same rendered thumbnails the
+designer's tray uses, not a colour swatch — what it costs, how many you already own, and a
+**Buy** button. Anything you own can be sold straight back at the price
 you paid. The Colour House works the same way, except a colour is bought once and is then
 yours to use in every room forever.
 
@@ -149,9 +150,10 @@ stranded with no money and no way out.
 
 The briefing sheet gives you the client's words, the room size, the fee, their budget and
 the experience on offer. Under the brief it lists exactly what you are still missing, item
-by item with a price against each and the basket total at the bottom. It is a shopping list,
-not a basket: you take it round the shops and buy each piece at the counter that stocks it,
-which is where knowing your way around the city starts to pay.
+by item with a price against each and the basket total at the bottom — **grouped by the shop
+that sells it**, so the list reads as a round of the city rather than a heap of names. Once
+you own more than one quarter each heading says which quarter to drive to as well. It is a
+shopping list, not a basket: you buy each piece at its own counter.
 
 Take the job and you land in the room with the brief checklist on the right; it re-ticks
 itself live as you work. Once every line is ticked, **Hand over** collects the fee — and the
@@ -469,8 +471,9 @@ three stars, that a generated repeat contract can be shopped for and finished, a
 tray starts closed and can tell a drag along the row from a tap on a piece, that the
 app opens on the title screen with its buttons wired to the right places, that both
 changes of screen are covered end to end by a loading screen whose bar runs from one end to
-the other, and that a brief lists what is still to buy without offering to buy it for you.
-It reports everything that does not hold and exits non-zero.
+the other, and that a brief lists every missing piece under the counter that sells it
+without offering to buy any of it for you. It reports everything that does not hold and
+exits non-zero.
 
 ## Building it yourself
 
