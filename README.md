@@ -143,8 +143,17 @@ the **Buy all** button next to *Start job* fills the whole basket in one tap —
 paint the brief calls for.
 
 Take the job and you land in the room with the brief checklist on the right; it re-ticks
-itself live as you work. The tray shows how many of each piece you have left rather than a
-price. Once every line is ticked, **Hand over** collects the fee — and the client's verdict.
+itself live as you work. The tray along the bottom is the catalogue, split by category, and
+every piece shows a picture of itself with how many you have left rather than a price. Once
+every line is ticked, **Hand over** collects the fee — and the client's verdict.
+
+![The bedroom tray, every piece shown as a rendered thumbnail](docs/screenshot-tray.png)
+
+Nothing in the project is an art file, so those thumbnails are rendered rather than drawn:
+one small off-screen viewport mounts a piece, draws it once, and keeps the result for the
+rest of the session. It works through a tab one piece per frame in the background, so the
+first look at a category fills in over about a quarter of a second instead of stalling on
+twenty renders at once.
 
 ### The verdict
 
@@ -290,6 +299,9 @@ scripts/
     design_ui.gd         Tray, brief checklist, dialogs
   world/
     furniture_item.gd    A placed piece: one merged mesh, pick body, footprints
+    item_icons.gd        Autoload. Renders a thumbnail of each catalogue piece
+                         into an off-screen viewport, one per frame, and caches
+                         it for the tray
     mesh_builder.gd      Welds a part list into one shared mesh per item type
     proc_textures.gd     Floorboards, plaster and contact shadows, generated
     room.gd              The floor plan: floors, walls, skirting, doorways,

@@ -381,10 +381,19 @@ func _make_catalog_button(id: String) -> Button:
 	var b := Button.new()
 	b.text = Catalog.display_name(id)
 	b.focus_mode = Control.FOCUS_NONE
-	b.custom_minimum_size = Vector2(152, 76)
+	b.custom_minimum_size = Vector2(148, 108)
 	b.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	b.clip_text = false
 	b.pressed.connect(func() -> void: place_item.emit(id))
+	# A picture of the piece rather than a name to read: the icon is drawn from
+	# the same parts the room will be furnished with. It arrives a frame or two
+	# later, and until it does the colour strip is all there is.
+	b.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	b.vertical_icon_alignment = VERTICAL_ALIGNMENT_TOP
+	b.expand_icon = false
+	Icons.request(id, func(texture: Texture2D) -> void:
+		if is_instance_valid(b):
+			b.icon = texture)
 
 	var strip := ColorRect.new()
 	strip.name = "Strip"
@@ -393,8 +402,8 @@ func _make_catalog_button(id: String) -> Button:
 	strip.set_anchors_preset(Control.PRESET_TOP_WIDE)
 	strip.offset_left = 8
 	strip.offset_right = -8
-	strip.offset_top = 6
-	strip.offset_bottom = 12
+	strip.offset_top = 4
+	strip.offset_bottom = 8
 	b.add_child(strip)
 
 	var footer := UIKit.label("", 14, UIKit.GOLD)
