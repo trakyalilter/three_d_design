@@ -151,6 +151,11 @@ the room has the screen to itself. Tap it and the tray comes up: the pieces spli
 category, each showing a picture of itself and how many you have left rather than a price.
 Tap the bar again — or press Back — to put it away.
 
+Both strips are dragged rather than scrolled. Put a finger anywhere on the row, including
+on a piece, and slide: the row follows and coasts on when you let go. A press that stays
+put is a tap and places the piece; one that wanders more than ten pixels is a drag and
+places nothing.
+
 | Closed, which is how a room opens | Open |
 |---|---|
 | ![A finished lounge with the whole screen to itself and one Furniture bar at the bottom](docs/screenshot-job.png) | ![The tray open, every piece a rendered thumbnail](docs/screenshot-tray.png) |
@@ -189,6 +194,7 @@ checklist gets you paid — arranging the room properly is what earns the third 
 | Drag empty space | Orbits the camera |
 | Pinch | Zooms |
 | Two-finger drag | Pans across the floor |
+| Drag the tray sideways | Slides along the catalogue; a tap still places |
 | Double tap | Brings the camera to what you tapped |
 | Back button | Closes the dialog, then the catalogue, then clears the selection, then leaves |
 
@@ -425,8 +431,9 @@ room does not tick the right room's line, that paint laid in one room stays ther
 survives a save and reload, that every catalogue entry is priced, stocked and
 physically sane, that wall snap lands flush and stacking finds the right height, that undo and redo
 keep the room and the warehouse in step, that a properly arranged room really does reach
-three stars, and that a generated repeat contract can be shopped for and finished. It
-reports everything that does not hold and exits non-zero.
+three stars, that a generated repeat contract can be shopped for and finished, and that the
+tray starts closed and can tell a drag along the row from a tap on a piece. It reports
+everything that does not hold and exits non-zero.
 
 ## Building it yourself
 

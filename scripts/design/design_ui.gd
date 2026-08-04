@@ -57,6 +57,19 @@ var _catalog_items: HBoxContainer
 var _category_buttons: Array[Button] = []
 var _item_buttons: Dictionary = {}
 var _current_category := ""
+## The two horizontal strips in the tray drag under a finger rather than
+## through a scrollbar, which is no use on a phone. A press that wanders more
+## than DRAG_SLOP is a drag and never places anything.
+const DRAG_SLOP := 10.0
+const DRAG_FRICTION := 0.88
+var _category_scroll: ScrollContainer
+var _item_scroll: ScrollContainer
+## The strip being dragged, or still coasting after the finger left.
+var _drag_scroll: ScrollContainer
+var _finger_down := false
+var _drag_distance := 0.0
+var _dragging := false
+var _fling := 0.0
 var _toast_label: Label
 var _toast_timer: Timer
 var _swatch_popup: PanelContainer
@@ -348,32 +361,35 @@ func _build_catalog(parent: Control) -> void:
 	col.add_child(_catalog_body)
 	col = _catalog_body
 
-	var category_scroll := ScrollContainer.new()
-	category_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
-	category_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	category_scroll.custom_minimum_size = Vector2(0, 52)
-	col.add_child(category_scroll)
+	_category_scroll = ScrollContainer.new()
+	_category_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
+	_category_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_category_scroll.custom_minimum_size = Vector2(0, 52)
+	_category_scroll.gui_input.connect(_on_strip_input.bind(_category_scroll, Callable()))
+	col.add_child(_category_scroll)
 
 	var cats := HBoxContainer.new()
-	category_scroll.add_child(cats)
+	_category_scroll.add_child(cats)
 
 	for category in Catalog.CATEGORIES:
 		var b := UIKit.make_button(category)
 		b.toggle_mode = true
-		b.pressed.connect(_select_category.bind(category))
+		b.gui_input.connect(_on_strip_input.bind(
+			_category_scroll, _select_category.bind(category)))
 		cats.add_child(b)
 		_category_buttons.append(b)
 
-	var scroll := ScrollContainer.new()
-	scroll.custom_minimum_size = Vector2(0, 96)
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
-	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	col.add_child(scroll)
+	_item_scroll = ScrollContainer.new()
+	_item_scroll.custom_minimum_size = Vector2(0, 96)
+	_item_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
+	_item_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_item_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_item_scroll.gui_input.connect(_on_strip_input.bind(_item_scroll, Callable()))
+	col.add_child(_item_scroll)
 
-	# No expand flag: the row must be free to overflow so the scroller works.
+	# No expand flag: the row must be free to overflow so it can be dragged.
 	_catalog_items = HBoxContainer.new()
-	scroll.add_child(_catalog_items)
+	_item_scroll.add_child(_catalog_items)
 
 	_select_category(Catalog.CATEGORIES[0])
 	set_catalog_open(false)
@@ -403,11 +419,56 @@ func _refresh_catalog_toggle() -> void:
 		"Hide the catalogue" if _catalog_open else "Open the catalogue and place furniture"
 
 
+## Drags the strip under the finger, and treats a press that barely moved as a
+## tap on whatever was under it. Buttons cannot do this themselves: a finger
+## that starts on a sofa and slides the row along must not place the sofa.
+func _on_strip_input(event: InputEvent, strip: ScrollContainer, on_tap: Callable) -> void:
+	if event is InputEventMouseButton:
+		var button := event as InputEventMouseButton
+		if button.button_index != MOUSE_BUTTON_LEFT:
+			return
+		if button.pressed:
+			_drag_scroll = strip
+			_finger_down = true
+			_drag_distance = 0.0
+			_dragging = false
+			_fling = 0.0
+		else:
+			if not _dragging and on_tap.is_valid():
+				on_tap.call()
+			_finger_down = false
+			_dragging = false
+			_sync_category_buttons()
+	elif event is InputEventMouseMotion and _drag_scroll == strip and _finger_down:
+		var motion := event as InputEventMouseMotion
+		if (motion.button_mask & MOUSE_BUTTON_MASK_LEFT) == 0:
+			return
+		_drag_distance += absf(motion.relative.x)
+		if _drag_distance > DRAG_SLOP:
+			_dragging = true
+		if _dragging:
+			strip.scroll_horizontal -= int(motion.relative.x)
+			_fling = motion.relative.x
+
+
+## Carries a flick on after the finger leaves, so the row coasts to a stop.
+func _process(_delta: float) -> void:
+	if _finger_down or _drag_scroll == null or absf(_fling) < 0.6:
+		_fling = 0.0
+		return
+	_drag_scroll.scroll_horizontal -= int(_fling)
+	_fling *= DRAG_FRICTION
+
+
+func _sync_category_buttons() -> void:
+	for b in _category_buttons:
+		b.button_pressed = b.text == _current_category
+
+
 func _select_category(category: String) -> void:
 	_current_category = category
 	_refresh_catalog_toggle()
-	for b in _category_buttons:
-		b.button_pressed = b.text == category
+	_sync_category_buttons()
 
 	for child in _catalog_items.get_children():
 		_catalog_items.remove_child(child)
@@ -428,7 +489,10 @@ func _make_catalog_button(id: String) -> Button:
 	b.custom_minimum_size = Vector2(148, 108)
 	b.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	b.clip_text = false
-	b.pressed.connect(func() -> void: place_item.emit(id))
+	# Placing is handled in _on_strip_input, so that a finger dragging the row
+	# past a piece does not drop it into the room.
+	b.gui_input.connect(_on_strip_input.bind(
+		_item_scroll, func() -> void: place_item.emit(id)))
 	# A picture of the piece rather than a name to read: the icon is drawn from
 	# the same parts the room will be furnished with. It arrives a frame or two
 	# later, and until it does the colour strip is all there is.

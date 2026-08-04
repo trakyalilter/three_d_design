@@ -54,6 +54,7 @@ func _ready() -> void:
 	await _check_history()
 	await _check_three_stars()
 	await _check_repeat_contract()
+	await _check_tray()
 
 	if _failures.is_empty():
 		print("SMOKE TEST PASSED")
@@ -518,6 +519,71 @@ func _failed_notes(review: Dictionary) -> String:
 		if not note["good"]:
 			failed.append(str(note["label"]))
 	return "; ".join(failed)
+
+
+# ------------------------------------------------------------------- the tray
+
+## The catalogue strip is dragged with a finger rather than a scrollbar, so a
+## press that wanders has to slide the row and place nothing, and a press that
+## stays put has to place the piece under it.
+func _check_tray() -> void:
+	var main := get_tree().current_scene
+	Game.buy_item("sofa", 3)
+	main.enter_designer("maple_studio")
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var designer = main.designer
+	designer._on_new_requested()
+	var ui = designer.ui
+
+	_expect(not ui.is_catalog_open(), "the catalogue should start closed")
+	ui.set_catalog_open(true)
+	_expect(ui.is_catalog_open(), "the Furniture bar did not open the catalogue")
+	for i in 4:
+		await get_tree().process_frame
+
+	var strip: ScrollContainer = ui._item_scroll
+	_expect(not strip.get_h_scroll_bar().visible,
+		"the tray still shows a scrollbar")
+
+	var placed: int = designer._items().size()
+	var scrolled: int = strip.scroll_horizontal
+	_tap(ui, strip, "sofa", [2.0, -3.0])
+	_expect(designer._items().size() == placed + 1,
+		"a tap on the tray did not place anything")
+	_expect(strip.scroll_horizontal == scrolled,
+		"a tap on the tray slid the row by %d px" % (strip.scroll_horizontal - scrolled))
+
+	placed = designer._items().size()
+	_tap(ui, strip, "sofa", [-40.0, -40.0, -40.0, -40.0, -40.0, -40.0])
+	_expect(designer._items().size() == placed,
+		"dragging across the tray placed a piece")
+	_expect(strip.scroll_horizontal > scrolled,
+		"dragging across the tray did not slide it")
+
+	print("tray            closed by default, drags to %d px and taps still place"
+		% strip.scroll_horizontal)
+	designer._on_new_requested()
+	main.enter_city()
+	await get_tree().process_frame
+
+
+## One press, a run of moves, and a release, straight at the strip handler.
+func _tap(ui, strip: ScrollContainer, item_id: String, moves: Array) -> void:
+	var on_tap := func() -> void: ui.place_item.emit(item_id)
+	var down := InputEventMouseButton.new()
+	down.button_index = MOUSE_BUTTON_LEFT
+	down.pressed = true
+	ui._on_strip_input(down, strip, on_tap)
+	for dx: float in moves:
+		var motion := InputEventMouseMotion.new()
+		motion.relative = Vector2(dx, 0.0)
+		motion.button_mask = MOUSE_BUTTON_MASK_LEFT
+		ui._on_strip_input(motion, strip, on_tap)
+	var up := InputEventMouseButton.new()
+	up.button_index = MOUSE_BUTTON_LEFT
+	up.pressed = false
+	ui._on_strip_input(up, strip, on_tap)
 
 
 # ------------------------------------------------------------ repeat contract
