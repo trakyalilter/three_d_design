@@ -288,14 +288,35 @@ func _check_sound() -> void:
 	var quietest := 1.0
 	var longest := 0.0
 	for name: String in bank:
-		var stream: AudioStreamWAV = bank[name]
-		var frames := stream.data.size() / 2
-		_expect(frames > 0, "the '%s' cue is empty" % name)
-		longest = maxf(longest, float(frames) / stream.mix_rate)
-		var level := _rms(stream)
+		var data: PackedByteArray = bank[name]
+		var frames := data.size() / 2
+		_expect(frames > SoundBank.GUARD, "the '%s' cue is empty" % name)
+		longest = maxf(longest, float(frames) / SoundBank.RATE)
+		var level := _rms(data)
 		loudest = maxf(loudest, level)
 		quietest = minf(quietest, level)
-		_expect(_peak(stream) < 1.0, "the '%s' cue clips" % name)
+		_expect(_peak(data) < 1.0, "the '%s' cue clips" % name)
+
+	# The mixer reads one frame past whatever it is playing, so every buffer
+	# ends in silence it is allowed to read. Getting this wrong is an
+	# out-of-bounds read on the audio thread, which on Android takes the app
+	# down inside AudioTrack rather than anywhere it can be caught.
+	for name: String in bank:
+		var data: PackedByteArray = bank[name]
+		var tail := 0
+		for i in SoundBank.GUARD:
+			tail += absi(data.decode_s16(data.size() - (i + 1) * 2))
+		_expect(tail == 0, "the '%s' cue has no silent guard on the end" % name)
+
+	# And a looping stream has to stop short of it, because loop_end is
+	# inclusive: pointing it at the last frame is what makes the mixer read off
+	# the end every time round.
+	var bed := SoundBank.stream(SoundBank.build_music(), true)
+	var bed_frames := bed.data.size() / 2
+	_expect(bed.loop_mode == AudioStreamWAV.LOOP_FORWARD, "the music does not loop")
+	_expect(bed.loop_end > 0 and bed.loop_end < bed_frames - 1,
+		"the music loops at frame %d of %d, which is past the end of it"
+			% [bed.loop_end, bed_frames])
 	_expect(loudest / maxf(quietest, 0.0001) < 1.6,
 		"the cues are %.1fx apart in loudness" % (loudest / maxf(quietest, 0.0001)))
 
@@ -331,8 +352,7 @@ func _cues_asked_for() -> Array[String]:
 	return found
 
 
-static func _rms(stream: AudioStreamWAV) -> float:
-	var data := stream.data
+static func _rms(data: PackedByteArray) -> float:
 	var n := data.size() / 2
 	var sum := 0.0
 	for i in n:
@@ -341,8 +361,7 @@ static func _rms(stream: AudioStreamWAV) -> float:
 	return sqrt(sum / maxi(n, 1))
 
 
-static func _peak(stream: AudioStreamWAV) -> float:
-	var data := stream.data
+static func _peak(data: PackedByteArray) -> float:
 	var top := 0.0
 	for i in data.size() / 2:
 		top = maxf(top, absf(float(data.decode_s16(i * 2)) / 32768.0))

@@ -187,6 +187,17 @@ static func sound_row() -> Control:
 
 	row.add_child(effects)
 	row.add_child(music)
+
+	# Say so rather than leaving the player wondering why it went quiet.
+	if Audio.recovered_from_crash():
+		var note := label("Music was turned off after the app closed unexpectedly.", 15, MUTED)
+		note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		note.custom_minimum_size = Vector2(300, 0)
+		var column := VBoxContainer.new()
+		column.add_theme_constant_override("separation", 6)
+		column.add_child(row)
+		column.add_child(note)
+		return column
 	return row
 
 

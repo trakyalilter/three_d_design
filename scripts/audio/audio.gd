@@ -8,6 +8,18 @@ extends Node
 ##
 ## The switches live in their own file rather than the career profile, so
 ## starting a new career does not turn the sound back on behind you.
+##
+## Two rules here are about Android rather than taste. The worker thread makes
+## PCM and nothing else — streams are Resources and are built on the main
+## thread — and every player asks for the software mixer explicitly rather than
+## whatever the platform would pick.
+##
+## There is also a dead man's switch. Audio is the one part of this that runs
+## on a thread nothing here owns, and a fault in the mixer takes the process
+## down where no amount of GDScript can catch it. A flag is set while the bed
+## is playing and cleared on the way out, so a run that finds the flag still
+## set knows the last one did not end well and starts quiet. The player turns
+## it back on from the front page, and nobody is stuck in a loop.
 
 const SETTINGS_PATH := "user://audio.json"
 
@@ -33,6 +45,8 @@ var _music: AudioStreamPlayer
 var _music_stream: AudioStreamWAV
 var _wanted := false
 var _silent := false
+## True when the previous run went down with the music playing.
+var _recovered := false
 
 ## Synthesis is not free — the whole bank is about a third of a second on a
 ## desktop and several times that on a phone, and the music is longer again.
@@ -42,11 +56,14 @@ var _silent := false
 var _bank_task := -1
 var _music_task := -1
 var _built: Dictionary = {}
-var _built_music: AudioStreamWAV
+var _built_music := PackedByteArray()
 
 
 func _ready() -> void:
 	_load_settings()
+	if _recovered:
+		_music_on = false
+		_save_settings()
 	# A headless run has no mixer, and building the bank would be time spent on
 	# silence. The smoke test takes this path, so every call below still has to
 	# be safe with nothing behind it.
@@ -59,12 +76,17 @@ func _ready() -> void:
 		var player := AudioStreamPlayer.new()
 		player.name = "Voice%d" % i
 		player.volume_db = SFX_DB
+		# Mixed in software rather than handed to the platform as a sample.
+		# The sample path goes through AudioTrack on Android, and these streams
+		# are built at runtime rather than imported.
+		player.playback_type = AudioServer.PLAYBACK_TYPE_STREAM
 		add_child(player)
 		_voices.append(player)
 
 	_music = AudioStreamPlayer.new()
 	_music.name = "Music"
 	_music.volume_db = MUSIC_DB
+	_music.playback_type = AudioServer.PLAYBACK_TYPE_STREAM
 	add_child(_music)
 
 	_bank_task = WorkerThreadPool.add_task(_synthesise_bank)
@@ -74,7 +96,11 @@ func _process(_delta: float) -> void:
 	if _bank_task >= 0 and WorkerThreadPool.is_task_completed(_bank_task):
 		WorkerThreadPool.wait_for_task_completion(_bank_task)
 		_bank_task = -1
-		_bank = _built
+		# The worker handed over raw PCM. Wrapping it in a stream is a Resource
+		# to make, so it happens here on the main thread.
+		_bank = {}
+		for name: String in _built:
+			_bank[name] = SoundBank.stream(_built[name])
 		_built = {}
 		# The music is the expensive half, so it does not start until the cues
 		# are in — a screen that wants both gets the responsive one first.
@@ -84,10 +110,11 @@ func _process(_delta: float) -> void:
 	if _music_task >= 0 and WorkerThreadPool.is_task_completed(_music_task):
 		WorkerThreadPool.wait_for_task_completion(_music_task)
 		_music_task = -1
-		_music_stream = _built_music
-		_built_music = null
+		_music_stream = SoundBank.stream(_built_music, true)
+		_built_music = PackedByteArray()
 		if _wanted and _music_on:
 			_music.stream = _music_stream
+			_mark_playing(true)
 			_music.play()
 
 	if _bank_task < 0 and _music_task < 0:
@@ -102,6 +129,15 @@ func _exit_tree() -> void:
 			WorkerThreadPool.wait_for_task_completion(task)
 	_bank_task = -1
 	_music_task = -1
+	_mark_playing(false)
+
+
+## Android does not always give a process a chance to shut down cleanly, but it
+## does say when it is going into the background, and that is close enough: an
+## app that got that far did not fall over.
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_APPLICATION_PAUSED or what == NOTIFICATION_WM_CLOSE_REQUEST:
+		_mark_playing(false)
 
 
 func _synthesise_bank() -> void:
@@ -153,13 +189,14 @@ func start_music() -> void:
 		return
 	_music.stream = _music_stream
 	if not _music.playing:
+		_mark_playing(true)
 		_music.play()
 
 
-## Quiets the bed without forgetting that a screen wanted it, so coming back
-## from a room picks it up again.
+## Quiets the bed. The screen has to ask again to get it back.
 func stop_music() -> void:
 	_wanted = false
+	_mark_playing(false)
 	if _music != null:
 		_music.stop()
 
@@ -189,6 +226,7 @@ func set_music_on(value: bool) -> void:
 	if value:
 		start_music()
 	elif _music != null:
+		_mark_playing(false)
 		_music.stop()
 
 
@@ -196,6 +234,12 @@ func set_music_on(value: bool) -> void:
 ## out switches that would do nothing.
 func is_silent() -> bool:
 	return _silent
+
+
+## True when this run started with the music off because the last one went down
+## while it was playing.
+func recovered_from_crash() -> bool:
+	return _recovered
 
 
 func _load_settings() -> void:
@@ -211,11 +255,19 @@ func _load_settings() -> void:
 	var data: Dictionary = parsed
 	_sfx_on = bool(data.get("sfx", true))
 	_music_on = bool(data.get("music", true))
+	_recovered = bool(data.get("playing", false))
 
 
-func _save_settings() -> void:
+func _save_settings(playing: bool = false) -> void:
 	var file := FileAccess.open(SETTINGS_PATH, FileAccess.WRITE)
 	if file == null:
 		return
-	file.store_string(JSON.stringify({"sfx": _sfx_on, "music": _music_on}, "\t"))
+	file.store_string(JSON.stringify({
+		"sfx": _sfx_on, "music": _music_on, "playing": playing}, "\t"))
 	file.close()
+
+
+## Records that the bed is running, so a run that never reaches the other side
+## of this leaves a mark for the next one to find.
+func _mark_playing(playing: bool) -> void:
+	_save_settings(playing)

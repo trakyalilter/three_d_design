@@ -10,6 +10,10 @@ extends RefCounted
 ## Everything is mono at 22 kHz. That is plenty for blips and thuds, and it
 ## keeps both the memory and the arithmetic down: the whole bank is well under
 ## a megabyte and takes a few milliseconds a cue to build.
+##
+## Nothing here makes an AudioStreamWAV. The builders return raw PCM, because
+## they run on a worker thread and a Resource is not a thing to hand between
+## threads. Audio wraps them with stream() once they arrive on the main one.
 
 const RATE := 22050
 ## Nothing is allowed to reach full scale. Cues stack — a purchase can land on
@@ -20,6 +24,12 @@ const CEILING := 0.72
 ## buzz spends all its time at full swing and the bell almost none. Matching
 ## the average instead is what stops "you cannot afford that" shouting.
 const LOUDNESS := 0.15
+## Silent frames written past the end of every buffer. The mixer interpolates
+## between a sample and the one after it, so at the last frame — and at the far
+## side of a loop point — it reads one frame beyond what was asked for. On a
+## desktop that lands in slack memory and nobody notices. On Android it is an
+## out-of-bounds read on the thread feeding AudioTrack, and the app goes down.
+const GUARD := 16
 
 ## Equal temperament from A4, so the chimes below can be written as note names
 ## rather than frequencies.
@@ -49,7 +59,8 @@ const CUES: PackedStringArray = [
 ]
 
 
-## Everything the game can ask to hear, built once at startup.
+## Everything the game can ask to hear, as raw PCM. Safe to call off the main
+## thread; pass each buffer through stream() before playing it.
 static func build_all() -> Dictionary:
 	return {
 		# Interface. Short, dry and quiet — these fire on every tap, so
@@ -88,15 +99,32 @@ static func build_all() -> Dictionary:
 ## The bed that plays under the map and the front page: eight bars of slow
 ## chords, looped. Built on its own because it costs a hundred times what a
 ## blip does and is not wanted until something is on screen to play it under.
-static func build_music() -> AudioStreamWAV:
+static func build_music() -> PackedByteArray:
 	return _pad()
+
+
+## Wraps a buffer from one of the builders above in a stream that can be
+## played. Main thread only — this is the one place a Resource is made.
+static func stream(data: PackedByteArray, looping: bool = false) -> AudioStreamWAV:
+	var wav := AudioStreamWAV.new()
+	wav.format = AudioStreamWAV.FORMAT_16_BITS
+	wav.mix_rate = RATE
+	wav.stereo = false
+	wav.data = data
+	if looping:
+		wav.loop_mode = AudioStreamWAV.LOOP_FORWARD
+		wav.loop_begin = 0
+		# Inclusive, and the guard frames sit beyond it, so the mixer always
+		# has a real sample to interpolate towards at the loop point.
+		wav.loop_end = maxi(data.size() / 2 - GUARD - 1, 1)
+	return wav
 
 
 # ------------------------------------------------------------- the generators
 
 ## A plain tone with a fast attack and an exponential tail. `curve` is how
 ## sharply it decays — higher is shorter and more percussive.
-static func _blip(freq: float, seconds: float, gain: float, curve: float) -> AudioStreamWAV:
+static func _blip(freq: float, seconds: float, gain: float, curve: float) -> PackedByteArray:
 	var n := int(RATE * seconds)
 	var out := PackedFloat32Array()
 	out.resize(n)
@@ -112,7 +140,7 @@ static func _blip(freq: float, seconds: float, gain: float, curve: float) -> Aud
 
 ## A blip that slides from one pitch to another. Rising reads as opening,
 ## falling as closing or undoing.
-static func _sweep_blip(from_hz: float, to_hz: float, seconds: float, gain: float) -> AudioStreamWAV:
+static func _sweep_blip(from_hz: float, to_hz: float, seconds: float, gain: float) -> PackedByteArray:
 	var n := int(RATE * seconds)
 	var out := PackedFloat32Array()
 	out.resize(n)
@@ -127,7 +155,7 @@ static func _sweep_blip(from_hz: float, to_hz: float, seconds: float, gain: floa
 
 ## Something solid meeting the floor: a low tone dropping about a fifth as it
 ## lands, with a short burst of soft noise on the front for the contact.
-static func _thud(freq: float, seconds: float, gain: float) -> AudioStreamWAV:
+static func _thud(freq: float, seconds: float, gain: float) -> PackedByteArray:
 	var n := int(RATE * seconds)
 	var out := PackedFloat32Array()
 	out.resize(n)
@@ -148,7 +176,7 @@ static func _thud(freq: float, seconds: float, gain: float) -> AudioStreamWAV:
 
 
 ## A brush across a wall: noise under a filter that opens and closes again.
-static func _swish(seconds: float, gain: float) -> AudioStreamWAV:
+static func _swish(seconds: float, gain: float) -> PackedByteArray:
 	var n := int(RATE * seconds)
 	var out := PackedFloat32Array()
 	out.resize(n)
@@ -163,7 +191,7 @@ static func _swish(seconds: float, gain: float) -> AudioStreamWAV:
 
 
 ## Two short square pulses, low and slightly detuned. Reads as "no".
-static func _buzz(freq: float, seconds: float, gain: float) -> AudioStreamWAV:
+static func _buzz(freq: float, seconds: float, gain: float) -> PackedByteArray:
 	var n := int(RATE * seconds)
 	var out := PackedFloat32Array()
 	out.resize(n)
@@ -182,7 +210,7 @@ static func _buzz(freq: float, seconds: float, gain: float) -> AudioStreamWAV:
 
 ## Struck bells, one after another. Each note is three partials with their own
 ## decay, which is what makes a bell sound like metal rather than a flute.
-static func _chime(freqs: Array, offsets: Array, seconds: float, gain: float) -> AudioStreamWAV:
+static func _chime(freqs: Array, offsets: Array, seconds: float, gain: float) -> PackedByteArray:
 	var n := int(RATE * seconds)
 	var out := PackedFloat32Array()
 	out.resize(n)
@@ -211,7 +239,7 @@ static func _chime(freqs: Array, offsets: Array, seconds: float, gain: float) ->
 ## Eight bars of slow chords to sit under the map. Four voices a chord, gently
 ## detuned against each other so the pad drifts instead of sitting still, and
 ## each chord fades in and out of the next.
-static func _pad() -> AudioStreamWAV:
+static func _pad() -> PackedByteArray:
 	# D major, B minor, G major, A major — the same four the chimes are drawn
 	# from, so the cues land inside the music rather than against it.
 	var chords := [
@@ -245,11 +273,7 @@ static func _pad() -> AudioStreamWAV:
 				out[at] += (sin(step * i) + 0.30 * sin(step * i * 2.0)
 					+ 0.10 * sin(step * i * 3.0)) * level * swell * fall
 
-	var stream := _wav(out)
-	stream.loop_mode = AudioStreamWAV.LOOP_FORWARD
-	stream.loop_begin = 0
-	stream.loop_end = n
-	return stream
+	return _wav(out)
 
 
 # ----------------------------------------------------------------- machinery
@@ -264,7 +288,7 @@ static func _attack(t: float, length: float) -> float:
 ## Floats to a 16-bit stream, levelled so a cue built from a dozen summed
 ## partials does not come out louder than one built from two. The target is an
 ## average, with the peak pulled back under the ceiling if that would clip.
-static func _wav(frames: PackedFloat32Array) -> AudioStreamWAV:
+static func _wav(frames: PackedFloat32Array) -> PackedByteArray:
 	var peak := 0.0
 	var sum := 0.0
 	for value in frames:
@@ -279,15 +303,9 @@ static func _wav(frames: PackedFloat32Array) -> AudioStreamWAV:
 	return _pack(frames, scale)
 
 
-static func _pack(frames: PackedFloat32Array, scale: float) -> AudioStreamWAV:
+static func _pack(frames: PackedFloat32Array, scale: float) -> PackedByteArray:
 	var data := PackedByteArray()
-	data.resize(frames.size() * 2)
+	data.resize((frames.size() + GUARD) * 2)
 	for i in frames.size():
 		data.encode_s16(i * 2, int(clampf(frames[i] * scale, -1.0, 1.0) * 32767.0))
-
-	var stream := AudioStreamWAV.new()
-	stream.format = AudioStreamWAV.FORMAT_16_BITS
-	stream.mix_rate = RATE
-	stream.stereo = false
-	stream.data = data
-	return stream
+	return data

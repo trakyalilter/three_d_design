@@ -307,9 +307,23 @@ voices to a chord. The cues are drawn from the same four chords, so a purchase o
 lands inside the music rather than against it.
 
 Synthesis is not free — the bank is about a third of a second on a desktop and the music
-twice that again — so both are built on a worker thread and picked up when they are ready.
+twice that again — so the PCM is built on a worker thread and picked up when it is ready.
 Nothing blocks the first frame. Until the bank lands, a tap or two on the front page is
-silent, and that is the whole cost.
+silent, and that is the whole cost. Only the raw samples are made on the thread; the streams
+themselves are Resources and are built on the main one.
+
+Two details are about Android rather than taste. Every buffer ends in sixteen frames of
+silence, because the mixer interpolates between a sample and the one after it and so reads
+one frame past whatever it is playing — and the music's loop point stops short of that
+guard, since `loop_end` is inclusive. Pointing it at the last frame, which is what 1.18.0
+did, makes the mixer read off the end of the buffer every time round the loop. On a desktop
+that lands in slack memory and nobody notices; on Android it is an out-of-bounds read on the
+thread feeding AudioTrack, and the app goes down where nothing can catch it.
+
+There is a dead man's switch behind that. A flag is written while the bed is playing and
+cleared on the way out, so a run that finds the flag still set knows the last one did not end
+well and starts with the music off, saying so on the front page. Nobody ends up in a loop of
+launching an app that dies two seconds later.
 
 ### Progress
 
