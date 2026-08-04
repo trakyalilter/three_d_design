@@ -19,6 +19,9 @@ func _ready() -> void:
 	await get_tree().process_frame
 	Game.reset()
 
+	print("=== the front page ===")
+	await _check_title()
+
 	print("=== districts ===")
 	_check_districts()
 
@@ -68,6 +71,35 @@ func _ready() -> void:
 func _expect(condition: bool, message: String) -> void:
 	if not condition:
 		_failures.append(message)
+
+
+# --------------------------------------------------------------- front page
+
+## The app opens on the title screen, not on the map, and its buttons lead
+## where they say they do.
+func _check_title() -> void:
+	var main := get_tree().current_scene
+	_expect(main.title != null, "the app did not open on the title screen")
+	_expect(main.city == null and main.designer == null,
+		"the title screen came up with another screen already running")
+	if main.title == null:
+		return
+
+	main.title.play_requested.emit()
+	await get_tree().process_frame
+	_expect(main.city != null, "Carry on did not open the city")
+	_expect(main.title == null, "the title screen stayed behind the city")
+
+	main.enter_title()
+	await get_tree().process_frame
+	main.title.free_build_requested.emit()
+	await get_tree().process_frame
+	_expect(main.designer != null and not main.designer.job_mode(),
+		"Free Build did not open the sandbox")
+
+	main.enter_title()
+	await get_tree().process_frame
+	print("title           opens the app; Carry on and Free Build both land")
 
 
 # ---------------------------------------------------------------- districts

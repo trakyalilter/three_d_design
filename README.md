@@ -9,6 +9,14 @@ pay experience, and levelling up opens the pricier shops, the better paints and 
 houses. Then you buy the next quarter of the city, and the one after that. It is House
 Flipper's loop, shrunk to a phone screen.
 
+![The title screen: the menu on the left, a furnished room turning slowly behind it](docs/screenshot-title.png)
+
+The app opens on a front page rather than dropping you onto the map. **Carry on** picks your
+career up where you left it — the panel shows the money, the level and how much of the city
+you own — **Free Build** goes straight to the sandbox, and **How it works** explains the loop
+in five paragraphs. The room turning behind it is not artwork: it is a real room built from
+the catalogue, lit and furnished by the same code the game runs on.
+
 ![The whole city: one quarter yours, three still behind hoardings](docs/screenshot-city.png)
 
 | Reading a brief | Buying at a shop |
@@ -200,6 +208,8 @@ checklist gets you paid — arranging the room properly is what earns the third 
 | Double tap | Brings the camera to what you tapped |
 | Back button | Closes the dialog, then the catalogue, then clears the selection, then leaves |
 
+From the city, Back returns to the title screen; from there it leaves the game.
+
 **Undo** and **Redo** on the left go back through everything and move furniture between the
 room and your stock as they go. The bar under a selection rotates in 15° steps, flips 180°,
 scales between 50 % and 200 %, recolours, duplicates and puts back. **Top View** switches to
@@ -289,7 +299,10 @@ rather than sticking out through the wall.
 ```
 scenes/main.tscn         One node; everything else is built in code
 scripts/
-  game.gd                Swaps between the city and the designer
+  game.gd                Swaps between the title screen, the city and the
+                         designer
+  title_screen.gd        The front page: menu, save summary, and a furnished
+                         room turning behind it
   data/
     catalog.gd           Autoload. Every model and price, and the nineteen
                          shops, with the quarter and level each one opens at
@@ -434,7 +447,8 @@ survives a save and reload, that every catalogue entry is priced, stocked and
 physically sane, that wall snap lands flush and stacking finds the right height, that undo and redo
 keep the room and the warehouse in step, that a properly arranged room really does reach
 three stars, that a generated repeat contract can be shopped for and finished, and that the
-tray starts closed and can tell a drag along the row from a tap on a piece. It reports
+tray starts closed and can tell a drag along the row from a tap on a piece, and that the
+app opens on the title screen with its buttons wired to the right places. It reports
 everything that does not hold and exits non-zero.
 
 ## Building it yourself

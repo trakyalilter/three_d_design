@@ -5,13 +5,30 @@ extends Node
 ## picked up, and the designer where they are carried out. Only one exists at a
 ## time, since each brings its own lighting and environment.
 
+var title: TitleScreen
 var city: CityView
 var city_ui: CityUI
 var designer: RoomDesigner
 
 
 func _ready() -> void:
-	enter_city()
+	enter_title()
+
+
+## The front page. Everything starts here rather than dropping the player
+## straight onto the map.
+func enter_title() -> void:
+	_clear()
+
+	title = TitleScreen.new()
+	title.name = "Title"
+	add_child(title)
+
+	title.play_requested.connect(func() -> void: enter_city())
+	title.free_build_requested.connect(func() -> void: enter_designer(""))
+	title.new_career_requested.connect(func() -> void:
+		Game.reset()
+		enter_city())
 
 
 func enter_city(focus_house: String = "") -> void:
@@ -62,13 +79,14 @@ func enter_designer(house_id: String) -> void:
 
 
 func _clear() -> void:
-	for node in [designer, city, city_ui]:
+	for node in [designer, city, city_ui, title]:
 		if is_instance_valid(node):
 			remove_child(node)
 			node.queue_free()
 	designer = null
 	city = null
 	city_ui = null
+	title = null
 
 
 func _notification(what: int) -> void:
