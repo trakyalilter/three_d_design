@@ -1120,6 +1120,8 @@ func _notification(what: int) -> void:
 			# Android back button: unwind one level at a time.
 			if ui.is_modal_open():
 				ui.close_dialog()
+			elif ui.is_catalog_open():
+				ui.set_catalog_open(false)
 			elif selected != null:
 				_select(null)
 			else:

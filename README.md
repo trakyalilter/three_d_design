@@ -17,7 +17,7 @@ Flipper's loop, shrunk to a phone screen.
 
 | Your stock | Fitting the room out |
 |---|---|
-| ![The warehouse listing everything owned](docs/screenshot-stock.png) | ![A finished reading room with the bookshelves against the walls](docs/screenshot-job.png) |
+| ![The warehouse listing everything owned](docs/screenshot-stock.png) | ![A finished lounge with the catalogue tucked away](docs/screenshot-job.png) |
 
 ![The hand-over screen: a star rating, what the client noticed, and what it paid](docs/screenshot-stars.png)
 
@@ -143,11 +143,17 @@ the **Buy all** button next to *Start job* fills the whole basket in one tap —
 paint the brief calls for.
 
 Take the job and you land in the room with the brief checklist on the right; it re-ticks
-itself live as you work. The tray along the bottom is the catalogue, split by category, and
-every piece shows a picture of itself with how many you have left rather than a price. Once
-every line is ticked, **Hand over** collects the fee — and the client's verdict.
+itself live as you work. Once every line is ticked, **Hand over** collects the fee — and the
+client's verdict.
 
-![The bedroom tray, every piece shown as a rendered thumbnail](docs/screenshot-tray.png)
+The catalogue lives behind the **Furniture** bar along the bottom, closed to begin with so
+the room has the screen to itself. Tap it and the tray comes up: the pieces split by
+category, each showing a picture of itself and how many you have left rather than a price.
+Tap the bar again — or press Back — to put it away.
+
+| Closed, which is how a room opens | Open |
+|---|---|
+| ![A finished lounge with the whole screen to itself and one Furniture bar at the bottom](docs/screenshot-job.png) | ![The tray open, every piece a rendered thumbnail](docs/screenshot-tray.png) |
 
 Nothing in the project is an art file, so those thumbnails are rendered rather than drawn:
 one small off-screen viewport mounts a piece, draws it once, and keeps the result for the
@@ -184,7 +190,7 @@ checklist gets you paid — arranging the room properly is what earns the third 
 | Pinch | Zooms |
 | Two-finger drag | Pans across the floor |
 | Double tap | Brings the camera to what you tapped |
-| Back button | Closes the dialog, then clears the selection, then leaves |
+| Back button | Closes the dialog, then the catalogue, then clears the selection, then leaves |
 
 **Undo** and **Redo** on the left go back through everything and move furniture between the
 room and your stock as they go. The bar under a selection rotates in 15° steps, flips 180°,

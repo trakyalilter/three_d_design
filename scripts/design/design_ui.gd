@@ -48,9 +48,15 @@ var _brief_list: VBoxContainer
 var _selection_bar: PanelContainer
 var _selection_label: Label
 var _catalog_panel: PanelContainer
+## The tray starts closed: on a phone it is the biggest thing on screen and
+## most of the time the player is arranging what is already in the room.
+var _catalog_body: VBoxContainer
+var _catalog_toggle: Button
+var _catalog_open := false
 var _catalog_items: HBoxContainer
 var _category_buttons: Array[Button] = []
 var _item_buttons: Dictionary = {}
+var _current_category := ""
 var _toast_label: Label
 var _toast_timer: Timer
 var _swatch_popup: PanelContainer
@@ -331,6 +337,17 @@ func _build_catalog(parent: Control) -> void:
 	var col := VBoxContainer.new()
 	_catalog_panel.add_child(col)
 
+	# The handle stays on screen with the tray shut, so there is always
+	# something to tap to bring the furniture back.
+	_catalog_toggle = UIKit.make_button("")
+	_catalog_toggle.pressed.connect(func() -> void: set_catalog_open(not _catalog_open))
+	col.add_child(_catalog_toggle)
+
+	_catalog_body = VBoxContainer.new()
+	_catalog_body.name = "CatalogBody"
+	col.add_child(_catalog_body)
+	col = _catalog_body
+
 	var category_scroll := ScrollContainer.new()
 	category_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
 	category_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -359,9 +376,36 @@ func _build_catalog(parent: Control) -> void:
 	scroll.add_child(_catalog_items)
 
 	_select_category(Catalog.CATEGORIES[0])
+	set_catalog_open(false)
+
+
+## Slides the catalogue out of the way. Closed, the panel is just its handle,
+## and the room gets the rest of the screen.
+func set_catalog_open(open: bool) -> void:
+	_catalog_open = open
+	if _catalog_body:
+		_catalog_body.visible = open
+	_refresh_catalog_toggle()
+
+
+func is_catalog_open() -> bool:
+	return _catalog_open
+
+
+func _refresh_catalog_toggle() -> void:
+	if _catalog_toggle == null:
+		return
+	_catalog_toggle.text = "%s   Furniture%s" % [
+		"▼" if _catalog_open else "▲",
+		"  ·  %s" % _current_category if _catalog_open else "",
+	]
+	_catalog_toggle.tooltip_text = \
+		"Hide the catalogue" if _catalog_open else "Open the catalogue and place furniture"
 
 
 func _select_category(category: String) -> void:
+	_current_category = category
+	_refresh_catalog_toggle()
 	for b in _category_buttons:
 		b.button_pressed = b.text == category
 
