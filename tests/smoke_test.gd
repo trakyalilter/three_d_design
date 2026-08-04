@@ -24,6 +24,9 @@ func _ready() -> void:
 	await _check_loading()
 	await _check_brief_sheet()
 
+	print("=== sound ===")
+	_check_sound()
+
 	print("=== districts ===")
 	_check_districts()
 
@@ -212,6 +215,83 @@ static func _collect_text(node: Node, into: Array[String]) -> void:
 		into.append((node as Label).text)
 	for child in node.get_children():
 		_collect_text(child, into)
+
+
+# -------------------------------------------------------------------- sound
+
+## Every sound is synthesised, so there is nothing to fail to load — but a cue
+## the bank does not build is silent, and nothing else would ever say so.
+func _check_sound() -> void:
+	var bank := SoundBank.build_all()
+	for name: String in SoundBank.CUES:
+		_expect(bank.has(name), "the bank does not build the '%s' cue" % name)
+	for name: String in bank:
+		_expect(SoundBank.CUES.has(name), "'%s' is built but not listed in CUES" % name)
+
+	# Levelled by loudness rather than peak, so no cue shouts over the others.
+	var loudest := 0.0
+	var quietest := 1.0
+	var longest := 0.0
+	for name: String in bank:
+		var stream: AudioStreamWAV = bank[name]
+		var frames := stream.data.size() / 2
+		_expect(frames > 0, "the '%s' cue is empty" % name)
+		longest = maxf(longest, float(frames) / stream.mix_rate)
+		var level := _rms(stream)
+		loudest = maxf(loudest, level)
+		quietest = minf(quietest, level)
+		_expect(_peak(stream) < 1.0, "the '%s' cue clips" % name)
+	_expect(loudest / maxf(quietest, 0.0001) < 1.6,
+		"the cues are %.1fx apart in loudness" % (loudest / maxf(quietest, 0.0001)))
+
+	# The game asks Audio for cues by name from several files. Anything it asks
+	# for that the bank has no answer to is a silent action.
+	for asked in _cues_asked_for():
+		_expect(SoundBank.CUES.has(asked),
+			"the game plays '%s', which the bank does not build" % asked)
+
+	_expect(Audio.is_silent(), "the smoke test should not be making any noise")
+	print("sound           %d cues, longest %.1f s, within %.0f%% of each other in level"
+		% [bank.size(), longest, (loudest / maxf(quietest, 0.0001) - 1.0) * 100.0])
+
+
+## Every cue name the game passes to Audio.play(), read out of the source.
+func _cues_asked_for() -> Array[String]:
+	var found: Array[String] = []
+	var pattern := RegEx.create_from_string('Audio\\.play\\("([a-z_]+)"')
+	for path in [
+		"res://scripts/city/city_ui.gd",
+		"res://scripts/design/designer.gd",
+		"res://scripts/design/design_ui.gd",
+		"res://scripts/ui/ui_kit.gd",
+	]:
+		var file := FileAccess.open(path, FileAccess.READ)
+		if file == null:
+			continue
+		for match in pattern.search_all(file.get_as_text()):
+			var name := match.get_string(1)
+			if not found.has(name):
+				found.append(name)
+		file.close()
+	return found
+
+
+static func _rms(stream: AudioStreamWAV) -> float:
+	var data := stream.data
+	var n := data.size() / 2
+	var sum := 0.0
+	for i in n:
+		var v := float(data.decode_s16(i * 2)) / 32768.0
+		sum += v * v
+	return sqrt(sum / maxi(n, 1))
+
+
+static func _peak(stream: AudioStreamWAV) -> float:
+	var data := stream.data
+	var top := 0.0
+	for i in data.size() / 2:
+		top = maxf(top, absf(float(data.decode_s16(i * 2)) / 32768.0))
+	return top
 
 
 # ---------------------------------------------------------------- districts

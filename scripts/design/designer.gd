@@ -545,9 +545,11 @@ func _pick_item(screen_position: Vector2) -> FurnitureItem:
 func _on_place_item(item_id: String) -> void:
 	if job_mode():
 		if not Game.is_item_unlocked(item_id):
+			Audio.play("deny")
 			ui.toast("That needs level %d" % Catalog.effective_unlock_level(item_id), 2.0)
 			return
 		if not Game.take_from_stock(item_id):
+			Audio.play("deny")
 			ui.toast("None in stock — buy one at %s" % Catalog.shop_name(Catalog.shop_of(item_id)), 2.6)
 			return
 
@@ -565,6 +567,7 @@ func _on_place_item(item_id: String) -> void:
 
 	_select(item)
 	_after_change()
+	Audio.play("place")
 	if job_mode():
 		ui.toast("%s placed — %d left in stock" % [
 			Catalog.display_name(item_id), Game.stock_of(item_id)], 1.6)
@@ -620,6 +623,7 @@ func _store_selected() -> void:
 	_select(null)
 	items_root.remove_child(doomed)
 	doomed.queue_free()
+	Audio.play("drop")
 	if job_mode():
 		Game.return_to_stock(item_id)
 		ui.toast("%s back in stock (%d)" % [label, Game.stock_of(item_id)], 1.6)
@@ -634,6 +638,7 @@ func _duplicate_selected() -> void:
 		return
 	var item_id := selected.item_id
 	if job_mode() and not Game.take_from_stock(item_id):
+		Audio.play("deny")
 		ui.toast("No more %s in stock" % Catalog.display_name(item_id), 2.2)
 		return
 	var copy := FurnitureItem.from_dict(selected.to_dict())
@@ -643,6 +648,7 @@ func _duplicate_selected() -> void:
 	copy.global_position = _find_free_spot(copy)
 	_select(copy)
 	_after_change()
+	Audio.play("place")
 	ui.toast("Duplicated", 1.2)
 
 
@@ -673,6 +679,7 @@ func _on_floor_paint(color: Color) -> void:
 	if _paint_target == "":
 		_floor_color = color
 	room.set_floor_color(color, _paint_target)
+	Audio.play("paint")
 	_announce_paint("Floor", color)
 	_after_change()
 
@@ -683,6 +690,7 @@ func _on_wall_paint(color: Color) -> void:
 	if _paint_target == "":
 		_wall_color = color
 	room.set_wall_color(color, _paint_target)
+	Audio.play("paint")
 	_announce_paint("Walls", color)
 	_after_change()
 
@@ -705,6 +713,7 @@ func _may_paint(surface: String, color: Color) -> bool:
 		return true
 	var entry := Game.paint_entry_for(surface, color)
 	var label := str(entry.get("name", "That colour"))
+	Audio.play("deny")
 	ui.toast("%s is not in your paint store — buy it at the Colour House" % label, 2.8)
 	return false
 
@@ -767,6 +776,11 @@ func _on_finish() -> void:
 	var xp_reward := int(round(float(job["xp"]) * (0.8 + 0.2 * float(review["stars"]))))
 
 	var result := Game.record_completion(house_id, payout, bonus, xp_reward, installed, int(review["stars"]))
+
+	Audio.stars(int(review["stars"]))
+	if int(result.get("levels", 0)) > 0:
+		# After the verdict, so the two do not talk over each other.
+		get_tree().create_timer(1.1).timeout.connect(func() -> void: Audio.play("levelup"))
 	Game.store_layout(house_id, _serialize())
 	ui.show_completion(job, result, review, func() -> void: job_finished.emit(house_id))
 
@@ -811,6 +825,8 @@ func _on_leave() -> void:
 # ----------------------------------------------------------------- selection
 
 func _select(item: FurnitureItem) -> void:
+	if item != null and item != selected:
+		Audio.play("lift", 0.7)
 	selected = item
 	ui.set_selection(item)
 	if item == null:
@@ -1005,7 +1021,9 @@ func _on_redo() -> void:
 ## so the stock count still matches what is standing here.
 func _step_history(state: Dictionary, label: String) -> void:
 	if state.is_empty():
+		Audio.play("deny")
 		return
+	Audio.play("undo")
 	var before := _item_counts()
 	_select(null)
 	_restore(state)

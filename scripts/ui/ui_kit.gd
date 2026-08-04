@@ -104,7 +104,15 @@ static func make_button(text: String, tooltip: String = "") -> Button:
 	b.tooltip_text = tooltip
 	b.focus_mode = Control.FOCUS_NONE
 	b.custom_minimum_size = Vector2(0, 44)
+	click(b)
 	return b
+
+
+## Gives a button the interface tick. Every button in the game is made through
+## this file, so one call here is the whole interface — anything that wants a
+## sound of its own layers it on top.
+static func click(button: BaseButton) -> void:
+	button.pressed.connect(func() -> void: Audio.play("tap"))
 
 
 ## A button tinted to read as the primary action of a panel.
@@ -122,6 +130,7 @@ static func swatch_button(color: Color, size: Vector2 = Vector2(58, 46)) -> Butt
 	var b := Button.new()
 	b.focus_mode = Control.FOCUS_NONE
 	b.custom_minimum_size = size
+	click(b)
 	var box := StyleBoxFlat.new()
 	box.bg_color = color
 	box.set_corner_radius_all(8)
@@ -152,6 +161,33 @@ static func wrapped_label(text: String, width: float = 520.0, color: Color = MUT
 	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	l.custom_minimum_size = Vector2(width, 0)
 	return l
+
+
+## The two sound switches, as a row. Both the front page and the guide show
+## these, so whichever screen the player is on the sound can be turned off.
+## Nothing is offered on a device with no mixer at all.
+static func sound_row() -> Control:
+	var row := HBoxContainer.new()
+	if Audio.is_silent():
+		return row
+
+	var effects := make_button("")
+	var music := make_button("")
+	var relabel := func() -> void:
+		effects.text = "Sound  %s" % ("on" if Audio.sfx_on() else "off")
+		music.text = "Music  %s" % ("on" if Audio.music_on() else "off")
+	relabel.call()
+
+	effects.pressed.connect(func() -> void:
+		Audio.set_sfx_on(not Audio.sfx_on())
+		relabel.call())
+	music.pressed.connect(func() -> void:
+		Audio.set_music_on(not Audio.music_on())
+		relabel.call())
+
+	row.add_child(effects)
+	row.add_child(music)
+	return row
 
 
 static func spacer() -> Control:

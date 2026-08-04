@@ -28,6 +28,10 @@ var _changing := false
 
 
 func _ready() -> void:
+	# Asks for the bed straight away. Nothing is synthesised on the main thread,
+	# so this only marks it as wanted — it starts playing a second or two later,
+	# once the sound bank and then the music itself have been built.
+	Audio.start_music()
 	enter_title()
 
 

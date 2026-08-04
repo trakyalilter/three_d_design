@@ -15,7 +15,9 @@ The app opens on a front page rather than dropping you onto the map. **Carry on*
 career up where you left it — the panel shows the money, the level and how much of the city
 you own — **Free Build** goes straight to the sandbox, and **How it works** explains the loop
 in five paragraphs. The room turning behind it is not artwork: it is a real room built from
-the catalogue, lit and furnished by the same code the game runs on.
+the catalogue, lit and furnished by the same code the game runs on. The two switches at the
+bottom turn the sound and the music off; they are on the guide as well, so you never have to
+come back here for them.
 
 ![The whole city: one quarter yours, three still behind hoardings](docs/screenshot-city.png)
 
@@ -236,6 +238,35 @@ moves for a reason rather than on a timer. When it reaches the end the new scree
 draw a few more frames behind the overlay, which is where the first shader compiles land,
 and only then does the overlay fade away.
 
+### Sound
+
+There are no audio files in this project either. Every sound is synthesised at runtime from
+oscillators, noise and envelopes — seventeen cues in about 320 KB, and a bed of music in
+another 690 KB, all built the moment the app starts.
+
+| | |
+|---|---|
+| Interface | A tick on every button, and a pair of rising and falling blips for a panel opening and closing |
+| The room | A piece landing is a low tone dropping a fifth with a knock of filtered noise on the front; picking one up is a thin blip, putting it back a heavier one, and painting a wall a brush of filtered noise |
+| Money | A two-note rise at a counter, the same two notes falling when you sell something back |
+| Refusals | A short double buzz — not enough money, nothing in stock, or a level you have not reached |
+| Rewards | Struck bells, one note for one star and three for three, a four-note run for a level and a five-note one for a quarter of the city |
+
+The cues are levelled by loudness rather than by peak. A square-wave buzz and a struck bell
+with the same peak are nothing like as loud as each other — the buzz spends all its time at
+full swing and the bell almost none — so matching the average is what stops "you cannot
+afford that" shouting over everything else. Measured across the bank they now sit within
+21 % of one another.
+
+The music is four slow chords in D, sixteen seconds long and looped, four gently detuned
+voices to a chord. The cues are drawn from the same four chords, so a purchase or a level-up
+lands inside the music rather than against it.
+
+Synthesis is not free — the bank is about a third of a second on a desktop and the music
+twice that again — so both are built on a worker thread and picked up when they are ready.
+Nothing blocks the first frame. Until the bank lands, a tap or two on the front page is
+silent, and that is the whole cost.
+
 ### Progress
 
 Experience carries you from level 1 to level 20, and it is meant to last the whole city.
@@ -353,6 +384,13 @@ scripts/
                          quarters bought and the saved profile
     room_review.gd       The five things a client notices, scored out of three
     layout_store.gd      Free-build save files under user://
+  audio/
+    sound_bank.gd        Every sound in the game, synthesised from scratch:
+                         blips, thuds, brushed noise, struck bells and the
+                         four-chord bed
+    audio.gd             Autoload. Builds the bank on a worker thread, fires
+                         cues through a pool of six voices, and holds the two
+                         switches
   city/
     city_view.gd         The four procedural quarters, their pins, hoardings
                          and pick volumes
@@ -493,7 +531,9 @@ changes of screen are covered end to end by a loading screen whose bar runs from
 the other, that a brief lists every missing piece under the counter that sells it without
 offering to buy any of it for you, that no house opens before the stock its brief asks for
 does, and that the career ends at the level cap without having reached it before the last
-quarter opened. It reports everything that does not hold and exits non-zero.
+quarter opened, and that every cue the game asks for by name is one the sound bank actually
+builds, none of them clipping and none more than half again as loud as the quietest. It
+reports everything that does not hold and exits non-zero.
 
 ## Building it yourself
 

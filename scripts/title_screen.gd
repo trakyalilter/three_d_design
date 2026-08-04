@@ -239,6 +239,7 @@ func _build_ui() -> void:
 		column.add_child(fresh)
 
 	column.add_child(_spacer(14))
+	column.add_child(UIKit.sound_row())
 	column.add_child(UIKit.label(
 		"v%s" % ProjectSettings.get_setting("application/config/version", ""), 15, UIKit.MUTED))
 

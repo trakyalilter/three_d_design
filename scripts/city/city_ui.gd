@@ -229,6 +229,8 @@ func _build_sheet() -> void:
 
 
 func close_sheet() -> void:
+	if _sheet.visible:
+		Audio.play("close")
 	_sheet.visible = false
 
 
@@ -237,6 +239,8 @@ func is_sheet_open() -> bool:
 
 
 func _begin_sheet(title: String, subtitle: String) -> void:
+	if not _sheet.visible:
+		Audio.play("open")
 	_sheet.visible = true
 	_sheet_title.text = title
 	_sheet_subtitle.text = subtitle
@@ -582,8 +586,10 @@ func show_district(district_id: String) -> void:
 func _buy_district(district_id: String) -> void:
 	var district := Jobs.get_district(district_id)
 	if not Game.unlock_district(district_id):
+		Audio.play("deny")
 		toast_message("Not enough money")
 		return
+	Audio.play("quarter")
 	district_bought.emit(district_id)
 	show_district(district_id)
 	toast_message("%s is yours — %d new clients on the map" % [
@@ -697,13 +703,17 @@ func _shop_row(item_id: String) -> HBoxContainer:
 	if held > 0:
 		var sell := UIKit.make_button("Sell", "Sell one back for %s" % UIKit.money(price))
 		sell.pressed.connect(func() -> void:
-			Game.sell_item(item_id, 1))
+			Game.sell_item(item_id, 1)
+			Audio.play("sell"))
 		row.add_child(sell)
 
 	var buy := UIKit.make_button("Buy  %s" % UIKit.money(price))
 	buy.disabled = not Game.can_afford(price)
 	buy.pressed.connect(func() -> void:
-		if not Game.buy_item(item_id, 1):
+		if Game.buy_item(item_id, 1):
+			Audio.play("buy")
+		else:
+			Audio.play("deny")
 			toast_message("Not enough money")
 	)
 	row.add_child(buy)
@@ -748,7 +758,10 @@ func _paint_row(surface: String, entry: Dictionary) -> HBoxContainer:
 		var buy := UIKit.make_button("Buy  %s" % UIKit.money(price))
 		buy.disabled = not Game.can_afford(price)
 		buy.pressed.connect(func() -> void:
-			if not Game.buy_paint(surface, entry):
+			if Game.buy_paint(surface, entry):
+				Audio.play("buy")
+			else:
+				Audio.play("deny")
 				toast_message("Not enough money")
 		)
 		row.add_child(buy)
@@ -833,7 +846,7 @@ func _open_guide() -> void:
 
 	var sections := [
 		["Pick up a job", "Tap a house on the map. The client tells you what the room has to contain and what they will pay for it."],
-		["Go shopping", "Buy furniture at the shops on the avenue and it goes into your stock. The brief lists exactly what is missing, and one button fills the basket for you."],
+		["Go shopping", "Buy furniture at the shops on the avenue and it goes into your stock. The brief lists exactly what is missing, grouped by the shop that sells it, so you know where to go."],
 		["Fit it out", "Inside a room you place pieces from stock — no money changes hands there. Put a piece back and it returns to the warehouse, ready for the next house."],
 		["Hand it over", "Once every line of the brief is ticked, hand the room over. The furniture you left behind stays with the client, and they mark the room out of three stars — for keeping the big pieces against the walls, holding to a palette, leaving room to move, and coming in on budget. Three stars pays thirty per cent on top of the fee."],
 		["Grow", "Every finished job pays experience. New levels open the pricier shops, the better paints and the larger, more demanding houses."],
@@ -847,6 +860,9 @@ func _open_guide() -> void:
 	var row := HBoxContainer.new()
 	row.alignment = BoxContainer.ALIGNMENT_END
 	_modal_body.add_child(row)
+
+	row.add_child(UIKit.sound_row())
+	row.add_child(UIKit.spacer())
 
 	var reset := UIKit.make_button("Start a new career")
 	reset.add_theme_color_override("font_color", UIKit.BAD)
