@@ -106,11 +106,19 @@ func earn(amount: int) -> void:
 # ------------------------------------------------------------------ unlocks
 
 func is_item_unlocked(item_id: String) -> bool:
-	return level >= Catalog.effective_unlock_level(item_id)
+	return is_shop_unlocked(Catalog.shop_of(item_id)) \
+		and level >= Catalog.effective_unlock_level(item_id)
 
 
+## A shop needs two things: the standing to be served, and the deeds to the
+## quarter it stands in. Riverside's salvage yard does not deliver.
 func is_shop_unlocked(shop_id: String) -> bool:
 	var shop: Dictionary = Catalog.get_shop(shop_id)
+	if shop.is_empty():
+		return false
+	var district := str(shop.get("district", ""))
+	if district != "" and not is_district_unlocked(district):
+		return false
 	return level >= int(shop.get("level", 1))
 
 

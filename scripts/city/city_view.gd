@@ -40,8 +40,12 @@ const MARKER_RESUME := Color(0.98, 0.78, 0.32)
 ## Labels are drawn at a fixed size on screen, so they pile up on each other
 ## once the camera pulls back far enough to take in more than one quarter. Both
 ## kinds fade out at the range where they stop being readable.
-const SHOP_LABEL_DISTANCE := 46.0
+const SHOP_LABEL_DISTANCE := 48.0
 const HOUSE_LABEL_DISTANCE := 130.0
+## Labels also switch off once they belong to a quarter the camera is not
+## looking at. Quarters are Jobs.SPACING apart, so this reaches across the one
+## in view without picking up its neighbours.
+const LABEL_RANGE := 62.0
 
 ## How far a quarter behind its hoarding is drained towards grey.
 const LOCKED_TONE := Color(0.48, 0.49, 0.50)
@@ -127,10 +131,7 @@ func _build_district(district: Dictionary) -> void:
 
 	_build_ground()
 	_build_roads()
-	if str(district["id"]) == str(Jobs.DISTRICTS[0]["id"]):
-		_build_shops()
-	else:
-		_build_plaza(district)
+	_build_shops(district)
 	_build_houses(district)
 	_build_greenery()
 	if _locked:
@@ -150,10 +151,13 @@ func _process(delta: float) -> void:
 
 	if rig == null:
 		return
+	var focus := rig.focus
 	for label in _shop_labels:
-		label.visible = rig.distance < SHOP_LABEL_DISTANCE
+		label.visible = rig.distance < SHOP_LABEL_DISTANCE \
+			and label.global_position.distance_to(focus) < LABEL_RANGE
 	for label in _house_labels:
-		label.visible = rig.distance < HOUSE_LABEL_DISTANCE
+		label.visible = rig.distance < HOUSE_LABEL_DISTANCE \
+			and label.global_position.distance_to(focus) < LABEL_RANGE
 
 
 # ------------------------------------------------------- quarter-local helpers
@@ -292,17 +296,23 @@ func _build_roads() -> void:
 
 # -------------------------------------------------------------------- shops
 
-func _build_shops() -> void:
-	# Five shops down each side of the avenue, between the cross streets.
+## Every quarter has its own trade. Maple's avenue is a full parade; the others
+## have a shop or two and a square with a fountain in the space left over.
+func _build_shops(district: Dictionary) -> void:
+	# Five plots down each side of the avenue, between the cross streets,
+	# filled from the middle out so a short parade still looks arranged.
 	var slots := [
-		Vector2(-9.5, -14.0), Vector2(-9.5, -7.0), Vector2(-9.5, 0.0),
-		Vector2(-9.5, 7.0), Vector2(-9.5, 14.0),
-		Vector2(9.5, -14.0), Vector2(9.5, -7.0), Vector2(9.5, 0.0),
-		Vector2(9.5, 7.0), Vector2(9.5, 14.0),
+		Vector2(-9.5, 0.0), Vector2(9.5, 0.0),
+		Vector2(-9.5, -7.0), Vector2(9.5, -7.0),
+		Vector2(-9.5, 7.0), Vector2(9.5, 7.0),
+		Vector2(-9.5, -14.0), Vector2(9.5, -14.0),
+		Vector2(-9.5, 14.0), Vector2(9.5, 14.0),
 	]
-	var shops := Catalog.SHOPS
+	var shops := Catalog.shops_in(str(district["id"]))
 	for i in mini(shops.size(), slots.size()):
 		_build_shop(shops[i], slots[i], 0.0 if i % 2 == 0 else 3.2)
+	if shops.size() < slots.size() - 1:
+		_build_plaza(district, shops.size())
 
 
 func _build_shop(shop: Dictionary, slot: Vector2, stagger: float) -> void:
@@ -372,35 +382,42 @@ func _build_shop(shop: Dictionary, slot: Vector2, stagger: float) -> void:
 
 # -------------------------------------------------------------------- plaza
 
-## The quarters away from the shops get a square in the middle instead: paving,
-## a fountain and some benches, so the centre is not a bald patch of grass.
-func _build_plaza(district: Dictionary) -> void:
+## The stretch of avenue a quarter's shops do not fill becomes a square:
+## paving, a fountain and some benches, so the centre is not bald grass.
+## `taken` is how many shop plots are already spoken for, counting from the
+## middle out, which is where the paving has to start.
+func _build_plaza(district: Dictionary, taken: int) -> void:
 	var paving := _tone(Color(0.62, 0.61, 0.58))
 	var stone := _tone(Color(0.72, 0.71, 0.68))
 	var water := _tone(Color(0.34, 0.58, 0.72, 0.80))
 	var accent: Color = _tone(district["accent"])
+	# Plots are filled two at a time, one each side, from z = 0 outwards.
+	var near: float = 3.5 + ceilf(float(taken) * 0.5) * 7.0
+	var far := 21.0
+	if far - near < 6.0:
+		return
+	var span := far - near
 
 	for sx in [-1.0, 1.0]:
 		var cx: float = sx * 11.0
-		_batch.box(paving, Vector3(11.0, 0.12, 30.0), _at(Vector3(cx, 0.06, 0)))
-		# A ring of paving bands, so the square is not one flat rectangle.
-		for z in [-10.0, 0.0, 10.0]:
-			_batch.box(stone, Vector3(9.0, 0.14, 1.2), _at(Vector3(cx, 0.08, z)))
-
-		# Fountain.
-		_batch.cylinder(stone, 2.4, 0.7, _at(Vector3(cx, 0.35, 0)), SceneryBatch.Layer.OPAQUE, 16)
-		_batch.cylinder(water, 2.1, 0.16, _at(Vector3(cx, 0.72, 0)), SceneryBatch.Layer.GLASS, 16)
-		_batch.cylinder(stone, 0.35, 1.6, _at(Vector3(cx, 1.4, 0)), SceneryBatch.Layer.OPAQUE, 10)
-		_batch.sphere(accent, 0.55, _at(Vector3(cx, 2.4, 0)))
-
-		# Benches facing the fountain, and a lamp between them.
 		for sz in [-1.0, 1.0]:
-			var bz: float = sz * 5.0
-			_batch.box(_tone(Color(0.48, 0.36, 0.24)), Vector3(3.0, 0.16, 0.6), _at(Vector3(cx, 0.55, bz)))
-			for bx in [-1.2, 1.2]:
-				_batch.box(_tone(Color(0.30, 0.32, 0.36)), Vector3(0.14, 0.46, 0.5), _at(Vector3(cx + bx, 0.3, bz)))
-		_batch.cylinder(_tone(Color(0.24, 0.26, 0.30)), 0.10, 4.0, _at(Vector3(cx, 2.0, 12.0)), SceneryBatch.Layer.SHINY, 8)
-		_batch.sphere(_tone(Color(0.98, 0.92, 0.70)), 0.35, _at(Vector3(cx, 4.1, 12.0)))
+			var centre: float = sz * (near + span * 0.5)
+			_batch.box(paving, Vector3(11.0, 0.12, span), _at(Vector3(cx, 0.06, centre)))
+			# A ring of paving bands, so the square is not one flat rectangle.
+			_batch.box(stone, Vector3(9.0, 0.14, 1.2), _at(Vector3(cx, 0.08, centre)))
+
+			# Fountain.
+			_batch.cylinder(stone, 2.2, 0.7, _at(Vector3(cx, 0.35, centre)), SceneryBatch.Layer.OPAQUE, 16)
+			_batch.cylinder(water, 1.9, 0.16, _at(Vector3(cx, 0.72, centre)), SceneryBatch.Layer.GLASS, 16)
+			_batch.cylinder(stone, 0.35, 1.6, _at(Vector3(cx, 1.4, centre)), SceneryBatch.Layer.OPAQUE, 10)
+			_batch.sphere(accent, 0.55, _at(Vector3(cx, 2.4, centre)))
+
+			# Benches facing the fountain.
+			for bench in [-1.0, 1.0]:
+				var bz: float = centre + bench * (span * 0.5 - 1.6)
+				_batch.box(_tone(Color(0.48, 0.36, 0.24)), Vector3(3.0, 0.16, 0.6), _at(Vector3(cx, 0.55, bz)))
+				for bx in [-1.2, 1.2]:
+					_batch.box(_tone(Color(0.30, 0.32, 0.36)), Vector3(0.14, 0.46, 0.5), _at(Vector3(cx + bx, 0.3, bz)))
 
 
 # ------------------------------------------------------------------- houses

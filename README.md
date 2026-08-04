@@ -37,17 +37,18 @@ your device. Android asks you to allow installs from an unknown source the first
 
 The map is four quarters laid out on a grid, joined by the roads between them.
 
-| Quarter | Costs | Opens at | Houses | Fees |
-|---|---|---|---|---|
-| Maple Quarter | — | level 1 | 11 | $1,300 – $10,500 |
-| Riverside Wharf | $10,000 | level 4 | 6 | $4,700 – $8,800 |
-| Hillside Terrace | $22,000 | level 5 | 6 | $5,800 – $13,000 |
-| Skyline Heights | $34,000 | level 6 | 6 | $9,100 – $21,500 |
+| Quarter | Costs | Opens at | Houses | Shops | Fees |
+|---|---|---|---|---|---|
+| Maple Quarter | — | level 1 | 11 | 9 | $1,300 – $10,500 |
+| Riverside Wharf | $10,000 | level 4 | 6 | 2 | $4,700 – $8,800 |
+| Hillside Terrace | $22,000 | level 5 | 6 | 2 | $5,800 – $13,000 |
+| Skyline Heights | $34,000 | level 6 | 6 | 2 | $9,100 – $21,500 |
 
 Maple Quarter comes with the business — eleven houses along two residential streets, with
-the nine shops down the avenue between them. The other three sit behind builders' hoardings in
-a drained-out grey, with the asking price on a sign in the middle. You can fly the camera
-over them from the first minute; you just cannot work there until you have bought the deeds.
+the nine shops down the avenue between them. The other three sit behind builders' hoardings
+in a drained-out grey, with the asking price on a sign in the middle, and each has its own
+parade of shops that will not serve you until you hold the deeds. You can fly the camera
+over them from the first minute; you just cannot work or shop there.
 
 | The hoarding round a quarter you have not bought | What it is asking for |
 |---|---|
@@ -171,7 +172,7 @@ room hide themselves as you orbit, and a piece that overlaps another glows red.
 Experience carries you from level 1 to level 8. Jobs run from a $1,300 studio to a $21,500
 five-room penthouse. A run that buys only what each brief asks for clears Maple Quarter with
 around $30,000 — enough to buy Riverside outright — and owns the whole city, all 29 houses
-handed over, with about $88,000 left. Everything — money, level, stock, paints, the quarters you
+handed over, with about $78,000 left. Everything — money, level, stock, paints, the quarters you
 have bought, finished jobs and the rooms you left half-done — is saved to the device as you
 go.
 
@@ -187,7 +188,8 @@ everything unlocked, with its own save and load.
 
 ## The catalogue
 
-66 pieces across eight shops, all built from primitives at runtime, $45 to $880 each:
+96 pieces across fifteen shops, all built from primitives at runtime, $45 to $1,250 each.
+Nine of the shops stand on Maple Quarter's avenue and sell to you from the first minute:
 
 | Shop | Opens | Stock |
 |---|---|---|
@@ -200,6 +202,29 @@ everything unlocked, with its own save and load.
 | Splash & Tile | 2 | Toilet, basin, bathtub, shower, washing machine, vanity unit, towel rail, bath mat, tall cabinet |
 | Volt & Wire | 2 | Television, wide television, computer, floor speaker, soundbar, games console, printer, portable air con, floor fan, microwave |
 | Colour House | 1 | Eight floor paints and eight wall paints, $160–$540 each |
+
+The other six stand on the avenues of the quarters you buy, and they will not serve anyone
+who does not hold the deeds. Thirty pieces are sold nowhere else in the city:
+
+| Shop | Quarter | Stock |
+|---|---|---|
+| Dock & Salvage | Riverside Wharf | Crate shelving, pipe clothes rail, salvage workbench, steamer trunk, barrel table |
+| Ropewalk & Co | Riverside Wharf | Deck chair, net hammock, porthole mirror, rope lamp, sail screen |
+| Hearth & Home | Hillside Terrace | Window seat, ottoman, sideboard, rocking chair, high chair |
+| The Potting Shed | Hillside Terrace | Planter trough, garden bench, fern stand, herb rack, potting shelf |
+| Atelier Nine | Skyline Heights | Gallery sofa, wing chair, marble table, sculpture plinth, drinks cabinet |
+| Lumen | Skyline Heights | Arc lamp, pendant cluster, uplighter, smart panel, projector and screen |
+
+Each quarter's briefs ask for its own trade, so buying Riverside is not only four more
+clients — it is a shopfront full of things you could not get before. A brief only ever
+names stock from Maple or from its own quarter, so quarters can be bought in any order you
+can afford them in.
+
+![Hillside Terrace's own avenue, with Hearth & Home and The Potting Shed on it](docs/screenshot-quarter-shops.png)
+
+| Dock & Salvage before you own the wharf | Atelier Nine, once you do |
+|---|---|
+| ![The salvage counter, every line marked Riverside only](docs/screenshot-shop-locked.png) | ![The Skyline showroom counter with buy buttons](docs/screenshot-shop-atelier.png) |
 
 The electronics counter opens at level 2, and the pieces on it are the ones the later
 briefs — media rooms, home offices — ask for.
@@ -223,7 +248,8 @@ scenes/main.tscn         One node; everything else is built in code
 scripts/
   game.gd                Swaps between the city and the designer
   data/
-    catalog.gd           Autoload. Every model, price, shop and unlock level
+    catalog.gd           Autoload. Every model and price, and the fifteen
+                         shops, with the quarter and level each one opens at
     jobs.gd              Autoload. The four quarters and the 29 houses in them,
                          the requirement evaluator, the shopping list a brief
                          needs, and the generator for repeat contracts
@@ -271,6 +297,9 @@ _add({
     ],
 })
 ```
+
+An entry can also name the `"shop"` that stocks it, which is what puts a piece behind a
+quarter's gate; leave it out and the piece goes to whichever shop covers its category.
 
 Parts marked `"mat": "tint"` follow the colour the player picks; the other roles
 (`wood`, `metal`, `porcelain`, `glass`, …) are fixed. Footprints, heights and pick volumes
@@ -351,7 +380,9 @@ It resets the profile and plays the whole city: all 29 jobs, quarter by quarter,
 each quarter out of the money it has actually earned — taking repeat contracts at the
 houses it has already finished when it is short — shopping for each brief, fitting the room
 from stock and handing it over. Then it checks that every quarter is priced above the one
-before and starts locked, that no two rooms of a floor plan overlap and a bed in the wrong
+before and starts locked, that every shop stands in a real quarter and no brief asks for
+stock the player could not have bought by then, that no client is asked for more furniture
+than their budget covers, that no two rooms of a floor plan overlap and a bed in the wrong
 room does not tick the right room's line, that every catalogue entry is priced, stocked and
 physically sane, that wall snap lands flush and stacking finds the right height, that undo and redo
 keep the room and the warehouse in step, that a properly arranged room really does reach

@@ -21,53 +21,98 @@ const CATEGORIES: Array[String] = [
 	"Storage", "Decor",
 ]
 
-## The shops that line the avenue in the city. `category` is empty for the
-## paint shop, which sells colours rather than objects.
+## The shops of the city. Every one stands on the avenue of the quarter named
+## in `district`, and cannot be bought from until the player owns that quarter
+## and has reached `level`. `category` is empty for the paint shop, which sells
+## colours rather than objects; for the rest it is the tray tab their stock
+## lands in, and several shops can feed the same tab.
 const SHOPS: Array[Dictionary] = [
 	{
-		"id": "living", "name": "Sofa & Co", "category": "Living", "level": 1,
+		"id": "living", "name": "Sofa & Co", "category": "Living", "district": "maple", "level": 1,
 		"tagline": "Sofas, chairs and everything you sink into.",
 		"color": Color(0.90, 0.55, 0.25),
 	},
 	{
-		"id": "bedroom", "name": "Dream Beds", "category": "Bedroom", "level": 1,
+		"id": "bedroom", "name": "Dream Beds", "category": "Bedroom", "district": "maple", "level": 1,
 		"tagline": "Beds, dressers and quiet corners.",
 		"color": Color(0.44, 0.42, 0.80),
 	},
 	{
-		"id": "dining", "name": "Table Talk", "category": "Dining", "level": 1,
+		"id": "dining", "name": "Table Talk", "category": "Dining", "district": "maple", "level": 1,
 		"tagline": "Tables and chairs for long dinners.",
 		"color": Color(0.24, 0.68, 0.62),
 	},
 	{
-		"id": "kitchen", "name": "Kitchen Works", "category": "Kitchen", "level": 2,
+		"id": "kitchen", "name": "Kitchen Works", "category": "Kitchen", "district": "maple", "level": 2,
 		"tagline": "Counters, cookers and cold storage.",
 		"color": Color(0.85, 0.32, 0.30),
 	},
 	{
-		"id": "bathroom", "name": "Splash & Tile", "category": "Bathroom", "level": 2,
+		"id": "bathroom", "name": "Splash & Tile", "category": "Bathroom", "district": "maple", "level": 2,
 		"tagline": "Toilets, basins, tubs and showers.",
 		"color": Color(0.32, 0.72, 0.92),
 	},
 	{
-		"id": "electronics", "name": "Volt & Wire", "category": "Electronics", "level": 2,
+		"id": "electronics", "name": "Volt & Wire", "category": "Electronics", "district": "maple", "level": 2,
 		"tagline": "Screens, speakers and everything with a plug.",
 		"color": Color(0.36, 0.40, 0.86),
 	},
 	{
-		"id": "storage", "name": "Box & Shelf", "category": "Storage", "level": 1,
+		"id": "storage", "name": "Box & Shelf", "category": "Storage", "district": "maple", "level": 1,
 		"tagline": "Wardrobes, shelving and desks.",
 		"color": Color(0.62, 0.46, 0.28),
 	},
 	{
-		"id": "decor", "name": "Little Details", "category": "Decor", "level": 1,
+		"id": "decor", "name": "Little Details", "category": "Decor", "district": "maple", "level": 1,
 		"tagline": "Rugs, lamps and the greenery.",
 		"color": Color(0.40, 0.74, 0.42),
 	},
 	{
-		"id": "paint", "name": "Colour House", "category": "", "level": 1,
+		"id": "paint", "name": "Colour House", "category": "", "district": "maple", "level": 1,
 		"tagline": "Floors and walls, priced by the square metre.",
 		"color": Color(0.82, 0.40, 0.68),
+	},
+
+	# Riverside Wharf trades in what the warehouses left behind.
+	{
+		"id": "salvage", "name": "Dock & Salvage", "category": "Storage",
+		"district": "riverside", "level": 4,
+		"tagline": "Crates, pipework and benches, straight off the quay.",
+		"color": Color(0.72, 0.52, 0.28),
+	},
+	{
+		"id": "ropewalk", "name": "Ropewalk & Co", "category": "Decor",
+		"district": "riverside", "level": 4,
+		"tagline": "Canvas, rope and brass, from the people who rigged the boats.",
+		"color": Color(0.30, 0.58, 0.72),
+	},
+
+	# Hillside is family houses and gardens.
+	{
+		"id": "hearth", "name": "Hearth & Home", "category": "Living",
+		"district": "hillside", "level": 5,
+		"tagline": "The comfortable end of the trade: seats, benches and sideboards.",
+		"color": Color(0.86, 0.46, 0.34),
+	},
+	{
+		"id": "potting", "name": "The Potting Shed", "category": "Decor",
+		"district": "hillside", "level": 5,
+		"tagline": "Everything green, and somewhere to stand it.",
+		"color": Color(0.42, 0.68, 0.34),
+	},
+
+	# Skyline sells to people who do not ask the price.
+	{
+		"id": "atelier", "name": "Atelier Nine", "category": "Living",
+		"district": "skyline", "level": 6,
+		"tagline": "One of everything, and nothing you have seen before.",
+		"color": Color(0.60, 0.42, 0.78),
+	},
+	{
+		"id": "lumen", "name": "Lumen", "category": "Decor",
+		"district": "skyline", "level": 6,
+		"tagline": "Light, and the things that throw it.",
+		"color": Color(0.94, 0.80, 0.34),
 	},
 ]
 
@@ -145,6 +190,9 @@ func _ready() -> void:
 	_build()
 	_build_electronics()
 	_build_extras()
+	_build_riverside()
+	_build_hillside()
+	_build_skyline()
 
 
 func _build() -> void:
@@ -1026,7 +1074,7 @@ func _add(def: Dictionary) -> void:
 	def["extents"] = _measure(def["parts"])
 	def["level"] = def.get("level", 1)
 	def["price"] = def.get("price", 100)
-	def["shop"] = _shop_for_category(def["category"])
+	def["shop"] = str(def.get("shop", _shop_for_category(def["category"])))
 	_items[def["id"]] = def
 	_order.append(def["id"])
 
@@ -1137,10 +1185,29 @@ func shop_name(shop_id: String) -> String:
 
 ## Everything a shop sells, in catalog order.
 func shop_stock(shop_id: String) -> Array[String]:
-	var shop: Dictionary = _shops_by_id.get(shop_id, {})
-	if shop.is_empty() or shop["category"] == "":
-		return []
-	return ids_in(shop["category"])
+	var out: Array[String] = []
+	for id in _order:
+		if str(_items[id]["shop"]) == shop_id:
+			out.append(id)
+	return out
+
+
+## The shops standing in one quarter of the city.
+func shops_in(district_id: String) -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	for shop: Dictionary in SHOPS:
+		if str(shop.get("district", "")) == district_id:
+			out.append(shop)
+	return out
+
+
+## Which quarter has to be bought before a shop will serve you.
+func shop_district(shop_id: String) -> String:
+	return str(_shops_by_id.get(shop_id, {}).get("district", ""))
+
+
+func district_of(id: String) -> String:
+	return shop_district(shop_of(id))
 
 
 func paint_price(entry: Dictionary) -> int:
@@ -1184,3 +1251,479 @@ func make_material(role: String, tint: Color) -> StandardMaterial3D:
 	if mat.albedo_color.a < 1.0:
 		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	return mat
+
+
+# ------------------------------------------------------------ Riverside Wharf
+
+## Dock & Salvage and Ropewalk & Co, on the wharf's own avenue. Nothing here is
+## sold anywhere else in the city, and the quarter has to be bought first.
+func _build_riverside() -> void:
+	_add({
+		"id": "crate_shelf", "against_wall": true, "shop": "salvage",
+		"name": "Crate Shelving", "category": "Storage",
+		"price": 340, "level": 4,
+		"tint": Color(0.68, 0.50, 0.30),
+		"parts": [
+			{"shape": "box", "size": Vector3(0.52, 0.42, 0.36), "pos": Vector3(-0.28, 0.21, 0), "mat": "tint"},
+			{"shape": "box", "size": Vector3(0.52, 0.42, 0.36), "pos": Vector3(0.28, 0.21, 0), "mat": "tint"},
+			{"shape": "box", "size": Vector3(0.52, 0.42, 0.36), "pos": Vector3(-0.28, 0.64, 0), "mat": "wood_light"},
+			{"shape": "box", "size": Vector3(0.52, 0.42, 0.36), "pos": Vector3(0.28, 0.64, 0), "mat": "tint"},
+			{"shape": "box", "size": Vector3(0.52, 0.42, 0.36), "pos": Vector3(0, 1.07, 0), "mat": "wood_dark"},
+			{"shape": "box", "size": Vector3(0.46, 0.03, 0.30), "pos": Vector3(-0.28, 0.42, 0.02), "mat": "wood_light"},
+			{"shape": "box", "size": Vector3(0.46, 0.03, 0.30), "pos": Vector3(0.28, 0.85, 0.02), "mat": "wood_light"},
+		],
+		"surface": 1.29,
+	})
+	_add({
+		"id": "pipe_rack", "against_wall": true, "shop": "salvage",
+		"name": "Pipe Clothes Rail", "category": "Storage",
+		"price": 280, "level": 4,
+		"tint": Color(0.52, 0.54, 0.58),
+		"parts": [
+			{"shape": "cyl", "size": Vector3(0.035, 1.62, 0.035), "pos": Vector3(-0.55, 0.81, 0), "mat": "tint"},
+			{"shape": "cyl", "size": Vector3(0.035, 1.62, 0.035), "pos": Vector3(0.55, 0.81, 0), "mat": "tint"},
+			{"shape": "box", "size": Vector3(1.20, 0.05, 0.05), "pos": Vector3(0, 1.58, 0), "mat": "tint"},
+			{"shape": "box", "size": Vector3(1.20, 0.04, 0.34), "pos": Vector3(0, 0.34, 0), "mat": "wood_dark"},
+			{"shape": "box", "size": Vector3(0.24, 0.03, 0.32), "pos": Vector3(-0.62, 0.06, 0), "mat": "tint"},
+			{"shape": "box", "size": Vector3(0.24, 0.03, 0.32), "pos": Vector3(0.62, 0.06, 0), "mat": "tint"},
+			{"shape": "box", "size": Vector3(0.90, 0.52, 0.22), "pos": Vector3(0, 1.26, 0.04), "mat": "towel"},
+		],
+	})
+	_add({
+		"id": "workbench", "against_wall": true, "shop": "salvage",
+		"name": "Salvage Workbench", "category": "Storage",
+		"price": 420, "level": 4,
+		"tint": Color(0.46, 0.32, 0.20),
+		"parts": [
+			{"shape": "box", "size": Vector3(1.60, 0.09, 0.68), "pos": Vector3(0, 0.87, 0), "mat": "tint"},
+			{"shape": "box", "size": Vector3(0.10, 0.83, 0.10), "pos": Vector3(-0.72, 0.41, -0.26), "mat": "wood_dark"},
+			{"shape": "box", "size": Vector3(0.10, 0.83, 0.10), "pos": Vector3(0.72, 0.41, -0.26), "mat": "wood_dark"},
+			{"shape": "box", "size": Vector3(0.10, 0.83, 0.10), "pos": Vector3(-0.72, 0.41, 0.26), "mat": "wood_dark"},
+			{"shape": "box", "size": Vector3(0.10, 0.83, 0.10), "pos": Vector3(0.72, 0.41, 0.26), "mat": "wood_dark"},
+			{"shape": "box", "size": Vector3(1.40, 0.03, 0.50), "pos": Vector3(0, 0.28, 0), "mat": "wood_light"},
+			{"shape": "box", "size": Vector3(0.16, 0.14, 0.16), "pos": Vector3(-0.60, 0.99, 0.10), "mat": "steel"},
+		],
+		"surface": 0.92,
+	})
+	_add({
+		"id": "steamer_trunk", "shop": "salvage",
+		"name": "Steamer Trunk", "category": "Storage",
+		"price": 310, "level": 4,
+		"tint": Color(0.40, 0.26, 0.20),
+		"parts": [
+			{"shape": "box", "size": Vector3(0.94, 0.40, 0.54), "pos": Vector3(0, 0.24, 0), "mat": "tint"},
+			{"shape": "box", "size": Vector3(0.96, 0.10, 0.56), "pos": Vector3(0, 0.49, 0), "mat": "wood_dark"},
+			{"shape": "box", "size": Vector3(0.08, 0.52, 0.58), "pos": Vector3(-0.30, 0.28, 0), "mat": "steel"},
+			{"shape": "box", "size": Vector3(0.08, 0.52, 0.58), "pos": Vector3(0.30, 0.28, 0), "mat": "steel"},
+			{"shape": "box", "size": Vector3(0.14, 0.10, 0.04), "pos": Vector3(0, 0.30, 0.28), "mat": "steel"},
+			{"shape": "box", "size": Vector3(0.90, 0.06, 0.50), "pos": Vector3(0, 0.03, 0), "mat": "dark"},
+		],
+		"surface": 0.54,
+	})
+	_add({
+		"id": "barrel_table", "shop": "salvage",
+		"name": "Barrel Table", "category": "Dining",
+		"price": 360, "level": 4,
+		"tint": Color(0.55, 0.35, 0.22),
+		"parts": [
+			{"shape": "cyl", "size": Vector3(0.34, 0.70, 0.34), "pos": Vector3(0, 0.35, 0), "mat": "tint"},
+			{"shape": "cyl", "size": Vector3(0.36, 0.05, 0.36), "pos": Vector3(0, 0.22, 0), "mat": "steel"},
+			{"shape": "cyl", "size": Vector3(0.36, 0.05, 0.36), "pos": Vector3(0, 0.52, 0), "mat": "steel"},
+			{"shape": "cyl", "size": Vector3(0.62, 0.06, 0.62), "pos": Vector3(0, 0.73, 0), "mat": "wood_light"},
+		],
+		"surface": 0.76,
+	})
+
+	_add({
+		"id": "deck_chair", "shop": "ropewalk",
+		"name": "Deck Chair", "category": "Living",
+		"price": 220, "level": 4,
+		"tint": Color(0.82, 0.78, 0.66),
+		"parts": [
+			{"shape": "box", "size": Vector3(0.56, 0.04, 0.60), "pos": Vector3(0, 0.40, 0.06), "mat": "tint"},
+			{"shape": "box", "size": Vector3(0.56, 0.60, 0.04), "pos": Vector3(0, 0.66, -0.24), "mat": "tint", "rot": Vector3(-18, 0, 0)},
+			{"shape": "box", "size": Vector3(0.05, 0.62, 0.05), "pos": Vector3(-0.28, 0.31, 0.24), "mat": "wood_light", "rot": Vector3(22, 0, 0)},
+			{"shape": "box", "size": Vector3(0.05, 0.62, 0.05), "pos": Vector3(0.28, 0.31, 0.24), "mat": "wood_light", "rot": Vector3(22, 0, 0)},
+			{"shape": "box", "size": Vector3(0.05, 0.80, 0.05), "pos": Vector3(-0.28, 0.40, -0.16), "mat": "wood_light", "rot": Vector3(-14, 0, 0)},
+			{"shape": "box", "size": Vector3(0.05, 0.80, 0.05), "pos": Vector3(0.28, 0.40, -0.16), "mat": "wood_light", "rot": Vector3(-14, 0, 0)},
+		],
+	})
+	_add({
+		"id": "net_hammock", "shop": "ropewalk",
+		"name": "Net Hammock", "category": "Bedroom",
+		"price": 390, "level": 4,
+		"tint": Color(0.86, 0.80, 0.64),
+		"parts": [
+			{"shape": "box", "size": Vector3(0.10, 1.30, 0.10), "pos": Vector3(-0.95, 0.65, 0), "mat": "wood_dark", "rot": Vector3(0, 0, 10)},
+			{"shape": "box", "size": Vector3(0.10, 1.30, 0.10), "pos": Vector3(0.95, 0.65, 0), "mat": "wood_dark", "rot": Vector3(0, 0, -10)},
+			{"shape": "box", "size": Vector3(0.40, 0.06, 0.44), "pos": Vector3(-0.98, 0.03, 0), "mat": "wood_dark"},
+			{"shape": "box", "size": Vector3(0.40, 0.06, 0.44), "pos": Vector3(0.98, 0.03, 0), "mat": "wood_dark"},
+			{"shape": "box", "size": Vector3(1.50, 0.14, 0.62), "pos": Vector3(0, 0.60, 0), "mat": "tint"},
+			{"shape": "box", "size": Vector3(0.44, 0.20, 0.34), "pos": Vector3(-0.50, 0.74, 0), "mat": "towel"},
+		],
+	})
+	_add({
+		"id": "porthole_mirror", "against_wall": true, "shop": "ropewalk",
+		"name": "Porthole Mirror", "category": "Decor",
+		"price": 260, "level": 4,
+		"tint": Color(0.78, 0.62, 0.30),
+		"parts": [
+			{"shape": "cyl", "size": Vector3(0.10, 1.10, 0.10), "pos": Vector3(0, 0.55, 0), "mat": "wood_dark"},
+			{"shape": "box", "size": Vector3(0.44, 0.05, 0.34), "pos": Vector3(0, 0.03, 0), "mat": "wood_dark"},
+			{"shape": "cyl", "size": Vector3(0.40, 0.09, 0.40), "pos": Vector3(0, 1.30, 0), "mat": "tint", "rot": Vector3(90, 0, 0)},
+			{"shape": "cyl", "size": Vector3(0.33, 0.11, 0.33), "pos": Vector3(0, 1.30, 0.02), "mat": "mirror", "rot": Vector3(90, 0, 0)},
+		],
+	})
+	_add({
+		"id": "rope_light", "shop": "ropewalk",
+		"name": "Rope Lamp", "category": "Decor",
+		"price": 190, "level": 4,
+		"tint": Color(0.80, 0.72, 0.54),
+		"parts": [
+			{"shape": "cyl", "size": Vector3(0.20, 0.05, 0.20), "pos": Vector3(0, 0.02, 0), "mat": "dark"},
+			{"shape": "cyl", "size": Vector3(0.07, 1.34, 0.07), "pos": Vector3(0, 0.72, 0), "mat": "tint"},
+			{"shape": "cyl", "size": Vector3(0.09, 0.06, 0.09), "pos": Vector3(0, 0.50, 0), "mat": "steel"},
+			{"shape": "cyl", "size": Vector3(0.09, 0.06, 0.09), "pos": Vector3(0, 1.02, 0), "mat": "steel"},
+			{"shape": "cyl", "size": Vector3(0.24, 0.26, 0.16), "pos": Vector3(0, 1.52, 0), "mat": "white"},
+		],
+	})
+	_add({
+		"id": "sail_screen", "against_wall": true, "shop": "ropewalk",
+		"name": "Sail Screen", "category": "Decor",
+		"price": 300, "level": 4,
+		"tint": Color(0.90, 0.88, 0.80),
+		"parts": [
+			{"shape": "cyl", "size": Vector3(0.05, 1.80, 0.05), "pos": Vector3(-0.62, 0.90, 0), "mat": "wood_light"},
+			{"shape": "cyl", "size": Vector3(0.05, 1.80, 0.05), "pos": Vector3(0.62, 0.90, 0), "mat": "wood_light"},
+			{"shape": "box", "size": Vector3(1.24, 1.46, 0.03), "pos": Vector3(0, 0.94, 0), "mat": "tint"},
+			{"shape": "box", "size": Vector3(0.46, 0.04, 0.34), "pos": Vector3(-0.62, 0.02, 0), "mat": "wood_dark"},
+			{"shape": "box", "size": Vector3(0.46, 0.04, 0.34), "pos": Vector3(0.62, 0.02, 0), "mat": "wood_dark"},
+			{"shape": "cyl", "size": Vector3(0.03, 1.30, 0.03), "pos": Vector3(0, 1.78, 0), "mat": "steel", "rot": Vector3(0, 0, 90)},
+		],
+	})
+
+
+# ----------------------------------------------------------- Hillside Terrace
+
+## Hearth & Home and The Potting Shed, up the slope.
+func _build_hillside() -> void:
+	_add({
+		"id": "window_seat", "against_wall": true, "shop": "hearth",
+		"name": "Window Seat", "category": "Living",
+		"price": 430, "level": 5,
+		"tint": Color(0.74, 0.72, 0.62),
+		"parts": [
+			{"shape": "box", "size": Vector3(1.60, 0.34, 0.56), "pos": Vector3(0, 0.17, 0), "mat": "wood_light"},
+			{"shape": "box", "size": Vector3(1.56, 0.14, 0.54), "pos": Vector3(0, 0.41, 0), "mat": "tint"},
+			{"shape": "box", "size": Vector3(0.42, 0.34, 0.14), "pos": Vector3(-0.50, 0.63, -0.18), "mat": "towel"},
+			{"shape": "box", "size": Vector3(0.42, 0.34, 0.14), "pos": Vector3(0.00, 0.63, -0.18), "mat": "tint"},
+			{"shape": "box", "size": Vector3(0.42, 0.34, 0.14), "pos": Vector3(0.50, 0.63, -0.18), "mat": "towel"},
+			{"shape": "box", "size": Vector3(1.60, 0.06, 0.06), "pos": Vector3(0, 0.03, 0.28), "mat": "wood_dark"},
+		],
+		"surface": 0.48,
+	})
+	_add({
+		"id": "ottoman", "shop": "hearth",
+		"name": "Ottoman", "category": "Living",
+		"price": 260, "level": 5,
+		"tint": Color(0.62, 0.40, 0.36),
+		"parts": [
+			{"shape": "box", "size": Vector3(0.90, 0.34, 0.66), "pos": Vector3(0, 0.21, 0), "mat": "tint"},
+			{"shape": "box", "size": Vector3(0.84, 0.05, 0.60), "pos": Vector3(0, 0.40, 0), "mat": "tint"},
+			{"shape": "cyl", "size": Vector3(0.05, 0.09, 0.05), "pos": Vector3(-0.36, 0.04, -0.24), "mat": "wood_dark"},
+			{"shape": "cyl", "size": Vector3(0.05, 0.09, 0.05), "pos": Vector3(0.36, 0.04, -0.24), "mat": "wood_dark"},
+			{"shape": "cyl", "size": Vector3(0.05, 0.09, 0.05), "pos": Vector3(-0.36, 0.04, 0.24), "mat": "wood_dark"},
+			{"shape": "cyl", "size": Vector3(0.05, 0.09, 0.05), "pos": Vector3(0.36, 0.04, 0.24), "mat": "wood_dark"},
+		],
+		"surface": 0.43,
+	})
+	_add({
+		"id": "sideboard", "against_wall": true, "shop": "hearth",
+		"name": "Sideboard", "category": "Dining",
+		"price": 520, "level": 5,
+		"tint": Color(0.50, 0.34, 0.22),
+		"parts": [
+			{"shape": "box", "size": Vector3(1.70, 0.72, 0.46), "pos": Vector3(0, 0.48, 0), "mat": "tint"},
+			{"shape": "box", "size": Vector3(1.74, 0.05, 0.50), "pos": Vector3(0, 0.86, 0), "mat": "wood_light"},
+			{"shape": "box", "size": Vector3(0.52, 0.58, 0.03), "pos": Vector3(-0.55, 0.48, 0.235), "mat": "wood_light"},
+			{"shape": "box", "size": Vector3(0.52, 0.58, 0.03), "pos": Vector3(0.00, 0.48, 0.235), "mat": "wood_light"},
+			{"shape": "box", "size": Vector3(0.52, 0.58, 0.03), "pos": Vector3(0.55, 0.48, 0.235), "mat": "wood_light"},
+			{"shape": "cyl", "size": Vector3(0.03, 0.12, 0.03), "pos": Vector3(-0.55, 0.48, 0.27), "mat": "steel", "rot": Vector3(0, 0, 90)},
+			{"shape": "cyl", "size": Vector3(0.03, 0.12, 0.03), "pos": Vector3(0.00, 0.48, 0.27), "mat": "steel", "rot": Vector3(0, 0, 90)},
+			{"shape": "cyl", "size": Vector3(0.03, 0.12, 0.03), "pos": Vector3(0.55, 0.48, 0.27), "mat": "steel", "rot": Vector3(0, 0, 90)},
+			{"shape": "box", "size": Vector3(0.06, 0.12, 0.06), "pos": Vector3(-0.78, 0.06, 0), "mat": "wood_dark"},
+			{"shape": "box", "size": Vector3(0.06, 0.12, 0.06), "pos": Vector3(0.78, 0.06, 0), "mat": "wood_dark"},
+		],
+		"surface": 0.89,
+	})
+	_add({
+		"id": "rocking_chair", "shop": "hearth",
+		"name": "Rocking Chair", "category": "Living",
+		"price": 340, "level": 5,
+		"tint": Color(0.58, 0.38, 0.24),
+		"parts": [
+			{"shape": "box", "size": Vector3(0.54, 0.06, 0.50), "pos": Vector3(0, 0.44, 0.02), "mat": "tint"},
+			{"shape": "box", "size": Vector3(0.50, 0.72, 0.05), "pos": Vector3(0, 0.78, -0.22), "mat": "tint", "rot": Vector3(-12, 0, 0)},
+			{"shape": "box", "size": Vector3(0.05, 0.42, 0.05), "pos": Vector3(-0.25, 0.23, -0.20), "mat": "wood_dark"},
+			{"shape": "box", "size": Vector3(0.05, 0.42, 0.05), "pos": Vector3(0.25, 0.23, -0.20), "mat": "wood_dark"},
+			{"shape": "box", "size": Vector3(0.05, 0.42, 0.05), "pos": Vector3(-0.25, 0.23, 0.20), "mat": "wood_dark"},
+			{"shape": "box", "size": Vector3(0.05, 0.42, 0.05), "pos": Vector3(0.25, 0.23, 0.20), "mat": "wood_dark"},
+			{"shape": "box", "size": Vector3(0.05, 0.06, 0.76), "pos": Vector3(-0.25, 0.03, 0), "mat": "wood_dark"},
+			{"shape": "box", "size": Vector3(0.05, 0.06, 0.76), "pos": Vector3(0.25, 0.03, 0), "mat": "wood_dark"},
+			{"shape": "box", "size": Vector3(0.06, 0.05, 0.44), "pos": Vector3(-0.28, 0.66, 0.02), "mat": "wood_dark"},
+			{"shape": "box", "size": Vector3(0.06, 0.05, 0.44), "pos": Vector3(0.28, 0.66, 0.02), "mat": "wood_dark"},
+		],
+	})
+	_add({
+		"id": "high_chair", "shop": "hearth",
+		"name": "High Chair", "category": "Dining",
+		"price": 210, "level": 5,
+		"tint": Color(0.86, 0.82, 0.74),
+		"parts": [
+			{"shape": "box", "size": Vector3(0.36, 0.04, 0.34), "pos": Vector3(0, 0.58, 0), "mat": "tint"},
+			{"shape": "box", "size": Vector3(0.36, 0.44, 0.04), "pos": Vector3(0, 0.80, -0.15), "mat": "tint"},
+			{"shape": "box", "size": Vector3(0.40, 0.04, 0.24), "pos": Vector3(0, 0.74, 0.18), "mat": "white"},
+			{"shape": "box", "size": Vector3(0.05, 0.58, 0.05), "pos": Vector3(-0.18, 0.29, -0.14), "mat": "wood_light", "rot": Vector3(-6, 0, 6)},
+			{"shape": "box", "size": Vector3(0.05, 0.58, 0.05), "pos": Vector3(0.18, 0.29, -0.14), "mat": "wood_light", "rot": Vector3(-6, 0, -6)},
+			{"shape": "box", "size": Vector3(0.05, 0.58, 0.05), "pos": Vector3(-0.18, 0.29, 0.14), "mat": "wood_light", "rot": Vector3(6, 0, 6)},
+			{"shape": "box", "size": Vector3(0.05, 0.58, 0.05), "pos": Vector3(0.18, 0.29, 0.14), "mat": "wood_light", "rot": Vector3(6, 0, -6)},
+			{"shape": "box", "size": Vector3(0.42, 0.04, 0.04), "pos": Vector3(0, 0.22, 0.16), "mat": "wood_light"},
+		],
+	})
+
+	_add({
+		"id": "planter_box", "shop": "potting",
+		"name": "Planter Trough", "category": "Decor",
+		"price": 230, "level": 5,
+		"tint": Color(0.58, 0.48, 0.38),
+		"parts": [
+			{"shape": "box", "size": Vector3(1.20, 0.42, 0.38), "pos": Vector3(0, 0.21, 0), "mat": "tint"},
+			{"shape": "box", "size": Vector3(1.24, 0.05, 0.42), "pos": Vector3(0, 0.44, 0), "mat": "wood_dark"},
+			{"shape": "box", "size": Vector3(1.10, 0.05, 0.30), "pos": Vector3(0, 0.42, 0), "mat": "soil"},
+			{"shape": "sphere", "size": Vector3(0.22, 0.22, 0.22), "pos": Vector3(-0.36, 0.60, 0), "mat": "leaf"},
+			{"shape": "sphere", "size": Vector3(0.26, 0.26, 0.26), "pos": Vector3(0.02, 0.64, 0.02), "mat": "leaf"},
+			{"shape": "sphere", "size": Vector3(0.20, 0.20, 0.20), "pos": Vector3(0.38, 0.58, -0.02), "mat": "leaf"},
+		],
+	})
+	_add({
+		"id": "garden_bench", "against_wall": true, "shop": "potting",
+		"name": "Garden Bench", "category": "Decor",
+		"price": 280, "level": 5,
+		"tint": Color(0.44, 0.52, 0.42),
+		"parts": [
+			{"shape": "box", "size": Vector3(1.44, 0.05, 0.16), "pos": Vector3(0, 0.44, -0.14), "mat": "tint"},
+			{"shape": "box", "size": Vector3(1.44, 0.05, 0.16), "pos": Vector3(0, 0.44, 0.06), "mat": "tint"},
+			{"shape": "box", "size": Vector3(1.44, 0.14, 0.05), "pos": Vector3(0, 0.72, -0.22), "mat": "tint"},
+			{"shape": "box", "size": Vector3(1.44, 0.14, 0.05), "pos": Vector3(0, 0.92, -0.22), "mat": "tint"},
+			{"shape": "box", "size": Vector3(0.07, 0.44, 0.44), "pos": Vector3(-0.66, 0.22, 0), "mat": "wood_dark"},
+			{"shape": "box", "size": Vector3(0.07, 0.44, 0.44), "pos": Vector3(0.66, 0.22, 0), "mat": "wood_dark"},
+			{"shape": "box", "size": Vector3(0.07, 0.58, 0.07), "pos": Vector3(-0.66, 0.70, -0.20), "mat": "wood_dark"},
+			{"shape": "box", "size": Vector3(0.07, 0.58, 0.07), "pos": Vector3(0.66, 0.70, -0.20), "mat": "wood_dark"},
+		],
+	})
+	_add({
+		"id": "fern_stand", "shop": "potting",
+		"name": "Fern Stand", "category": "Decor",
+		"price": 170, "level": 5,
+		"tint": Color(0.66, 0.54, 0.42),
+		"parts": [
+			{"shape": "cyl", "size": Vector3(0.20, 0.04, 0.20), "pos": Vector3(0, 0.02, 0), "mat": "wood_dark"},
+			{"shape": "cyl", "size": Vector3(0.05, 0.86, 0.05), "pos": Vector3(0, 0.45, 0), "mat": "tint"},
+			{"shape": "cyl", "size": Vector3(0.22, 0.04, 0.22), "pos": Vector3(0, 0.88, 0), "mat": "tint"},
+			{"shape": "cyl", "size": Vector3(0.17, 0.20, 0.13), "pos": Vector3(0, 1.00, 0), "mat": "porcelain"},
+			{"shape": "sphere", "size": Vector3(0.26, 0.26, 0.26), "pos": Vector3(0, 1.22, 0), "mat": "leaf"},
+			{"shape": "sphere", "size": Vector3(0.16, 0.16, 0.16), "pos": Vector3(-0.18, 1.14, 0.06), "mat": "leaf"},
+			{"shape": "sphere", "size": Vector3(0.15, 0.15, 0.15), "pos": Vector3(0.17, 1.12, -0.07), "mat": "leaf"},
+		],
+	})
+	_add({
+		"id": "herb_rack", "against_wall": true, "shop": "potting",
+		"name": "Herb Rack", "category": "Kitchen",
+		"price": 200, "level": 5,
+		"tint": Color(0.60, 0.46, 0.32),
+		"parts": [
+			{"shape": "box", "size": Vector3(0.06, 1.40, 0.06), "pos": Vector3(-0.42, 0.70, 0), "mat": "tint"},
+			{"shape": "box", "size": Vector3(0.06, 1.40, 0.06), "pos": Vector3(0.42, 0.70, 0), "mat": "tint"},
+			{"shape": "box", "size": Vector3(0.42, 0.04, 0.32), "pos": Vector3(0, 0.02, 0), "mat": "wood_dark"},
+			{"shape": "box", "size": Vector3(0.90, 0.04, 0.24), "pos": Vector3(0, 0.62, 0), "mat": "wood_light"},
+			{"shape": "box", "size": Vector3(0.90, 0.04, 0.24), "pos": Vector3(0, 1.02, 0), "mat": "wood_light"},
+			{"shape": "box", "size": Vector3(0.90, 0.04, 0.24), "pos": Vector3(0, 1.38, 0), "mat": "wood_light"},
+			{"shape": "cyl", "size": Vector3(0.08, 0.13, 0.06), "pos": Vector3(-0.24, 0.70, 0), "mat": "porcelain"},
+			{"shape": "sphere", "size": Vector3(0.10, 0.10, 0.10), "pos": Vector3(-0.24, 0.82, 0), "mat": "leaf"},
+			{"shape": "cyl", "size": Vector3(0.08, 0.13, 0.06), "pos": Vector3(0.20, 1.10, 0), "mat": "porcelain"},
+			{"shape": "sphere", "size": Vector3(0.10, 0.10, 0.10), "pos": Vector3(0.20, 1.22, 0), "mat": "leaf"},
+		],
+	})
+	_add({
+		"id": "watering_shelf", "against_wall": true, "shop": "potting",
+		"name": "Potting Shelf", "category": "Decor",
+		"price": 240, "level": 5,
+		"tint": Color(0.56, 0.50, 0.40),
+		"parts": [
+			{"shape": "box", "size": Vector3(1.10, 0.05, 0.44), "pos": Vector3(0, 0.75, 0), "mat": "tint"},
+			{"shape": "box", "size": Vector3(1.10, 0.04, 0.40), "pos": Vector3(0, 0.30, 0), "mat": "wood_light"},
+			{"shape": "box", "size": Vector3(0.07, 0.78, 0.07), "pos": Vector3(-0.50, 0.39, -0.17), "mat": "wood_dark"},
+			{"shape": "box", "size": Vector3(0.07, 0.78, 0.07), "pos": Vector3(0.50, 0.39, -0.17), "mat": "wood_dark"},
+			{"shape": "box", "size": Vector3(0.07, 0.78, 0.07), "pos": Vector3(-0.50, 0.39, 0.17), "mat": "wood_dark"},
+			{"shape": "box", "size": Vector3(0.07, 0.78, 0.07), "pos": Vector3(0.50, 0.39, 0.17), "mat": "wood_dark"},
+			{"shape": "cyl", "size": Vector3(0.11, 0.20, 0.11), "pos": Vector3(-0.34, 0.88, 0), "mat": "steel"},
+			{"shape": "cyl", "size": Vector3(0.03, 0.26, 0.03), "pos": Vector3(-0.16, 0.92, 0), "mat": "steel", "rot": Vector3(0, 0, 62)},
+			{"shape": "cyl", "size": Vector3(0.13, 0.16, 0.10), "pos": Vector3(0.16, 0.86, 0), "mat": "soil"},
+			{"shape": "cyl", "size": Vector3(0.13, 0.16, 0.10), "pos": Vector3(0.42, 0.86, 0), "mat": "soil"},
+		],
+		"surface": 0.78,
+	})
+
+
+# ------------------------------------------------------------ Skyline Heights
+
+## Atelier Nine and Lumen, at the top of the city and priced accordingly.
+func _build_skyline() -> void:
+	_add({
+		"id": "designer_sofa", "against_wall": true, "shop": "atelier",
+		"name": "Gallery Sofa", "category": "Living",
+		"price": 1250, "level": 6,
+		"tint": Color(0.26, 0.30, 0.36),
+		"parts": [
+			{"shape": "box", "size": Vector3(2.40, 0.30, 0.92), "pos": Vector3(0, 0.30, 0), "mat": "tint"},
+			{"shape": "box", "size": Vector3(2.34, 0.16, 0.86), "pos": Vector3(0, 0.50, 0.02), "mat": "tint"},
+			{"shape": "box", "size": Vector3(2.40, 0.44, 0.20), "pos": Vector3(0, 0.66, -0.36), "mat": "tint"},
+			{"shape": "box", "size": Vector3(0.16, 0.30, 0.92), "pos": Vector3(-1.12, 0.62, 0), "mat": "tint"},
+			{"shape": "box", "size": Vector3(0.16, 0.30, 0.92), "pos": Vector3(1.12, 0.62, 0), "mat": "tint"},
+			{"shape": "box", "size": Vector3(2.20, 0.06, 0.06), "pos": Vector3(0, 0.12, -0.40), "mat": "steel"},
+			{"shape": "cyl", "size": Vector3(0.04, 0.14, 0.04), "pos": Vector3(-1.06, 0.07, 0.34), "mat": "steel"},
+			{"shape": "cyl", "size": Vector3(0.04, 0.14, 0.04), "pos": Vector3(1.06, 0.07, 0.34), "mat": "steel"},
+		],
+	})
+	_add({
+		"id": "wing_chair", "shop": "atelier",
+		"name": "Wing Chair", "category": "Living",
+		"price": 680, "level": 6,
+		"tint": Color(0.44, 0.26, 0.32),
+		"parts": [
+			{"shape": "box", "size": Vector3(0.76, 0.32, 0.74), "pos": Vector3(0, 0.32, 0), "mat": "tint"},
+			{"shape": "box", "size": Vector3(0.70, 0.10, 0.68), "pos": Vector3(0, 0.52, 0.02), "mat": "tint"},
+			{"shape": "box", "size": Vector3(0.76, 0.92, 0.18), "pos": Vector3(0, 0.94, -0.28), "mat": "tint"},
+			{"shape": "box", "size": Vector3(0.14, 0.66, 0.60), "pos": Vector3(-0.31, 0.78, -0.04), "mat": "tint"},
+			{"shape": "box", "size": Vector3(0.14, 0.66, 0.60), "pos": Vector3(0.31, 0.78, -0.04), "mat": "tint"},
+			{"shape": "cyl", "size": Vector3(0.04, 0.16, 0.04), "pos": Vector3(-0.28, 0.08, -0.26), "mat": "wood_dark"},
+			{"shape": "cyl", "size": Vector3(0.04, 0.16, 0.04), "pos": Vector3(0.28, 0.08, -0.26), "mat": "wood_dark"},
+			{"shape": "cyl", "size": Vector3(0.04, 0.16, 0.04), "pos": Vector3(-0.28, 0.08, 0.28), "mat": "wood_dark"},
+			{"shape": "cyl", "size": Vector3(0.04, 0.16, 0.04), "pos": Vector3(0.28, 0.08, 0.28), "mat": "wood_dark"},
+		],
+	})
+	_add({
+		"id": "marble_table", "shop": "atelier",
+		"name": "Marble Table", "category": "Dining",
+		"price": 980, "level": 6,
+		"tint": Color(0.92, 0.92, 0.90),
+		"parts": [
+			{"shape": "box", "size": Vector3(2.00, 0.09, 1.00), "pos": Vector3(0, 0.72, 0), "mat": "tint"},
+			{"shape": "box", "size": Vector3(0.16, 0.68, 0.80), "pos": Vector3(-0.72, 0.34, 0), "mat": "tint"},
+			{"shape": "box", "size": Vector3(0.16, 0.68, 0.80), "pos": Vector3(0.72, 0.34, 0), "mat": "tint"},
+			{"shape": "box", "size": Vector3(1.30, 0.06, 0.10), "pos": Vector3(0, 0.20, 0), "mat": "steel"},
+		],
+		"surface": 0.77,
+	})
+	_add({
+		"id": "sculpture_plinth", "shop": "atelier",
+		"name": "Sculpture Plinth", "category": "Decor",
+		"price": 540, "level": 6,
+		"tint": Color(0.94, 0.93, 0.90),
+		"parts": [
+			{"shape": "box", "size": Vector3(0.42, 1.06, 0.42), "pos": Vector3(0, 0.53, 0), "mat": "tint"},
+			{"shape": "box", "size": Vector3(0.48, 0.05, 0.48), "pos": Vector3(0, 1.08, 0), "mat": "tint"},
+			{"shape": "sphere", "size": Vector3(0.17, 0.17, 0.17), "pos": Vector3(0, 1.24, 0), "mat": "steel"},
+			{"shape": "cyl", "size": Vector3(0.06, 0.34, 0.06), "pos": Vector3(0.02, 1.44, 0), "mat": "steel", "rot": Vector3(0, 0, 14)},
+			{"shape": "sphere", "size": Vector3(0.11, 0.11, 0.11), "pos": Vector3(0.07, 1.62, 0), "mat": "steel"},
+		],
+		"surface": 1.11,
+	})
+	_add({
+		"id": "drinks_cabinet", "against_wall": true, "shop": "atelier",
+		"name": "Drinks Cabinet", "category": "Storage",
+		"price": 860, "level": 6,
+		"tint": Color(0.30, 0.22, 0.26),
+		"parts": [
+			{"shape": "box", "size": Vector3(0.96, 1.10, 0.44), "pos": Vector3(0, 0.72, 0), "mat": "tint"},
+			{"shape": "box", "size": Vector3(0.86, 0.86, 0.03), "pos": Vector3(0, 0.76, 0.225), "mat": "glass"},
+			{"shape": "box", "size": Vector3(0.88, 0.03, 0.38), "pos": Vector3(0, 0.62, 0), "mat": "mirror"},
+			{"shape": "box", "size": Vector3(0.88, 0.03, 0.38), "pos": Vector3(0, 0.98, 0), "mat": "mirror"},
+			{"shape": "box", "size": Vector3(1.00, 0.05, 0.48), "pos": Vector3(0, 1.29, 0), "mat": "steel"},
+			{"shape": "cyl", "size": Vector3(0.06, 0.24, 0.06), "pos": Vector3(-0.20, 0.72, 0), "mat": "glass"},
+			{"shape": "cyl", "size": Vector3(0.05, 0.20, 0.05), "pos": Vector3(0.10, 1.10, 0), "mat": "glass"},
+			{"shape": "box", "size": Vector3(0.08, 0.34, 0.08), "pos": Vector3(-0.40, 0.10, -0.14), "mat": "steel", "rot": Vector3(0, 0, 8)},
+			{"shape": "box", "size": Vector3(0.08, 0.34, 0.08), "pos": Vector3(0.40, 0.10, -0.14), "mat": "steel", "rot": Vector3(0, 0, -8)},
+			{"shape": "box", "size": Vector3(0.08, 0.34, 0.08), "pos": Vector3(-0.40, 0.10, 0.14), "mat": "steel", "rot": Vector3(0, 0, 8)},
+			{"shape": "box", "size": Vector3(0.08, 0.34, 0.08), "pos": Vector3(0.40, 0.10, 0.14), "mat": "steel", "rot": Vector3(0, 0, -8)},
+		],
+		"surface": 1.32,
+	})
+
+	_add({
+		"id": "arc_lamp", "shop": "lumen",
+		"name": "Arc Lamp", "category": "Decor",
+		"price": 620, "level": 6,
+		"tint": Color(0.86, 0.86, 0.88),
+		"parts": [
+			{"shape": "cyl", "size": Vector3(0.30, 0.06, 0.30), "pos": Vector3(0, 0.03, 0), "mat": "steel"},
+			{"shape": "cyl", "size": Vector3(0.05, 1.70, 0.05), "pos": Vector3(-0.52, 0.88, 0), "mat": "tint"},
+			{"shape": "cyl", "size": Vector3(0.05, 0.70, 0.05), "pos": Vector3(-0.30, 1.68, 0), "mat": "tint", "rot": Vector3(0, 0, 66)},
+			{"shape": "cyl", "size": Vector3(0.05, 0.60, 0.05), "pos": Vector3(0.18, 1.86, 0), "mat": "tint", "rot": Vector3(0, 0, 84)},
+			{"shape": "cyl", "size": Vector3(0.26, 0.22, 0.20), "pos": Vector3(0.46, 1.76, 0), "mat": "white"},
+		],
+	})
+	_add({
+		"id": "pendant_cluster", "shop": "lumen",
+		"name": "Pendant Cluster", "category": "Decor",
+		"price": 480, "level": 6,
+		"tint": Color(0.22, 0.23, 0.27),
+		"parts": [
+			{"shape": "cyl", "size": Vector3(0.24, 0.05, 0.24), "pos": Vector3(0, 0.02, 0), "mat": "dark"},
+			{"shape": "cyl", "size": Vector3(0.04, 2.06, 0.04), "pos": Vector3(0, 1.06, 0), "mat": "tint"},
+			{"shape": "box", "size": Vector3(0.60, 0.04, 0.30), "pos": Vector3(0.18, 2.08, 0), "mat": "tint"},
+			{"shape": "sphere", "size": Vector3(0.14, 0.14, 0.14), "pos": Vector3(0.02, 1.86, 0), "mat": "white"},
+			{"shape": "sphere", "size": Vector3(0.12, 0.12, 0.12), "pos": Vector3(0.26, 1.70, 0.08), "mat": "white"},
+			{"shape": "sphere", "size": Vector3(0.13, 0.13, 0.13), "pos": Vector3(0.38, 1.94, -0.06), "mat": "white"},
+		],
+	})
+	_add({
+		"id": "floor_uplighter", "shop": "lumen",
+		"name": "Uplighter", "category": "Decor",
+		"price": 330, "level": 6,
+		"tint": Color(0.78, 0.80, 0.84),
+		"parts": [
+			{"shape": "cyl", "size": Vector3(0.22, 0.05, 0.22), "pos": Vector3(0, 0.02, 0), "mat": "dark"},
+			{"shape": "cyl", "size": Vector3(0.04, 1.56, 0.04), "pos": Vector3(0, 0.80, 0), "mat": "tint"},
+			{"shape": "cyl", "size": Vector3(0.24, 0.20, 0.13), "pos": Vector3(0, 1.66, 0), "mat": "white"},
+		],
+	})
+	_add({
+		"id": "smart_panel", "against_wall": true, "shop": "lumen",
+		"name": "Smart Panel", "category": "Electronics",
+		"price": 740, "level": 6,
+		"tint": Color(0.20, 0.21, 0.25),
+		"parts": [
+			{"shape": "box", "size": Vector3(0.50, 0.04, 0.34), "pos": Vector3(0, 0.02, 0), "mat": "dark"},
+			{"shape": "cyl", "size": Vector3(0.04, 1.10, 0.04), "pos": Vector3(0, 0.57, 0), "mat": "steel"},
+			{"shape": "box", "size": Vector3(0.72, 0.50, 0.05), "pos": Vector3(0, 1.32, 0), "mat": "tint"},
+			{"shape": "box", "size": Vector3(0.66, 0.44, 0.02), "pos": Vector3(0, 1.32, 0.035), "mat": "screen"},
+			{"shape": "box", "size": Vector3(0.20, 0.03, 0.03), "pos": Vector3(0, 1.04, 0.02), "mat": "steel"},
+		],
+	})
+	_add({
+		"id": "projector", "against_wall": true, "shop": "lumen",
+		"name": "Projector & Screen", "category": "Electronics",
+		"price": 920, "level": 6,
+		"tint": Color(0.94, 0.94, 0.92),
+		"parts": [
+			{"shape": "cyl", "size": Vector3(0.04, 1.94, 0.04), "pos": Vector3(-0.82, 0.97, 0), "mat": "steel"},
+			{"shape": "cyl", "size": Vector3(0.04, 1.94, 0.04), "pos": Vector3(0.82, 0.97, 0), "mat": "steel"},
+			{"shape": "box", "size": Vector3(0.34, 0.04, 0.30), "pos": Vector3(-0.82, 0.02, 0), "mat": "dark"},
+			{"shape": "box", "size": Vector3(0.34, 0.04, 0.30), "pos": Vector3(0.82, 0.02, 0), "mat": "dark"},
+			{"shape": "box", "size": Vector3(1.64, 1.02, 0.03), "pos": Vector3(0, 1.32, 0), "mat": "tint"},
+			{"shape": "box", "size": Vector3(1.70, 0.08, 0.07), "pos": Vector3(0, 1.88, 0), "mat": "dark"},
+			{"shape": "box", "size": Vector3(0.34, 0.13, 0.26), "pos": Vector3(0, 0.34, 0.44), "mat": "dark"},
+			{"shape": "cyl", "size": Vector3(0.05, 0.06, 0.05), "pos": Vector3(0, 0.34, 0.30), "mat": "glass", "rot": Vector3(90, 0, 0)},
+		],
+	})

@@ -576,8 +576,14 @@ func show_shop(shop_id: String) -> void:
 	_current_sheet = {"kind": "shop", "id": shop_id}
 
 	if not Game.is_shop_unlocked(shop_id):
-		_sheet_body.add_child(UIKit.label(
-			"Opens at level %d." % int(shop["level"]), 18, UIKit.BAD))
+		var district_id := str(shop.get("district", ""))
+		if district_id != "" and not Game.is_district_unlocked(district_id):
+			_sheet_body.add_child(UIKit.label(
+				"Trades with the people who own %s." % Jobs.get_district(district_id)["name"],
+				18, UIKit.BAD))
+		else:
+			_sheet_body.add_child(UIKit.label(
+				"Opens at level %d." % int(shop["level"]), 18, UIKit.BAD))
 		_divider()
 
 	if shop_id == "paint":
@@ -626,8 +632,13 @@ func _shop_row(item_id: String) -> HBoxContainer:
 	row.add_child(UIKit.spacer())
 
 	if not available:
-		row.add_child(UIKit.label(
-			"Level %d" % Catalog.effective_unlock_level(item_id), 17, UIKit.BAD))
+		var district_id := Catalog.district_of(item_id)
+		if district_id != "" and not Game.is_district_unlocked(district_id):
+			row.add_child(UIKit.label(
+				str(Jobs.get_district(district_id)["name"]).split(" ")[0] + " only", 17, UIKit.BAD))
+		else:
+			row.add_child(UIKit.label(
+				"Level %d" % Catalog.effective_unlock_level(item_id), 17, UIKit.BAD))
 		return row
 
 	if held > 0:

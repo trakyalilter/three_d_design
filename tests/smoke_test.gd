@@ -193,8 +193,45 @@ func _check_catalogue() -> void:
 		if Catalog.surface_height(id) > 0.0:
 			_expect(Catalog.surface_height(id) < Catalog.height(id) + 0.05,
 				"%s has a surface above its own top" % id)
-	print("catalogue       %d pieces across %d categories, all stocked and priced"
-		% [total, Catalog.CATEGORIES.size()])
+	# Shops belong to a quarter, and their stock is that quarter's alone.
+	var exclusive := 0
+	for shop: Dictionary in Catalog.SHOPS:
+		var shop_id := str(shop["id"])
+		var district := str(shop.get("district", ""))
+		_expect(not Jobs.get_district(district).is_empty(),
+			"%s stands in '%s', which is not a quarter" % [shop_id, district])
+		_expect(not Catalog.shop_stock(shop_id).is_empty() or str(shop["category"]) == "",
+			"%s has nothing on its shelves" % shop_id)
+		if district != str(Jobs.DISTRICTS[0]["id"]):
+			exclusive += Catalog.shop_stock(shop_id).size()
+	_expect(exclusive > 0, "no quarter but the first has any trade of its own")
+
+	# A brief can only ask for what its own quarter, or the first one, sells —
+	# quarters are not bought in a fixed order, so anything else could be
+	# impossible to buy by the time the job is open.
+	var home := str(Jobs.DISTRICTS[0]["id"])
+	for house: Dictionary in Jobs.all():
+		var house_id := str(house["id"])
+		var quarter := Jobs.district_of(house_id)
+		for req: Dictionary in house["requirements"]:
+			if str(req.get("type", "")) != "item":
+				continue
+			var sold_in := Catalog.district_of(str(req["id"]))
+			_expect(sold_in == home or sold_in == quarter,
+				"%s (%s) needs %s, which is only sold in %s"
+					% [house_id, quarter, req["id"], sold_in])
+
+	# And the client's budget has to cover what they are asking for, or the
+	# fifth star is unreachable however well the room is laid out.
+	for house: Dictionary in Jobs.all():
+		var house_id := str(house["id"])
+		var outlay := Jobs.minimum_outlay(house_id)
+		_expect(outlay <= int(house["budget"]),
+			"%s asks for %s of furniture on a %s budget"
+				% [house_id, UIKit.money(outlay), UIKit.money(int(house["budget"]))])
+
+	print("catalogue       %d pieces across %d categories and %d shops, %d of them exclusive"
+		% [total, Catalog.CATEGORIES.size(), Catalog.SHOPS.size(), exclusive])
 
 
 # ----------------------------------------------------------------- the plans
