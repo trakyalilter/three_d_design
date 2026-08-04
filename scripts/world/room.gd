@@ -23,8 +23,12 @@ var width: float = 6.0
 var depth: float = 5.0
 var height: float = 2.6
 
+## The colours the plan opens with, and what a single-room job still reads.
 var floor_color: Color = Color(0.72, 0.62, 0.50)
 var wall_color: Color = Color(0.90, 0.89, 0.86)
+## room id -> Color. Every room of a plan is painted on its own.
+var floor_colors: Dictionary = {}
+var wall_colors: Dictionary = {}
 var walls_visible: bool = true
 var auto_hide_walls: bool = true
 
@@ -36,31 +40,16 @@ var _walls: Array[MeshInstance3D] = []
 ## normal. Used to work out which walls stand between the camera and the room
 ## the player is looking at.
 var _wall_spans: Array[Dictionary] = []
-var _floor_material: StandardMaterial3D
 var _skirting_material: StandardMaterial3D
-## Walls running along Z are shaded slightly darker than the ones along X, so
-## the corners of a room stay readable instead of merging into one surface.
-var _wall_materials: Array[StandardMaterial3D] = []
+## One floor material per room, and two wall materials per room: walls running
+## along Z are shaded slightly darker than the ones along X, so the corners of
+## a room stay readable instead of merging into one surface.
+var _floor_materials: Dictionary = {}
+var _wall_materials: Dictionary = {}
 const _WALL_SHADES: Array[float] = [1.0, 0.86]
 
 
 func _ready() -> void:
-	# Near-white greyscale textures carry the grain; albedo_color carries the
-	# colour the player chose.
-	_floor_material = StandardMaterial3D.new()
-	_floor_material.albedo_color = floor_color
-	_floor_material.albedo_texture = ProcTextures.floor_planks()
-	_floor_material.roughness = 0.78
-
-	_wall_materials.clear()
-	for shade in _WALL_SHADES:
-		var mat := StandardMaterial3D.new()
-		mat.roughness = 0.95
-		mat.albedo_texture = ProcTextures.wall_plaster()
-		mat.uv1_scale = Vector3(3.0, 2.0, 1.0)
-		_wall_materials.append(mat)
-	set_wall_color(wall_color)
-
 	_skirting_material = StandardMaterial3D.new()
 	_skirting_material.albedo_color = Color(0.96, 0.96, 0.95)
 	_skirting_material.roughness = 0.7
@@ -113,21 +102,82 @@ func configure_plan(rooms: Array, h: float) -> void:
 	width = union.size.x
 	depth = union.size.y
 
+	# Colours belong to the rooms of the plan in front of us. A shell built as
+	# one rectangle and then reconfigured as a flat would otherwise keep the old
+	# room's paint on the books, and a brief asking for one colour throughout
+	# would never be satisfied.
+	var live: Dictionary = {}
+	for entry in plan:
+		live[str(entry["id"])] = true
+	for store in [floor_colors, wall_colors]:
+		for room_id: String in (store as Dictionary).keys():
+			if not live.has(room_id):
+				(store as Dictionary).erase(room_id)
+
 	if is_inside_tree():
 		rebuild()
 
 
-func set_floor_color(c: Color) -> void:
-	floor_color = c
-	if _floor_material:
-		_floor_material.albedo_color = c
+## Paints one room of the plan, or every room when `room_id` is left out. The
+## materials are per room, so a kitchen can be laid in concrete while the room
+## next door keeps its boards.
+func set_floor_color(c: Color, room_id: String = "") -> void:
+	if room_id == "":
+		floor_color = c
+	for entry in plan:
+		var id := str(entry["id"])
+		if room_id != "" and id != room_id:
+			continue
+		floor_colors[id] = c
+		if _floor_materials.has(id):
+			(_floor_materials[id] as StandardMaterial3D).albedo_color = c
 
 
-func set_wall_color(c: Color) -> void:
-	wall_color = c
-	for i in _wall_materials.size():
-		var shade: float = _WALL_SHADES[i]
-		_wall_materials[i].albedo_color = Color(c.r * shade, c.g * shade, c.b * shade, c.a)
+func set_wall_color(c: Color, room_id: String = "") -> void:
+	if room_id == "":
+		wall_color = c
+	for entry in plan:
+		var id := str(entry["id"])
+		if room_id != "" and id != room_id:
+			continue
+		wall_colors[id] = c
+		if not _wall_materials.has(id):
+			continue
+		var pair: Array = _wall_materials[id]
+		for i in pair.size():
+			var shade: float = _WALL_SHADES[i]
+			(pair[i] as StandardMaterial3D).albedo_color = \
+				Color(c.r * shade, c.g * shade, c.b * shade, c.a)
+
+
+func floor_color_of(room_id: String) -> Color:
+	return floor_colors.get(room_id, floor_color)
+
+
+func wall_color_of(room_id: String) -> Color:
+	return wall_colors.get(room_id, wall_color)
+
+
+## Fresh materials for one room, so a rebuild keeps whatever it was painted.
+func _materials_for(room_id: String) -> void:
+	# Near-white greyscale textures carry the grain; albedo_color carries the
+	# colour the player chose.
+	var floor_mat := StandardMaterial3D.new()
+	floor_mat.albedo_texture = ProcTextures.floor_planks()
+	floor_mat.roughness = 0.78
+	_floor_materials[room_id] = floor_mat
+
+	var pair: Array = []
+	for shade in _WALL_SHADES:
+		var mat := StandardMaterial3D.new()
+		mat.roughness = 0.95
+		mat.albedo_texture = ProcTextures.wall_plaster()
+		mat.uv1_scale = Vector3(3.0, 2.0, 1.0)
+		pair.append(mat)
+	_wall_materials[room_id] = pair
+
+	set_floor_color(floor_colors.get(room_id, floor_color), room_id)
+	set_wall_color(wall_colors.get(room_id, wall_color), room_id)
 
 
 func set_walls_visible(value: bool) -> void:
@@ -215,7 +265,15 @@ func rebuild() -> void:
 		child.queue_free()
 	_walls.clear()
 	_wall_spans.clear()
+	_floor_materials.clear()
+	_wall_materials.clear()
+	if _skirting_material == null:
+		_skirting_material = StandardMaterial3D.new()
+		_skirting_material.albedo_color = Color(0.96, 0.96, 0.95)
+		_skirting_material.roughness = 0.7
 
+	for entry in plan:
+		_materials_for(str(entry["id"]))
 	for entry in plan:
 		_build_floor(entry)
 	_build_grid()
@@ -235,13 +293,12 @@ func _build_floor(entry: Dictionary) -> void:
 	slab.mesh = mesh
 	var centre := rect.position + rect.size * 0.5
 	slab.position = Vector3(centre.x, -0.05, centre.y)
-	slab.material_override = _floor_material
+	var material: StandardMaterial3D = _floor_materials[str(entry["id"])]
+	slab.material_override = material
 	add_child(slab)
 	# One texture tile every two metres, so boards stay the same size whatever
-	# the room's dimensions. The material is shared, so the largest room wins.
-	var scale_x: float = maxf(_floor_material.uv1_scale.x, rect.size.x * 0.5)
-	var scale_y: float = maxf(_floor_material.uv1_scale.y, rect.size.y * 0.5)
-	_floor_material.uv1_scale = Vector3(scale_x, scale_y, 1.0)
+	# the room's dimensions.
+	material.uv1_scale = Vector3(rect.size.x * 0.5, rect.size.y * 0.5, 1.0)
 
 
 func _build_grid() -> void:
@@ -310,10 +367,10 @@ func _build_walls() -> void:
 				shared.append(overlap)
 				# Build the divider once, from the lower-indexed room.
 				if j > i:
-					_build_wall(side, line, overlap, true)
+					_build_wall(side, line, overlap, str(plan[i]["id"]), str(plan[j]["id"]))
 			for part in _subtract(span, shared):
 				if part.y - part.x > EPS:
-					_build_wall(side, line, part, false)
+					_build_wall(side, line, part, str(plan[i]["id"]), "")
 
 
 ## Where a rectangle's side sits: the X of an east/west side, the Z of a
@@ -364,43 +421,61 @@ static func _subtract(span: Vector2, cuts: Array[Vector2]) -> Array[Vector2]:
 
 
 ## One run of wall. A divider gets a doorway punched through the middle of it,
-## which is two posts and a lintel rather than one slab.
-func _build_wall(side: int, line: float, span: Vector2, divider: bool) -> void:
-	var normal := _side_normal(side)
+## which is two posts and a lintel rather than one slab. `other` names the room
+## on the far side when there is one, and the divider is then built as a pair of
+## thin slabs so each room can be painted its own colour.
+func _build_wall(side: int, line: float, span: Vector2, room_id: String, other: String) -> void:
 	var along := span.y - span.x
-	if not divider or along < DOOR_WIDTH + 0.8:
-		_add_wall_piece(side, line, span, height, 0.0, divider)
-		_add_skirting(side, line, span)
+	if other == "" or along < DOOR_WIDTH + 0.8:
+		_add_wall_piece(side, line, span, height, 0.0, room_id, other)
+		_add_skirting(side, line, span, room_id, other)
 		return
 
 	var middle: float = (span.x + span.y) * 0.5
 	var opening := Vector2(middle - DOOR_WIDTH * 0.5, middle + DOOR_WIDTH * 0.5)
-	_add_wall_piece(side, line, Vector2(span.x, opening.x), height, 0.0, divider)
-	_add_wall_piece(side, line, Vector2(opening.y, span.y), height, 0.0, divider)
+	_add_wall_piece(side, line, Vector2(span.x, opening.x), height, 0.0, room_id, other)
+	_add_wall_piece(side, line, Vector2(opening.y, span.y), height, 0.0, room_id, other)
 	# The lintel over the doorway keeps the wall reading as one run.
-	_add_wall_piece(side, line, opening, height - DOOR_HEIGHT, DOOR_HEIGHT, divider)
-	_add_skirting(side, line, Vector2(span.x, opening.x))
-	_add_skirting(side, line, Vector2(opening.y, span.y))
+	_add_wall_piece(side, line, opening, height - DOOR_HEIGHT, DOOR_HEIGHT, room_id, other)
+	_add_skirting(side, line, Vector2(span.x, opening.x), room_id, other)
+	_add_skirting(side, line, Vector2(opening.y, span.y), room_id, other)
 
 
-func _add_wall_piece(side: int, line: float, span: Vector2, tall: float, base: float, divider: bool) -> void:
+func _add_wall_piece(side: int, line: float, span: Vector2, tall: float, base: float,
+		room_id: String, other: String) -> void:
 	if span.y - span.x <= EPS or tall <= EPS:
 		return
 	var t := WALL_THICKNESS
 	var normal := _side_normal(side)
 	var middle: float = (span.x + span.y) * 0.5
 	var run: float = span.y - span.x
-	# A divider stands on the boundary; an outside wall sits just beyond it.
-	var offset: float = 0.0 if divider else t * 0.5
+	if other != "":
+		# Two half-thickness slabs on the boundary, one facing each room.
+		_add_slab(side, line - _axis(normal) * t * 0.25, span, tall, base, t * 0.5, room_id)
+		_add_slab(side, line + _axis(normal) * t * 0.25, span, tall, base, t * 0.5, other)
+		return
+	# An outside wall sits just beyond the room it belongs to.
+	_add_slab(side, line + _axis(normal) * t * 0.5, span, tall, base, t, room_id)
+
+
+## The component of a side normal along the axis its line is measured on.
+static func _axis(normal: Vector3) -> float:
+	return normal.z if absf(normal.z) > 0.5 else normal.x
+
+
+func _add_slab(side: int, line: float, span: Vector2, tall: float, base: float,
+		thickness: float, room_id: String) -> void:
+	var middle: float = (span.x + span.y) * 0.5
+	var run: float = span.y - span.x
 
 	var size: Vector3
 	var position: Vector3
 	if side < 2:
-		size = Vector3(run, tall, t)
-		position = Vector3(middle, base + tall * 0.5, line + normal.z * offset)
+		size = Vector3(run, tall, thickness)
+		position = Vector3(middle, base + tall * 0.5, line)
 	else:
-		size = Vector3(t, tall, run)
-		position = Vector3(line + normal.x * offset, base + tall * 0.5, middle)
+		size = Vector3(thickness, tall, run)
+		position = Vector3(line, base + tall * 0.5, middle)
 
 	var piece := MeshInstance3D.new()
 	piece.name = "Wall"
@@ -408,7 +483,8 @@ func _add_wall_piece(side: int, line: float, span: Vector2, tall: float, base: f
 	mesh.size = size
 	piece.mesh = mesh
 	piece.position = position
-	piece.material_override = _wall_materials[0 if side < 2 else 1]
+	var pair: Array = _wall_materials.get(room_id, _wall_materials.values()[0])
+	piece.material_override = pair[0 if side < 2 else 1]
 	piece.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	piece.visible = walls_visible
 	add_child(piece)
@@ -425,25 +501,33 @@ func _add_wall_piece(side: int, line: float, span: Vector2, tall: float, base: f
 	_wall_spans.append({"from": from, "to": to})
 
 
-func _add_skirting(side: int, line: float, span: Vector2) -> void:
+
+## Skirting runs along the inner face. A divider gets it on both sides, since
+## both rooms see it.
+func _add_skirting(side: int, line: float, span: Vector2, room_id: String, other: String) -> void:
 	if span.y - span.x <= EPS:
 		return
 	var normal := _side_normal(side)
 	var middle: float = (span.x + span.y) * 0.5
 	var run: float = span.y - span.x
-	var skirt := MeshInstance3D.new()
-	skirt.name = "Skirting"
-	var mesh := BoxMesh.new()
-	if side < 2:
-		mesh.size = Vector3(run, 0.09, 0.02)
-		skirt.position = Vector3(middle, 0.045, line - normal.z * 0.06)
-	else:
-		mesh.size = Vector3(0.02, 0.09, run)
-		skirt.position = Vector3(line - normal.x * 0.06, 0.045, middle)
-	skirt.mesh = mesh
-	skirt.material_override = _skirting_material
-	skirt.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	add_child(skirt)
+	# One face for an outside wall, both faces for a divider.
+	var faces: Array[float] = [-1.0]
+	if other != "":
+		faces.append(1.0)
+	for face in faces:
+		var skirt := MeshInstance3D.new()
+		skirt.name = "Skirting"
+		var mesh := BoxMesh.new()
+		if side < 2:
+			mesh.size = Vector3(run, 0.09, 0.02)
+			skirt.position = Vector3(middle, 0.045, line + face * normal.z * 0.06)
+		else:
+			mesh.size = Vector3(0.02, 0.09, run)
+			skirt.position = Vector3(line + face * normal.x * 0.06, 0.045, middle)
+		skirt.mesh = mesh
+		skirt.material_override = _skirting_material
+		skirt.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		add_child(skirt)
 
 
 ## A name floating over each room, so a plan reads as rooms rather than as one

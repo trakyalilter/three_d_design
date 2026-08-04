@@ -26,7 +26,13 @@ func _ready() -> void:
 	for district: Dictionary in Jobs.districts():
 		if not await _acquire(district):
 			break
-		for job: Dictionary in Jobs.houses_in(str(district["id"])):
+		# Cheapest brief first, the way anyone short of money would work a new
+		# quarter. The float held back when buying it only guarantees the
+		# cheapest one is affordable.
+		var houses := Jobs.houses_in(str(district["id"]))
+		houses.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+			return Jobs.minimum_outlay(str(a["id"])) < Jobs.minimum_outlay(str(b["id"])))
+		for job: Dictionary in houses:
 			await _play(job)
 	print("--- career done: money %d, level %d, jobs %d, houses %d/%d" % [
 		Game.money, Game.level, Game.jobs_done(),
@@ -311,12 +317,46 @@ func _check_floor_plan() -> void:
 	_expect(_line_met(house_id, designer, "bed_double", "bedroom"),
 		"a bed in the bedroom did not tick the bedroom's line")
 
-	print("plans           %d whole floors, %s builds %d rooms over %.0f m²"
+	# Paint is per room: a colour laid in one must not spread to the others.
+	var first := str(room.plan[0]["id"])
+	var second := str(room.plan[1]["id"])
+	var slate: Color = Catalog.PAINT["floor"][0]["color"]
+	var other: Color = Catalog.PAINT["floor"][1]["color"]
+	# Both shades have to be in the paint store, or the designer refuses them.
+	Game.buy_paint("floor", Catalog.PAINT["floor"][1])
+	designer._on_paint_target("")
+	designer._on_floor_paint(slate)
+	designer._on_paint_target(first)
+	designer._on_floor_paint(other)
+	designer._on_paint_target("")
+	_expect(room.floor_color_of(first) == other,
+		"painting the %s did not take" % first)
+	_expect(room.floor_color_of(second) == slate,
+		"painting the %s spread into the %s" % [first, second])
+	_expect(room.floor_colors.size() == room.room_count(),
+		"the plan carries %d floor colours for %d rooms"
+			% [room.floor_colors.size(), room.room_count()])
+	# And it survives a save and reload, which is how a job is resumed.
+	var saved: Dictionary = designer._serialize()
+	designer._restore(saved)
+	# Saved colours go through 8-bit hex, so compare them the way the brief
+	# evaluator does rather than exactly.
+	_expect(_same_color(room.floor_color_of(first), other),
+		"the %s lost its floor colour on reload" % first)
+	_expect(_same_color(room.floor_color_of(second), slate),
+		"the %s lost its floor colour on reload" % second)
+	designer._on_floor_paint(slate)
+
+	print("plans           %d whole floors, %s builds %d rooms over %.0f m², painted room by room"
 		% [plans, house_id, room.room_count(), room.area()])
 
 	designer._on_new_requested()
 	main.enter_city()
 	await get_tree().process_frame
+
+
+static func _same_color(a: Color, b: Color) -> bool:
+	return Vector3(a.r - b.r, a.g - b.g, a.b - b.b).length() < 0.01
 
 
 ## Whether the brief's line for `item_id` in `scope` currently reads as met.
@@ -608,9 +648,13 @@ func _furnish(designer, job: Dictionary) -> void:
 						_place(designer, id, scope)
 						used += 1
 			"floor_color":
+				designer._on_paint_target(scope)
 				designer._on_floor_paint(_owned_paint("floor", req["names"]))
+				designer._on_paint_target("")
 			"wall_color":
+				designer._on_paint_target(scope)
 				designer._on_wall_paint(_owned_paint("wall", req["names"]))
+				designer._on_paint_target("")
 
 	# Room-by-room piece counts have to be topped up room by room.
 	for req: Dictionary in job["requirements"]:

@@ -46,6 +46,9 @@ var _last_tap_time := 0.0
 var _last_tap_position := Vector2.ZERO
 var _floor_color: Color = Catalog.PAINT["floor"][0]["color"]
 var _wall_color: Color = Catalog.PAINT["wall"][0]["color"]
+## Which room of the plan the paint tools act on. Empty means the whole floor,
+## which is the only option a single-room job ever has.
+var _paint_target := ""
 
 
 func job_mode() -> bool:
@@ -174,6 +177,7 @@ func _connect_ui() -> void:
 	ui.room_changed.connect(_on_room_changed)
 	ui.floor_paint_selected.connect(_on_floor_paint)
 	ui.wall_paint_selected.connect(_on_wall_paint)
+	ui.paint_target_changed.connect(_on_paint_target)
 	ui.walls_toggled.connect(func(on: bool) -> void: room.set_walls_visible(on))
 	ui.snap_toggled.connect(func(on: bool) -> void: snap_enabled = on)
 	ui.top_view_toggled.connect(func(on: bool) -> void: rig.set_top_view(on))
@@ -626,17 +630,33 @@ func _on_room_changed(width: float, room_depth: float, height: float) -> void:
 func _on_floor_paint(color: Color) -> void:
 	if not _may_paint("floor", color):
 		return
-	_floor_color = color
-	room.set_floor_color(color)
+	if _paint_target == "":
+		_floor_color = color
+	room.set_floor_color(color, _paint_target)
+	_announce_paint("Floor", color)
 	_after_change()
 
 
 func _on_wall_paint(color: Color) -> void:
 	if not _may_paint("wall", color):
 		return
-	_wall_color = color
-	room.set_wall_color(color)
+	if _paint_target == "":
+		_wall_color = color
+	room.set_wall_color(color, _paint_target)
+	_announce_paint("Walls", color)
 	_after_change()
+
+
+## The paint tools act on one room at a time in a flat, so say which.
+func _announce_paint(what: String, _color: Color) -> void:
+	if not room.is_multi_room():
+		return
+	var where := room.room_name(_paint_target).to_lower() if _paint_target != "" else "every room"
+	ui.toast("%s painted in %s" % [what, where], 1.6)
+
+
+func _on_paint_target(room_id: String) -> void:
+	_paint_target = room_id if room.has_room(room_id) else ""
 
 
 ## Colours are bought once at the Colour House; using one costs nothing.
@@ -905,6 +925,9 @@ func _context() -> Dictionary:
 		"room": {
 			"w": room.width, "d": room.depth, "h": room.height,
 			"floor": _floor_color, "wall": _wall_color,
+			# Per room, for briefs that ask for a colour in one of them.
+			"floors": room.floor_colors.duplicate(),
+			"walls": room.wall_colors.duplicate(),
 		},
 		"spend": installed_value(),
 	}
@@ -1000,6 +1023,8 @@ func _serialize() -> Dictionary:
 			"h": snappedf(room.height, 0.01),
 			"floor": _floor_color.to_html(false),
 			"wall": _wall_color.to_html(false),
+			"floors": _colors_to_html(room.floor_colors),
+			"walls": _colors_to_html(room.wall_colors),
 		},
 		"items": item_data,
 	}
@@ -1023,6 +1048,11 @@ func _restore(data: Dictionary) -> void:
 		)
 	room.set_floor_color(_floor_color)
 	room.set_wall_color(_wall_color)
+	# Rooms painted individually override the flat-wide colour.
+	for room_id: String in room_data.get("floors", {}):
+		room.set_floor_color(_color_or(room_data["floors"][room_id], _floor_color), room_id)
+	for room_id: String in room_data.get("walls", {}):
+		room.set_wall_color(_color_or(room_data["walls"][room_id], _wall_color), room_id)
 	rig.pan_limit = Vector2(room.width * 0.6, room.depth * 0.6)
 
 	for entry: Variant in data["items"]:
@@ -1036,6 +1066,13 @@ func _restore(data: Dictionary) -> void:
 
 	_update_overlaps()
 	_refresh_stats()
+
+
+static func _colors_to_html(colors: Dictionary) -> Dictionary:
+	var out: Dictionary = {}
+	for room_id: String in colors:
+		out[room_id] = (colors[room_id] as Color).to_html(false)
+	return out
 
 
 static func _color_or(value: Variant, fallback: Color) -> Color:

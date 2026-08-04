@@ -755,6 +755,8 @@ const HOUSES: Array[Dictionary] = [
 			{"type": "item", "id": "counter", "count": 2, "room": "kitchen"},
 			{"type": "item", "id": "range_hood", "count": 1, "room": "kitchen"},
 			{"type": "item", "id": "galley_shelf", "count": 1, "room": "kitchen"},
+			{"type": "floor_color", "names": ["Concrete", "Slate"], "room": "kitchen"},
+			{"type": "wall_color", "names": ["Harbour", "Storm"], "room": "living"},
 			{"type": "total", "count": 18},
 			{"type": "no_overlap"},
 		],
@@ -837,6 +839,8 @@ const HOUSES: Array[Dictionary] = [
 			{"type": "item", "id": "bathtub", "count": 1, "room": "bathroom"},
 			{"type": "item", "id": "basin", "count": 1, "room": "bathroom"},
 			{"type": "item", "id": "bath_screen", "count": 1, "room": "bathroom"},
+			{"type": "wall_color", "names": ["Blush", "Sage"], "room": "nursery"},
+			{"type": "floor_color", "names": ["Chalk", "Concrete"], "room": "bathroom"},
 			{"type": "total", "count": 24},
 			{"type": "no_overlap"},
 		],
@@ -919,6 +923,8 @@ const HOUSES: Array[Dictionary] = [
 			{"type": "item", "id": "corner_shower", "count": 1, "room": "bathroom"},
 			{"type": "item", "id": "vanity_unit", "count": 1, "room": "bathroom"},
 			{"type": "item", "id": "bathroom_cabinet", "count": 1, "room": "bathroom"},
+			{"type": "floor_color", "names": ["Chalk", "Sandstone"], "room": "bathroom"},
+			{"type": "wall_color", "names": ["Ink", "Storm", "Harbour"], "room": "bedroom"},
 			{"type": "total", "count": 22},
 			{"type": "no_overlap"},
 		],
@@ -1055,6 +1061,7 @@ const HOUSES: Array[Dictionary] = [
 			{"type": "item", "id": "toilet", "count": 1, "room": "bathroom"},
 			{"type": "item", "id": "basin", "count": 1, "room": "bathroom"},
 			{"type": "item", "id": "shower", "count": 1, "room": "bathroom"},
+			{"type": "floor_color", "names": ["Concrete", "Slate", "Chalk"], "room": "bathroom"},
 			{"type": "total", "count": 20},
 			{"type": "no_overlap"},
 		],
@@ -1750,13 +1757,27 @@ func _check(req: Dictionary, context: Dictionary) -> Dictionary:
 		"floor_color", "wall_color":
 			var surface := "floor" if kind == "floor_color" else "wall"
 			var names: Array = req.get("names", [])
-			var current: Color = room.get(surface, Color.WHITE)
-			met = _color_in(current, surface, names)
+			# Per-room colours when the job is a floor plan. A line that names a
+			# room means that room; one that does not means all of them.
+			var painted: Dictionary = room.get(surface + "s", {})
+			var shades: Array[Color] = []
+			if painted.is_empty():
+				shades.append(room.get(surface, Color.WHITE))
+			elif scope != "":
+				shades.append(painted.get(scope, Color.WHITE))
+			else:
+				for room_id: String in painted:
+					shades.append(painted[room_id])
+			met = not shades.is_empty()
+			for shade in shades:
+				if not _color_in(shade, surface, names):
+					met = false
 			have = 1 if met else 0
 			need = 1
-			label = "%s the %s: %s" % [
+			label = "%s the %s%s: %s" % [
 				"Lay" if surface == "floor" else "Paint",
 				surface,
+				where if scope != "" else ("s throughout" if painted.size() > 1 else ""),
 				" or ".join(PackedStringArray(names)),
 			]
 

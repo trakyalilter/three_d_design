@@ -12,6 +12,7 @@ signal tint_selected(color: Color)
 signal room_changed(width: float, room_depth: float, height: float)
 signal floor_paint_selected(color: Color)
 signal wall_paint_selected(color: Color)
+signal paint_target_changed(room_id: String)
 signal walls_toggled(enabled: bool)
 signal snap_toggled(enabled: bool)
 signal top_view_toggled(enabled: bool)
@@ -66,6 +67,9 @@ var _room_h: HSlider
 var _room_dims := Vector3(6.0, 2.6, 5.0)
 var _save_name: LineEdit
 var _layout_list: ItemList
+## The rooms of a floor plan, and which of them the paint tools act on.
+var _plan: Array[Dictionary] = []
+var _paint_target := ""
 var _emit_room_changes := false
 
 
@@ -128,7 +132,7 @@ func _build_top_bar() -> void:
 	_brief_button.pressed.connect(_toggle_brief)
 	row.add_child(_brief_button)
 
-	var room_btn := UIKit.make_button("Room", "Floor and wall colours")
+	var room_btn := UIKit.make_button("Room", "Floor and wall colours, room by room")
 	room_btn.pressed.connect(_open_room_dialog)
 	row.add_child(room_btn)
 
@@ -155,6 +159,12 @@ func _build_top_bar() -> void:
 func configure(job: Dictionary) -> void:
 	_job = job
 	job_mode = not job.is_empty()
+	# Only a floor plan gets a room picker in the paint dialog.
+	_plan.clear()
+	for entry: Variant in job.get("rooms", []):
+		if typeof(entry) == TYPE_DICTIONARY:
+			_plan.append(entry as Dictionary)
+	_paint_target = ""
 
 	_job_label.visible = job_mode
 	_bill_label.visible = job_mode
@@ -625,7 +635,12 @@ func _open_room_dialog() -> void:
 	var body := _begin_dialog("Room")
 	_emit_room_changes = false
 
-	if job_mode:
+	if not _plan.is_empty():
+		body.add_child(UIKit.wrapped_label(
+			"This job is %d rooms. Pick which one you are painting — or all of them at once."
+				% _plan.size(), 520))
+		_paint_target_row(body)
+	elif job_mode:
 		body.add_child(UIKit.wrapped_label(
 			"The client's room is %.1f × %.1f m — you can change the colours, not the walls."
 				% [_room_dims.x, _room_dims.z], 520))
@@ -643,6 +658,26 @@ func _open_room_dialog() -> void:
 	_emit_room_changes = true
 	var row := _dialog_buttons(["Done"])
 	(row.get_child(0) as Button).pressed.connect(close_dialog)
+
+
+## Which room the swatches below act on. Kept as buttons rather than a dropdown
+## so it is one tap on a phone.
+func _paint_target_row(body: Control) -> void:
+	var row := HBoxContainer.new()
+	body.add_child(row)
+	var options: Array = [{"id": "", "name": "All rooms"}]
+	for entry: Dictionary in _plan:
+		options.append(entry)
+	for option: Dictionary in options:
+		var id := str(option["id"])
+		var button := UIKit.make_button(str(option["name"]))
+		button.toggle_mode = true
+		button.button_pressed = id == _paint_target
+		button.pressed.connect(func() -> void:
+			_paint_target = id
+			paint_target_changed.emit(id)
+			_open_room_dialog())
+		row.add_child(button)
 
 
 func _paint_section(body: Control, surface: String) -> void:

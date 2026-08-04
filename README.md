@@ -78,6 +78,18 @@ piece across a dividing wall and it moves to the room on the other side; you do 
 thread it through the doorway with a fingertip. Wall snap, the grid and the star review all
 work room by room, so a sofa against the living room's partition counts as against a wall.
 
+**Paint is per room too.** The Room panel puts the plan's rooms across the top: pick one and
+the swatches below lay a floor or paint walls in that room alone, or pick *All rooms* to do
+the whole floor at once. A dividing wall is two faces, so the kitchen can be Storm on its
+side while the living room stays Linen on the other.
+
+| Five rooms, five schemes | Choosing which room to paint |
+|---|---|
+| ![The Observatory with a different floor and wall colour in every room](docs/screenshot-paint-rooms.png) | ![The Room panel with a row of room buttons above the swatches](docs/screenshot-paint-picker.png) |
+
+A brief can ask for a colour in a named room — *lay the bathroom floor in Chalk or
+Sandstone* — or leave the room out, which means every room in the flat has to match.
+
 | Job | Rooms | Floor |
 |---|---|---|
 | The Alder Street Flat | living room, bedroom | 26 m² |
@@ -281,7 +293,7 @@ scripts/
     mesh_builder.gd      Welds a part list into one shared mesh per item type
     proc_textures.gd     Floorboards, plaster and contact shadows, generated
     room.gd              The floor plan: floors, walls, skirting, doorways,
-                         grid and wall auto-hide, for one room or several
+                         grid, wall auto-hide and a paint scheme per room
     camera_rig.gd        Damped orbit camera, shared by both screens
     selection_marker.gd  Floor highlight under the selection
   ui/ui_kit.gd           The theme and widget helpers both screens share
@@ -391,7 +403,8 @@ from stock and handing it over. Then it checks that every quarter is priced abov
 before and starts locked, that every shop stands in a real quarter and no brief asks for
 stock the player could not have bought by then, that no client is asked for more furniture
 than their budget covers, that no two rooms of a floor plan overlap and a bed in the wrong
-room does not tick the right room's line, that every catalogue entry is priced, stocked and
+room does not tick the right room's line, that paint laid in one room stays there and
+survives a save and reload, that every catalogue entry is priced, stocked and
 physically sane, that wall snap lands flush and stacking finds the right height, that undo and redo
 keep the room and the warehouse in step, that a properly arranged room really does reach
 three stars, and that a generated repeat contract can be shopped for and finished. It
