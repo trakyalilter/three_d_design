@@ -15,6 +15,7 @@ signal money_changed(amount: int)
 signal stock_changed()
 signal progress_changed(level: int, xp: int, xp_needed: int)
 signal levelled_up(level: int)
+signal district_unlocked(district_id: String)
 
 const PROFILE_PATH := "user://profile.json"
 const STARTING_MONEY := 3000
@@ -37,11 +38,14 @@ var saved_jobs: Dictionary = {}
 var active_contracts: Dictionary = {}
 ## house id -> how many times it has been handed over.
 var repeats: Dictionary = {}
+## district id -> true for every quarter of the city the player has bought.
+var owned_districts: Dictionary = {}
 
 
 func _ready() -> void:
 	load_profile()
 	_grant_starter_paints()
+	_grant_free_districts()
 
 
 # ---------------------------------------------------------------- levelling
@@ -112,6 +116,49 @@ func is_shop_unlocked(shop_id: String) -> bool:
 
 func is_paint_unlocked(entry: Dictionary) -> bool:
 	return level >= int(entry.get("level", 1))
+
+
+# ---------------------------------------------------------------- the city
+
+func is_district_unlocked(district_id: String) -> bool:
+	return owned_districts.has(district_id)
+
+
+## What buying a quarter really takes: its price, and enough left over
+## afterwards to go shopping for the first brief in it.
+func district_price(district_id: String) -> int:
+	var district := Jobs.get_district(district_id)
+	if district.is_empty():
+		return 0
+	return int(district["cost"]) + Jobs.district_float(district_id)
+
+
+## A quarter can only be bought once the player has the standing to work in it.
+func can_unlock_district(district_id: String) -> bool:
+	var district := Jobs.get_district(district_id)
+	if district.is_empty() or is_district_unlocked(district_id):
+		return false
+	return level >= int(district["level"]) and can_afford(district_price(district_id))
+
+
+## Buys a quarter of the city outright. All or nothing, like everything else.
+func unlock_district(district_id: String) -> bool:
+	if not can_unlock_district(district_id):
+		return false
+	if not spend(int(Jobs.get_district(district_id)["cost"])):
+		return false
+	owned_districts[district_id] = true
+	save_profile()
+	district_unlocked.emit(district_id)
+	return true
+
+
+## Maple Quarter came with the business, and so does anything else priced at
+## nothing — including quarters added to the game after a profile was written.
+func _grant_free_districts() -> void:
+	for district: Dictionary in Jobs.districts():
+		if int(district["cost"]) <= 0:
+			owned_districts[str(district["id"])] = true
 
 
 # -------------------------------------------------------------------- stock
@@ -304,7 +351,9 @@ func reset() -> void:
 	saved_jobs.clear()
 	active_contracts.clear()
 	repeats.clear()
+	owned_districts.clear()
 	_grant_starter_paints()
+	_grant_free_districts()
 	save_profile()
 	money_changed.emit(money)
 	stock_changed.emit()
@@ -317,7 +366,7 @@ func save_profile() -> void:
 		push_warning("Could not save the profile (%d)" % FileAccess.get_open_error())
 		return
 	file.store_string(JSON.stringify({
-		"version": 2,
+		"version": 3,
 		"money": money,
 		"xp": xp,
 		"level": level,
@@ -327,6 +376,7 @@ func save_profile() -> void:
 		"saved": saved_jobs,
 		"contracts": active_contracts,
 		"repeats": repeats,
+		"districts": owned_districts,
 	}, "\t"))
 	file.close()
 
@@ -350,6 +400,9 @@ func load_profile() -> void:
 	saved_jobs = data.get("saved", {})
 	active_contracts = data.get("contracts", {})
 	repeats = data.get("repeats", {})
+	# Profiles written before the city had quarters simply own none of them;
+	# _grant_free_districts() hands back the one everybody starts with.
+	owned_districts = data.get("districts", {})
 	# Counts come back from JSON as floats.
 	inventory = {}
 	for item_id: String in data.get("inventory", {}):

@@ -30,12 +30,19 @@ func enter_city(focus_house: String = "") -> void:
 		city_ui.show_house(house_id)
 		city.focus_on(house_id))
 	city.shop_picked.connect(city_ui.show_shop)
+	city.district_picked.connect(city_ui.show_district)
 	city.nothing_picked.connect(city_ui.close_sheet)
 
 	city_ui.start_job.connect(enter_designer)
 	city_ui.free_build.connect(func() -> void: enter_designer(""))
-	city_ui.career_reset.connect(func() -> void: city.refresh_markers())
+	# A career reset can hand back quarters as well as money, so redraw the map.
+	city_ui.career_reset.connect(func() -> void: city.rebuild())
 	city_ui.repeat_taken.connect(func(_house_id: String) -> void: city.refresh_markers())
+	city_ui.district_bought.connect(func(district_id: String) -> void:
+		city.rebuild()
+		city.focus_district(district_id))
+	city_ui.district_focused.connect(func(district_id: String) -> void:
+		city.focus_district(district_id))
 
 	if focus_house != "":
 		city.focus_on(focus_house)

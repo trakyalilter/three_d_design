@@ -1,15 +1,20 @@
 class_name CityView
 extends Node3D
-## The city map: a procedurally built neighbourhood of client houses and the
-## shops that supply them.
+## The city map: a grid of quarters, each a procedurally built neighbourhood of
+## client houses, with the shops that supply them on the first quarter's avenue.
 ##
 ## Everything is boxes, cylinders and prisms, matching the way furniture is
 ## built in the designer — but here the geometry is welded into a SceneryBatch
 ## and drawn in a handful of calls. Only the things that move or respond stay
 ## as nodes: the job pins, the name plates and one pick volume per building.
+##
+## Quarters the player has not bought yet are still drawn, in a washed-out
+## palette behind a hoarding, so the rest of the city is something you can see
+## before you can afford it. Buying one calls rebuild().
 
 signal house_picked(house_id: String)
 signal shop_picked(shop_id: String)
+signal district_picked(district_id: String)
 signal nothing_picked()
 
 const PICK_LAYER := 4
@@ -23,21 +28,30 @@ const LINE := Color(0.92, 0.90, 0.72)
 const AVENUE_HALF := 5.0
 const CROSS_HALF := 4.5
 const CROSS_Z := 18.0
-const CITY_HALF := 48.0
+## Half the width of one quarter. Jobs.SPACING is the gap between their centres,
+## so the strip between two quarters is what the link roads cross.
+const QUARTER_HALF := 48.0
 
 const MARKER_AVAILABLE := Color(0.35, 0.80, 1.00)
 const MARKER_DONE := Color(0.42, 0.83, 0.52)
 const MARKER_LOCKED := Color(0.55, 0.57, 0.62)
 const MARKER_RESUME := Color(0.98, 0.78, 0.32)
 
-## Shop signs only appear once the camera comes down for a closer look, so the
-## map is not a wall of text when zoomed out.
+## Labels are drawn at a fixed size on screen, so they pile up on each other
+## once the camera pulls back far enough to take in more than one quarter. Both
+## kinds fade out at the range where they stop being readable.
 const SHOP_LABEL_DISTANCE := 46.0
+const HOUSE_LABEL_DISTANCE := 130.0
+
+## How far a quarter behind its hoarding is drained towards grey.
+const LOCKED_TONE := Color(0.48, 0.49, 0.50)
+const LOCKED_MIX := 0.62
 
 var rig: CameraRig
 
 var _markers: Dictionary = {}
 var _shop_labels: Array[Label3D] = []
+var _house_labels: Array[Label3D] = []
 var _pickables: Node3D
 var _scenery: Node3D
 var _batch: SceneryBatch
@@ -48,6 +62,12 @@ var _pinch_midpoint := Vector2.ZERO
 var _gesture_is_pinch := false
 ## Set by the owner so gestures that start on a panel are ignored.
 var ui_probe: Callable = Callable()
+
+## The quarter currently being built: where it sits, and whether the player
+## owns it. _at() and _tone() read these, so the builders below can be written
+## as if every quarter were at the origin.
+var _origin := Vector2.ZERO
+var _locked := false
 
 
 func _ready() -> void:
@@ -61,27 +81,63 @@ func _ready() -> void:
 	_pickables.name = "Buildings"
 	add_child(_pickables)
 
-	_batch = SceneryBatch.new()
-	_build_ground()
-	_build_roads()
-	_build_shops()
-	_build_houses()
-	_build_greenery()
-	_batch.commit(_scenery)
-	_batch = null
-
 	rig = CameraRig.new()
 	rig.name = "CameraRig"
 	rig.yaw = -28.0
 	rig.pitch = -42.0
 	rig.distance = 58.0
-	rig.pan_limit = Vector2(34, 34)
 	rig.min_distance = 18.0
-	rig.max_distance = 95.0
 	add_child(rig)
+	# The map runs to a few hundred metres once the far quarters are in view.
+	rig.camera.far = 520.0
+
+	_build_city()
 	rig.snap_to_target()
 
+
+## Redraws the whole map. Cheap enough to do outright, and the only sane way to
+## repaint a quarter once it has been bought: the scenery is welded into shared
+## meshes, so there is nothing to recolour in place.
+func rebuild() -> void:
+	_markers.clear()
+	_shop_labels.clear()
+	_house_labels.clear()
+	for holder in [_scenery, _pickables]:
+		for child in holder.get_children():
+			holder.remove_child(child)
+			child.queue_free()
+	_build_city()
+
+
+func _build_city() -> void:
+	_batch = SceneryBatch.new()
+	_build_base_ground()
+	_build_links()
+	for district: Dictionary in Jobs.districts():
+		_build_district(district)
+	_batch.commit(_scenery)
+	_batch = null
+	_apply_camera_limits()
 	refresh_markers()
+
+
+func _build_district(district: Dictionary) -> void:
+	_origin = district["origin"]
+	_locked = not Game.is_district_unlocked(str(district["id"]))
+
+	_build_ground()
+	_build_roads()
+	if str(district["id"]) == str(Jobs.DISTRICTS[0]["id"]):
+		_build_shops()
+	else:
+		_build_plaza(district)
+	_build_houses(district)
+	_build_greenery()
+	if _locked:
+		_build_hoarding(district)
+
+	_origin = Vector2.ZERO
+	_locked = false
 
 
 func _process(delta: float) -> void:
@@ -92,9 +148,33 @@ func _process(delta: float) -> void:
 		marker.position.y = marker.get_meta("base_y") + sin(t * 2.0 + marker.get_meta("phase")) * 0.28
 		marker.rotate_y(delta * 0.9)
 
-	var show_signs: bool = rig != null and rig.distance < SHOP_LABEL_DISTANCE
+	if rig == null:
+		return
 	for label in _shop_labels:
-		label.visible = show_signs
+		label.visible = rig.distance < SHOP_LABEL_DISTANCE
+	for label in _house_labels:
+		label.visible = rig.distance < HOUSE_LABEL_DISTANCE
+
+
+# ------------------------------------------------------- quarter-local helpers
+
+## A point in the quarter being built, in world space.
+func _at(local: Vector3) -> Vector3:
+	return local + Vector3(_origin.x, 0, _origin.y)
+
+
+## A transform in the quarter being built, in world space.
+func _frame(local: Transform3D) -> Transform3D:
+	return local.translated(Vector3(_origin.x, 0, _origin.y))
+
+
+## Colour drained towards grey while the quarter is still behind its hoarding.
+func _tone(color: Color) -> Color:
+	if not _locked:
+		return color
+	var muted := color.lerp(LOCKED_TONE, LOCKED_MIX)
+	muted.a = color.a
+	return muted
 
 
 # --------------------------------------------------------------- appearance
@@ -117,7 +197,7 @@ func _build_environment() -> void:
 	env.tonemap_white = 1.8
 	env.fog_enabled = true
 	env.fog_light_color = Color(0.66, 0.74, 0.84)
-	env.fog_density = 0.0008
+	env.fog_density = 0.00035
 	world.environment = env
 	add_child(world)
 
@@ -144,30 +224,69 @@ func _build_environment() -> void:
 
 # ------------------------------------------------------------------- ground
 
+## One slab under the whole grid, so the strips between quarters are not sky.
+func _build_base_ground() -> void:
+	var bounds := _city_bounds()
+	var span: Vector2 = bounds[1] - bounds[0] + Vector2(QUARTER_HALF, QUARTER_HALF) * 2.0
+	var centre: Vector2 = (bounds[0] + bounds[1]) * 0.5
+	_batch.box(GROUND.darkened(0.18), Vector3(span.x, 1.0, span.y), Vector3(centre.x, -0.5, centre.y))
+
+
 func _build_ground() -> void:
-	_batch.box(GROUND, Vector3(CITY_HALF * 2.0, 1.0, CITY_HALF * 2.0), Vector3(0, -0.5, 0))
+	_batch.box(_tone(GROUND), Vector3(QUARTER_HALF * 2.0, 1.0, QUARTER_HALF * 2.0), _at(Vector3(0, -0.48, 0)))
+
+
+## The roads that run between quarters, so the grid reads as one city. Drawn
+## in the shared palette: a road does not care who owns the land it reaches.
+func _build_links() -> void:
+	var gap := Jobs.SPACING - QUARTER_HALF * 2.0
+	var seen: Dictionary = {}
+	for district: Dictionary in Jobs.districts():
+		var origin: Vector2 = district["origin"]
+		for other: Dictionary in Jobs.districts():
+			var to: Vector2 = other["origin"]
+			var key := "%s>%s" % [district["id"], other["id"]]
+			var back := "%s>%s" % [other["id"], district["id"]]
+			if seen.has(key) or seen.has(back):
+				continue
+			var delta := to - origin
+			if absf(delta.x) > 0.5 and absf(delta.y) > 0.5:
+				continue
+			if delta.length() > Jobs.SPACING + 0.5 or delta.length() < 0.5:
+				continue
+			seen[key] = true
+			var middle := (origin + to) * 0.5
+			if absf(delta.x) > 0.5:
+				# Side by side: the cross streets carry on across the gap.
+				for z in [-CROSS_Z, CROSS_Z]:
+					_batch.box(PAVEMENT, Vector3(gap, 0.12, (CROSS_HALF + 1.6) * 2.0), Vector3(middle.x, 0.03, origin.y + z))
+					_batch.box(ROAD, Vector3(gap, 0.14, CROSS_HALF * 2.0), Vector3(middle.x, 0.05, origin.y + z))
+			else:
+				# One above the other: the avenue carries on.
+				_batch.box(PAVEMENT, Vector3((AVENUE_HALF + 1.6) * 2.0, 0.12, gap), Vector3(origin.x, 0.03, middle.y))
+				_batch.box(ROAD, Vector3(AVENUE_HALF * 2.0, 0.14, gap), Vector3(origin.x, 0.05, middle.y))
 
 
 func _build_roads() -> void:
 	# Pavements sit a touch proud of the asphalt.
-	_batch.box(PAVEMENT, Vector3((AVENUE_HALF + 1.6) * 2.0, 0.12, CITY_HALF * 2.0), Vector3(0, 0.03, 0))
-	_batch.box(ROAD, Vector3(AVENUE_HALF * 2.0, 0.14, CITY_HALF * 2.0), Vector3(0, 0.05, 0))
+	_batch.box(PAVEMENT, Vector3((AVENUE_HALF + 1.6) * 2.0, 0.12, QUARTER_HALF * 2.0), _at(Vector3(0, 0.03, 0)))
+	_batch.box(ROAD, Vector3(AVENUE_HALF * 2.0, 0.14, QUARTER_HALF * 2.0), _at(Vector3(0, 0.05, 0)))
 
 	for z in [-CROSS_Z, CROSS_Z]:
-		_batch.box(PAVEMENT, Vector3(CITY_HALF * 2.0, 0.12, (CROSS_HALF + 1.6) * 2.0), Vector3(0, 0.03, z))
-		_batch.box(ROAD, Vector3(CITY_HALF * 2.0, 0.14, CROSS_HALF * 2.0), Vector3(0, 0.05, z))
+		_batch.box(PAVEMENT, Vector3(QUARTER_HALF * 2.0, 0.12, (CROSS_HALF + 1.6) * 2.0), _at(Vector3(0, 0.03, z)))
+		_batch.box(ROAD, Vector3(QUARTER_HALF * 2.0, 0.14, CROSS_HALF * 2.0), _at(Vector3(0, 0.05, z)))
 
 	# Centre lines, skipping the junctions.
-	var z := -CITY_HALF + 2.0
-	while z < CITY_HALF:
+	var z := -QUARTER_HALF + 2.0
+	while z < QUARTER_HALF:
 		if absf(z - CROSS_Z) > CROSS_HALF + 1.0 and absf(z + CROSS_Z) > CROSS_HALF + 1.0:
-			_batch.box(LINE, Vector3(0.28, 0.02, 2.2), Vector3(0, 0.13, z))
+			_batch.box(LINE, Vector3(0.28, 0.02, 2.2), _at(Vector3(0, 0.13, z)))
 		z += 5.0
 	for cross_z in [-CROSS_Z, CROSS_Z]:
-		var x := -CITY_HALF + 2.0
-		while x < CITY_HALF:
+		var x := -QUARTER_HALF + 2.0
+		while x < QUARTER_HALF:
 			if absf(x) > AVENUE_HALF + 1.0:
-				_batch.box(LINE, Vector3(2.2, 0.02, 0.28), Vector3(x, 0.13, cross_z))
+				_batch.box(LINE, Vector3(2.2, 0.02, 0.28), _at(Vector3(x, 0.13, cross_z)))
 			x += 5.0
 
 
@@ -189,7 +308,7 @@ func _build_shops() -> void:
 func _build_shop(shop: Dictionary, slot: Vector2, stagger: float) -> void:
 	# Shopfronts face the avenue.
 	var yaw: float = deg_to_rad(90.0 if slot.x < 0.0 else -90.0)
-	var world := Transform3D(Basis(Vector3.UP, yaw), Vector3(slot.x, 0, slot.y))
+	var world := _frame(Transform3D(Basis(Vector3.UP, yaw), Vector3(slot.x, 0, slot.y)))
 
 	var accent: Color = shop["color"]
 	var wall := Color(0.88, 0.87, 0.85)
@@ -251,35 +370,68 @@ func _build_shop(shop: Dictionary, slot: Vector2, stagger: float) -> void:
 	holder.add_child(body)
 
 
+# -------------------------------------------------------------------- plaza
+
+## The quarters away from the shops get a square in the middle instead: paving,
+## a fountain and some benches, so the centre is not a bald patch of grass.
+func _build_plaza(district: Dictionary) -> void:
+	var paving := _tone(Color(0.62, 0.61, 0.58))
+	var stone := _tone(Color(0.72, 0.71, 0.68))
+	var water := _tone(Color(0.34, 0.58, 0.72, 0.80))
+	var accent: Color = _tone(district["accent"])
+
+	for sx in [-1.0, 1.0]:
+		var cx: float = sx * 11.0
+		_batch.box(paving, Vector3(11.0, 0.12, 30.0), _at(Vector3(cx, 0.06, 0)))
+		# A ring of paving bands, so the square is not one flat rectangle.
+		for z in [-10.0, 0.0, 10.0]:
+			_batch.box(stone, Vector3(9.0, 0.14, 1.2), _at(Vector3(cx, 0.08, z)))
+
+		# Fountain.
+		_batch.cylinder(stone, 2.4, 0.7, _at(Vector3(cx, 0.35, 0)), SceneryBatch.Layer.OPAQUE, 16)
+		_batch.cylinder(water, 2.1, 0.16, _at(Vector3(cx, 0.72, 0)), SceneryBatch.Layer.GLASS, 16)
+		_batch.cylinder(stone, 0.35, 1.6, _at(Vector3(cx, 1.4, 0)), SceneryBatch.Layer.OPAQUE, 10)
+		_batch.sphere(accent, 0.55, _at(Vector3(cx, 2.4, 0)))
+
+		# Benches facing the fountain, and a lamp between them.
+		for sz in [-1.0, 1.0]:
+			var bz: float = sz * 5.0
+			_batch.box(_tone(Color(0.48, 0.36, 0.24)), Vector3(3.0, 0.16, 0.6), _at(Vector3(cx, 0.55, bz)))
+			for bx in [-1.2, 1.2]:
+				_batch.box(_tone(Color(0.30, 0.32, 0.36)), Vector3(0.14, 0.46, 0.5), _at(Vector3(cx + bx, 0.3, bz)))
+		_batch.cylinder(_tone(Color(0.24, 0.26, 0.30)), 0.10, 4.0, _at(Vector3(cx, 2.0, 12.0)), SceneryBatch.Layer.SHINY, 8)
+		_batch.sphere(_tone(Color(0.98, 0.92, 0.70)), 0.35, _at(Vector3(cx, 4.1, 12.0)))
+
+
 # ------------------------------------------------------------------- houses
 
-func _build_houses() -> void:
-	var houses := Jobs.all()
+func _build_houses(district: Dictionary) -> void:
+	var houses := Jobs.houses_in(str(district["id"]))
 	for i in houses.size():
 		# Neighbours get their name plates at different heights so the labels
 		# do not stack on top of each other from map height.
-		_build_house(houses[i], 0.0 if i % 2 == 0 else 2.6)
+		_build_house(houses[i], 0.0 if i % 2 == 0 else 2.6, district)
 
 
-func _build_house(job: Dictionary, stagger: float) -> void:
+func _build_house(job: Dictionary, stagger: float, district: Dictionary) -> void:
 	var map: Dictionary = job["map"]
 	var style: Dictionary = job["style"]
 	var size: Vector3 = style["size"]
-	var world := Transform3D(
+	var world := _frame(Transform3D(
 		Basis(Vector3.UP, deg_to_rad(float(map.get("rot", 0.0)))),
 		Vector3(map["pos"].x, 0, map["pos"].y)
-	)
+	))
 
-	var body_color: Color = style["body"]
-	var roof_color: Color = style["roof"]
-	var trim := Color(0.95, 0.95, 0.93)
-	var glass := Color(0.52, 0.70, 0.82, 0.75)
+	var body_color: Color = _tone(style["body"])
+	var roof_color: Color = _tone(style["roof"])
+	var trim := _tone(Color(0.95, 0.95, 0.93))
+	var glass := _tone(Color(0.52, 0.70, 0.82, 0.75))
 	var door_color: Color = roof_color.darkened(0.25)
 	var b := world.basis
 
 	# Plot and path.
-	_batch.box(LAWN, Vector3(size.x + 3.6, 0.10, size.z + 4.0), world * Vector3(0, 0.02, 0), SceneryBatch.Layer.OPAQUE, b)
-	_batch.box(PAVEMENT, Vector3(1.4, 0.06, (size.z + 4.0) * 0.5), world * Vector3(0, 0.08, size.z * 0.5 + 1.0), SceneryBatch.Layer.OPAQUE, b)
+	_batch.box(_tone(LAWN), Vector3(size.x + 3.6, 0.10, size.z + 4.0), world * Vector3(0, 0.02, 0), SceneryBatch.Layer.OPAQUE, b)
+	_batch.box(_tone(PAVEMENT), Vector3(1.4, 0.06, (size.z + 4.0) * 0.5), world * Vector3(0, 0.08, size.z * 0.5 + 1.0), SceneryBatch.Layer.OPAQUE, b)
 
 	# Walls, floor band and roof.
 	_batch.box(body_color, size, world * Vector3(0, size.y * 0.5 + 0.1, 0), SceneryBatch.Layer.OPAQUE, b)
@@ -290,45 +442,55 @@ func _build_house(job: Dictionary, stagger: float) -> void:
 	# Front door and windows.
 	var front := size.z * 0.5 + 0.06
 	_batch.box(door_color, Vector3(1.1, 2.1, 0.12), world * Vector3(0, 1.15, front), SceneryBatch.Layer.OPAQUE, b)
-	_batch.cylinder(Color(0.85, 0.72, 0.35), 0.06, 0.1, world * Vector3(0.38, 1.15, front + 0.08), SceneryBatch.Layer.SHINY, 8, b)
+	_batch.cylinder(_tone(Color(0.85, 0.72, 0.35)), 0.06, 0.1, world * Vector3(0.38, 1.15, front + 0.08), SceneryBatch.Layer.SHINY, 8, b)
 	for sx in [-1.0, 1.0]:
 		var wx: float = sx * size.x * 0.28
 		_batch.box(trim, Vector3(1.5, 1.4, 0.06), world * Vector3(wx, 1.9, front - 0.02), SceneryBatch.Layer.OPAQUE, b)
 		_batch.box(glass, Vector3(1.3, 1.2, 0.10), world * Vector3(wx, 1.9, front), SceneryBatch.Layer.GLASS, b)
-	if size.y > 4.0:
+	# Taller houses carry their windows up the storeys.
+	var storey := 4.2
+	while storey < size.y - 0.6:
 		for sx in [-1.0, 1.0]:
-			_batch.box(glass, Vector3(1.2, 1.1, 0.10), world * Vector3(sx * size.x * 0.28, 4.2, front), SceneryBatch.Layer.GLASS, b)
+			_batch.box(glass, Vector3(1.2, 1.1, 0.10), world * Vector3(sx * size.x * 0.28, storey, front), SceneryBatch.Layer.GLASS, b)
+		storey += 2.6
 
 	# A hedge and a bin, so no two plots look identical.
 	var hedge_side: float = -1.0 if int(str(job["id"]).hash()) % 2 == 0 else 1.0
-	_batch.box(Color(0.26, 0.46, 0.26), Vector3(0.6, 0.9, size.z + 2.0), world * Vector3(hedge_side * (size.x * 0.5 + 1.4), 0.5, 0), SceneryBatch.Layer.OPAQUE, b)
-	_batch.cylinder(Color(0.30, 0.34, 0.38), 0.34, 0.9, world * Vector3(-hedge_side * (size.x * 0.5 + 1.0), 0.5, size.z * 0.4), SceneryBatch.Layer.OPAQUE, 10, b)
+	_batch.box(_tone(Color(0.26, 0.46, 0.26)), Vector3(0.6, 0.9, size.z + 2.0), world * Vector3(hedge_side * (size.x * 0.5 + 1.4), 0.5, 0), SceneryBatch.Layer.OPAQUE, b)
+	_batch.cylinder(_tone(Color(0.30, 0.34, 0.38)), 0.34, 0.9, world * Vector3(-hedge_side * (size.x * 0.5 + 1.0), 0.5, size.z * 0.4), SceneryBatch.Layer.OPAQUE, 10, b)
 
 	var holder := Node3D.new()
 	holder.name = "House_%s" % job["id"]
 	holder.transform = world
 	_pickables.add_child(holder)
 
-	var plate := Label3D.new()
-	plate.text = str(job.get("short", job["name"]))
-	plate.font_size = 64
-	plate.pixel_size = 0.00058
-	plate.fixed_size = true
-	plate.position = Vector3(0, size.y + 1.2 + stagger, size.z * 0.5 + 2.4)
-	plate.modulate = Color(0.97, 0.98, 1.0)
-	plate.outline_size = 24
-	plate.outline_modulate = Color(0.05, 0.06, 0.09, 0.95)
-	plate.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	plate.no_depth_test = true
-	plate.render_priority = 2
-	holder.add_child(plate)
+	# A house behind a hoarding is a building, not a job: no name plate, no pin,
+	# and tapping it asks about the quarter rather than the room.
+	if not _locked:
+		var plate := Label3D.new()
+		plate.text = str(job.get("short", job["name"]))
+		plate.font_size = 64
+		plate.pixel_size = 0.00058
+		plate.fixed_size = true
+		plate.position = Vector3(0, size.y + 1.2 + stagger, size.z * 0.5 + 2.4)
+		plate.modulate = Color(0.97, 0.98, 1.0)
+		plate.outline_size = 24
+		plate.outline_modulate = Color(0.05, 0.06, 0.09, 0.95)
+		plate.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		plate.no_depth_test = true
+		plate.render_priority = 2
+		holder.add_child(plate)
+		_house_labels.append(plate)
 
-	_build_marker(holder, job, size)
+		_build_marker(holder, job, size)
 
 	var pick := StaticBody3D.new()
 	pick.collision_layer = PICK_LAYER
 	pick.collision_mask = 0
-	pick.set_meta("house_id", job["id"])
+	if _locked:
+		pick.set_meta("district_id", district["id"])
+	else:
+		pick.set_meta("house_id", job["id"])
 	var shape := CollisionShape3D.new()
 	var box := BoxShape3D.new()
 	box.size = Vector3(size.x + 3.0, size.y + 4.0, size.z + 3.4)
@@ -401,17 +563,87 @@ func refresh_markers() -> void:
 		material.emission = color
 
 
+# ----------------------------------------------------------------- hoarding
+
+## What a quarter you do not own yet looks like: a builder's hoarding round the
+## edge, and a sign in the middle with the asking price on it.
+func _build_hoarding(district: Dictionary) -> void:
+	var accent: Color = district["accent"]
+	var board := Color(0.86, 0.72, 0.28)
+	var post := Color(0.32, 0.30, 0.28)
+	var edge := QUARTER_HALF - 1.0
+	var height := 2.2
+
+	for side in [Vector2(0, -1), Vector2(0, 1), Vector2(-1, 0), Vector2(1, 0)]:
+		var along := Vector2(side.y, side.x)
+		var half_road: float = AVENUE_HALF + 2.0 if absf(side.y) > 0.5 else CROSS_HALF + 2.0
+		# Two runs per side, leaving the road through the middle open.
+		for sign_x in [-1.0, 1.0]:
+			var run: float = (QUARTER_HALF - half_road)
+			var centre: Vector2 = side * edge + along * sign_x * (half_road + run * 0.5)
+			var size := Vector3(
+				absf(along.x) * run + absf(side.x) * 0.4,
+				height,
+				absf(along.y) * run + absf(side.y) * 0.4)
+			_batch.box(board, size, _at(Vector3(centre.x, height * 0.5, centre.y)))
+			_batch.box(accent, Vector3(size.x, 0.3, size.z) + Vector3(0.1, 0, 0.1), _at(Vector3(centre.x, height - 0.15, centre.y)))
+			# Posts along the run.
+			var steps := int(run / 6.0) + 1
+			for i in steps + 1:
+				var t: float = float(i) / float(steps)
+				var at: Vector2 = centre + along * sign_x * (t - 0.5) * run
+				_batch.box(post, Vector3(0.34, height + 0.3, 0.34), _at(Vector3(at.x, (height + 0.3) * 0.5, at.y)))
+
+	# The sign in the middle of the quarter, and a plinth to pick.
+	var holder := Node3D.new()
+	holder.name = "District_%s" % district["id"]
+	holder.position = _at(Vector3.ZERO)
+	_pickables.add_child(holder)
+
+	_batch.box(post, Vector3(1.0, 12.0, 1.0), _at(Vector3(0, 6.0, 0)))
+	_batch.box(board, Vector3(8.0, 3.4, 0.5), _at(Vector3(0, 13.4, 0)))
+	_batch.box(accent, Vector3(8.4, 0.5, 0.7), _at(Vector3(0, 15.35, 0)))
+
+	var sign := Label3D.new()
+	sign.text = "%s\n%s · level %d" % [
+		district["name"], UIKit.money(int(district["cost"])), int(district["level"])]
+	sign.font_size = 60
+	sign.pixel_size = 0.00060
+	sign.fixed_size = true
+	sign.position = Vector3(0, 17.6, 0)
+	sign.modulate = Color(1.0, 0.92, 0.68)
+	sign.outline_size = 26
+	sign.outline_modulate = Color(0.05, 0.06, 0.09, 0.95)
+	sign.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	sign.no_depth_test = true
+	sign.render_priority = 3
+	sign.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	holder.add_child(sign)
+
+	var pick := StaticBody3D.new()
+	pick.collision_layer = PICK_LAYER
+	pick.collision_mask = 0
+	pick.set_meta("district_id", district["id"])
+	var shape := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = Vector3(9.0, 17.0, 3.0)
+	shape.shape = box
+	shape.position = Vector3(0, 8.5, 0)
+	pick.add_child(shape)
+	holder.add_child(pick)
+
+
 # ---------------------------------------------------------------- greenery
 
 func _build_greenery() -> void:
-	var trunk := Color(0.36, 0.27, 0.19)
+	var trunk := _tone(Color(0.36, 0.27, 0.19))
 	var leaves := [
-		Color(0.26, 0.48, 0.26),
-		Color(0.32, 0.55, 0.30),
-		Color(0.22, 0.42, 0.24),
+		_tone(Color(0.26, 0.48, 0.26)),
+		_tone(Color(0.32, 0.55, 0.30)),
+		_tone(Color(0.22, 0.42, 0.24)),
 	]
-	var post := Color(0.24, 0.26, 0.30)
-	var glow := Color(0.98, 0.92, 0.70)
+	var post := _tone(Color(0.24, 0.26, 0.30))
+	var glow := _tone(Color(0.98, 0.92, 0.70))
 
 	# Street trees down the avenue and the two cross streets.
 	var spots: Array[Vector2] = []
@@ -428,37 +660,60 @@ func _build_greenery() -> void:
 	for i in spots.size():
 		var spot := spots[i]
 		var scale_factor: float = 0.82 + float(i % 5) * 0.09
-		_batch.cylinder(trunk, 0.22 * scale_factor, 2.2 * scale_factor, Vector3(spot.x, 1.1 * scale_factor, spot.y), SceneryBatch.Layer.OPAQUE, 8)
+		_batch.cylinder(trunk, 0.22 * scale_factor, 2.2 * scale_factor, _at(Vector3(spot.x, 1.1 * scale_factor, spot.y)), SceneryBatch.Layer.OPAQUE, 8)
 		var canopy: Color = leaves[i % leaves.size()]
-		_batch.sphere(canopy, 1.35 * scale_factor, Vector3(spot.x, 3.1 * scale_factor, spot.y))
-		_batch.sphere(canopy, 0.95 * scale_factor, Vector3(spot.x + 0.7, 2.5 * scale_factor, spot.y - 0.4))
-		_batch.sphere(canopy, 0.85 * scale_factor, Vector3(spot.x - 0.6, 2.6 * scale_factor, spot.y + 0.5))
+		_batch.sphere(canopy, 1.35 * scale_factor, _at(Vector3(spot.x, 3.1 * scale_factor, spot.y)))
+		_batch.sphere(canopy, 0.95 * scale_factor, _at(Vector3(spot.x + 0.7, 2.5 * scale_factor, spot.y - 0.4)))
+		_batch.sphere(canopy, 0.85 * scale_factor, _at(Vector3(spot.x - 0.6, 2.6 * scale_factor, spot.y + 0.5)))
 
 	for z in [-22.0, -6.0, 6.0, 22.0]:
 		for sx in [-1.0, 1.0]:
 			var x: float = sx * (AVENUE_HALF + 1.0)
-			_batch.cylinder(post, 0.09, 4.4, Vector3(x, 2.2, z), SceneryBatch.Layer.SHINY, 8)
-			_batch.box(post, Vector3(0.9, 0.14, 0.3), Vector3(x - sx * 0.4, 4.45, z), SceneryBatch.Layer.SHINY)
-			_batch.box(glow, Vector3(0.5, 0.18, 0.26), Vector3(x - sx * 0.72, 4.32, z))
+			_batch.cylinder(post, 0.09, 4.4, _at(Vector3(x, 2.2, z)), SceneryBatch.Layer.SHINY, 8)
+			_batch.box(post, Vector3(0.9, 0.14, 0.3), _at(Vector3(x - sx * 0.4, 4.45, z)), SceneryBatch.Layer.SHINY)
+			_batch.box(glow, Vector3(0.5, 0.18, 0.26), _at(Vector3(x - sx * 0.72, 4.32, z)))
 
 	# A couple of parked cars to give the street some life.
 	var car_colors := [Color(0.78, 0.24, 0.22), Color(0.24, 0.36, 0.66), Color(0.90, 0.88, 0.84)]
 	var car_spots := [Vector2(-3.4, -22.0), Vector2(3.4, 8.0), Vector2(-3.4, 16.0)]
 	for i in car_spots.size():
-		_build_car(car_spots[i], car_colors[i], 0.0 if i % 2 == 0 else 180.0)
+		_build_car(car_spots[i], _tone(car_colors[i]), 0.0 if i % 2 == 0 else 180.0)
 
 
 func _build_car(spot: Vector2, color: Color, yaw: float) -> void:
-	var world := Transform3D(Basis(Vector3.UP, deg_to_rad(yaw)), Vector3(spot.x, 0, spot.y))
+	var world := _frame(Transform3D(Basis(Vector3.UP, deg_to_rad(yaw)), Vector3(spot.x, 0, spot.y)))
 	var b := world.basis
-	var window := Color(0.28, 0.34, 0.40, 0.85)
-	var tyre := Color(0.11, 0.11, 0.13)
+	var window := _tone(Color(0.28, 0.34, 0.40, 0.85))
+	var tyre := _tone(Color(0.11, 0.11, 0.13))
 	_batch.box(color, Vector3(1.8, 0.65, 4.0), world * Vector3(0, 0.62, 0), SceneryBatch.Layer.SHINY, b)
 	_batch.box(window, Vector3(1.62, 0.62, 2.0), world * Vector3(0, 1.22, -0.2), SceneryBatch.Layer.GLASS, b)
 	var wheel_basis := b * Basis(Vector3.FORWARD, deg_to_rad(90))
 	for sx in [-1.0, 1.0]:
 		for sz in [-1.0, 1.0]:
 			_batch.cylinder(tyre, 0.34, 0.24, world * Vector3(sx * 0.85, 0.34, sz * 1.35), SceneryBatch.Layer.OPAQUE, 10, wheel_basis)
+
+
+# -------------------------------------------------------------------- camera
+
+## The rectangle covering every quarter's centre, as [min, max].
+func _city_bounds() -> Array[Vector2]:
+	var low := Vector2(INF, INF)
+	var high := Vector2(-INF, -INF)
+	for district: Dictionary in Jobs.districts():
+		var origin: Vector2 = district["origin"]
+		low = Vector2(minf(low.x, origin.x), minf(low.y, origin.y))
+		high = Vector2(maxf(high.x, origin.x), maxf(high.y, origin.y))
+	return [low, high]
+
+
+## The camera roams the whole grid whether or not the player owns it: a quarter
+## you cannot afford is meant to be something you can go and look at. Buying one
+## changes what you can work on, not where you can point the camera.
+func _apply_camera_limits() -> void:
+	var bounds := _city_bounds()
+	rig.pan_center = (bounds[0] + bounds[1]) * 0.5
+	rig.pan_limit = (bounds[1] - bounds[0]) * 0.5 + Vector2(34, 34)
+	rig.max_distance = clampf(maxf(rig.pan_limit.x, rig.pan_limit.y) * 2.8, 95.0, 320.0)
 
 
 # -------------------------------------------------------------------- input
@@ -532,7 +787,7 @@ func _pick_at(position: Vector2) -> void:
 	if camera == null:
 		return
 	var from := camera.project_ray_origin(position)
-	var to := from + camera.project_ray_normal(position) * 400.0
+	var to := from + camera.project_ray_normal(position) * 600.0
 	var query := PhysicsRayQueryParameters3D.create(from, to)
 	query.collision_mask = PICK_LAYER
 	var result := get_world_3d().direct_space_state.intersect_ray(query)
@@ -544,6 +799,8 @@ func _pick_at(position: Vector2) -> void:
 		house_picked.emit(str(collider.get_meta("house_id")))
 	elif collider.has_meta("shop_id"):
 		shop_picked.emit(str(collider.get_meta("shop_id")))
+	elif collider.has_meta("district_id"):
+		district_picked.emit(str(collider.get_meta("district_id")))
 	else:
 		nothing_picked.emit()
 
@@ -553,6 +810,16 @@ func focus_on(house_id: String) -> void:
 	var job := Jobs.get_job(house_id)
 	if job.is_empty():
 		return
-	var spot: Vector2 = job["map"]["pos"]
+	var spot := Jobs.world_position(house_id)
 	rig.focus = Vector3(spot.x, 0, spot.y)
 	rig.distance = clampf(rig.distance, 22.0, 40.0)
+
+
+## Pulls the camera back over a whole quarter, for the district list.
+func focus_district(district_id: String) -> void:
+	var district := Jobs.get_district(district_id)
+	if district.is_empty():
+		return
+	var origin: Vector2 = district["origin"]
+	rig.focus = Vector3(origin.x, 0, origin.y)
+	rig.distance = clampf(rig.distance, 58.0, rig.max_distance)

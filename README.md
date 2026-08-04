@@ -2,13 +2,14 @@
 
 An Android interior-design game built with [Godot](https://godotengine.org) 4.5.
 
-You start with $3,000 and a city full of clients. Pick a house off the map, read what the
+You start with $3,000 and one quarter of a city. Pick a house off the map, read what the
 owner wants, go and buy the furniture into your own stock, then fit the room out from that
 stock until every line of the brief is ticked and hand it over for the fee. Finished jobs
 pay experience, and levelling up opens the pricier shops, the better paints and the larger
-houses. It is House Flipper's loop, shrunk to a phone screen.
+houses. Then you buy the next quarter of the city, and the one after that. It is House
+Flipper's loop, shrunk to a phone screen.
 
-![The city map with clients and shops](docs/screenshot-city.png)
+![The whole city: one quarter yours, three still behind hoardings](docs/screenshot-city.png)
 
 | Reading a brief | Buying at a shop |
 |---|---|
@@ -34,8 +35,33 @@ your device. Android asks you to allow installs from an unknown source the first
 
 ### The city
 
-Ten houses sit along two residential streets, with nine shops down the avenue between
-them. A floating pin over each house tells you where it stands:
+The map is four quarters laid out on a grid, joined by the roads between them.
+
+| Quarter | Costs | Opens at | Houses | Fees |
+|---|---|---|---|---|
+| Maple Quarter | — | level 1 | 10 | $1,300 – $10,500 |
+| Riverside Wharf | $10,000 | level 4 | 4 | $4,700 – $7,200 |
+| Hillside Terrace | $22,000 | level 5 | 4 | $5,800 – $9,700 |
+| Skyline Heights | $34,000 | level 6 | 4 | $9,100 – $18,500 |
+
+Maple Quarter comes with the business — ten houses along two residential streets, with the
+nine shops down the avenue between them. The other three sit behind builders' hoardings in
+a drained-out grey, with the asking price on a sign in the middle. You can fly the camera
+over them from the first minute; you just cannot work there until you have bought the deeds.
+
+| The hoarding round a quarter you have not bought | What it is asking for |
+|---|---|
+| ![A locked quarter behind a yellow hoarding with a price sign](docs/screenshot-hoarding.png) | ![The quarter's sheet: houses, levels, fees and price](docs/screenshot-district.png) |
+
+Buying is outright and permanent, and it costs the price **plus** enough working money to
+shop for the cheapest brief inside — otherwise you could sign the cheque and be left unable
+to afford a single sofa. The sheet spells out all three figures before you commit.
+
+The briefs get longer as you go: ten lines instead of four, six shops represented instead of
+three, thirty pieces in a room instead of five. The last house in Skyline Heights wants
+something from every shop in the city.
+
+A floating pin over each house in a quarter you own tells you where it stands:
 
 | Pin | Meaning |
 |---|---|
@@ -116,14 +142,17 @@ room hide themselves as you orbit, and a piece that overlaps another glows red.
 
 ### Progress
 
-Experience carries you from level 1 to level 8. Jobs run from a $1,300 studio to a
-$10,500 townhouse, and a run that buys only what each brief asks for finishes all ten with
-around $28,000 in the bank. Everything — money, level, stock, paints, finished jobs and the
-rooms you left half-done — is saved to the device as you go.
+Experience carries you from level 1 to level 8. Jobs run from a $1,300 studio to an $18,500
+penthouse. A run that buys only what each brief asks for clears Maple Quarter with around
+$28,000 — enough to buy Riverside outright — and owns the whole city, all 22 houses handed
+over, with about $44,000 left. Everything — money, level, stock, paints, the quarters you
+have bought, finished jobs and the rooms you left half-done — is saved to the device as you
+go.
 
 The map does not run out. Open a house you have already handed over and the owner has a
-fresh room in mind — a kitchen, a study, a bathroom — generated to suit the level you have
-reached, with its own client, brief, budget and fee.
+fresh room in mind — a kitchen, a study, a media room — generated to suit the level you have
+reached, with its own client, brief, budget and fee. That is how you save up for the last
+quarter when the handcrafted work runs dry.
 
 **Free Build** on the map opens the old sandbox: no client, no stock to worry about,
 everything unlocked, with its own save and load.
@@ -169,17 +198,19 @@ scripts/
   game.gd                Swaps between the city and the designer
   data/
     catalog.gd           Autoload. Every model, price, shop and unlock level
-    jobs.gd              Autoload. The ten houses, the requirement evaluator,
-                         the shopping list a brief needs, and the generator
-                         for repeat contracts
-    game_state.gd        Autoload. Money, XP, levels, the warehouse and the
-                         saved profile
+    jobs.gd              Autoload. The four quarters and the 22 houses in them,
+                         the requirement evaluator, the shopping list a brief
+                         needs, and the generator for repeat contracts
+    game_state.gd        Autoload. Money, XP, levels, the warehouse, the
+                         quarters bought and the saved profile
     room_review.gd       The five things a client notices, scored out of three
     layout_store.gd      Free-build save files under user://
   city/
-    city_view.gd         The procedural neighbourhood, its pins and pick volumes
+    city_view.gd         The four procedural quarters, their pins, hoardings
+                         and pick volumes
     scenery_batch.gd     Welds the whole city into three draw calls
-    city_ui.gd           Wallet, XP bar, briefing sheet, shop counters, stock
+    city_ui.gd           Wallet, XP bar, briefing sheet, shop counters, stock,
+                         and the quarter you are thinking about buying
   design/
     designer.gd          The room: gestures, stock, wall snap, stacking,
                          overlap tests, hand-over
@@ -232,6 +263,7 @@ stands, so a new contract is a few lines:
 ```gdscript
 {
     "id": "cedar_bathroom", "name": "Cedar Guest Bathroom", "client": "Zeynep",
+    "district": "maple",
     "level": 2, "budget": 1550, "payout": 2150, "xp": 160,
     "room": {"w": 3.5, "d": 3.0, "h": 2.5},
     "requirements": [
@@ -245,6 +277,22 @@ stands, so a new contract is a few lines:
 Supported requirement kinds: `item`, `category`, `total`, `categories` (distinct shops),
 `floor_color`, `wall_color` and `no_overlap`.
 
+A quarter is a dictionary as well — a name, where it sits on the grid, what it costs and
+the level it opens at. Every house puts its `map.pos` relative to its quarter's `origin`,
+so a new quarter is one entry plus however many houses you want to drop into it:
+
+```gdscript
+{
+    "id": "riverside", "name": "Riverside Wharf",
+    "origin": Vector2(SPACING, 0), "cost": 10000, "level": 4,
+    "accent": Color(0.36, 0.62, 0.82),
+    "tagline": "Old warehouses on the water, being turned into homes …",
+}
+```
+
+The city view builds each quarter from the same code, offset by its origin and drained
+towards grey while it is still locked, so adding one costs no new geometry.
+
 ## Checking it still works
 
 `tests/smoke_test.gd` is autoloaded but does nothing unless you ask for it:
@@ -253,13 +301,15 @@ Supported requirement kinds: `item`, `category`, `total`, `categories` (distinct
 godot --headless -- --smoke
 ```
 
-It resets the profile, plays all ten jobs — shopping for each brief out of the money it
-has actually earned, fitting the room from stock, handing it over — then checks that every
-catalogue entry is priced, stocked and physically sane, that wall snap lands flush and
-stacking finds the right height, that undo and redo keep the room and the warehouse in
-step, that a properly arranged room really does reach three stars, and that a generated
-repeat contract can be shopped for and finished. It exits non-zero on the first thing that
-does not hold.
+It resets the profile and plays the whole city: all 22 jobs, quarter by quarter, buying
+each quarter out of the money it has actually earned — taking repeat contracts at the
+houses it has already finished when it is short — shopping for each brief, fitting the room
+from stock and handing it over. Then it checks that every quarter is priced above the one
+before and starts locked, that every catalogue entry is priced, stocked and physically
+sane, that wall snap lands flush and stacking finds the right height, that undo and redo
+keep the room and the warehouse in step, that a properly arranged room really does reach
+three stars, and that a generated repeat contract can be shopped for and finished. It
+reports everything that does not hold and exits non-zero.
 
 ## Building it yourself
 

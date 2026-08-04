@@ -20,8 +20,11 @@ var pitch: float = -32.0
 var distance: float = 10.0
 var focus: Vector3 = Vector3.ZERO
 
-## Half-extent the focus point is allowed to wander from the room centre.
+## Half-extent the focus point is allowed to wander from `pan_center`. The city
+## moves the centre as the player buys more of the map; a room leaves it at the
+## origin, which is where the floor is built.
 var pan_limit: Vector2 = Vector2(6, 6)
+var pan_center: Vector2 = Vector2.ZERO
 
 var _yaw_current: float = -35.0
 var _pitch_current: float = -32.0
@@ -86,13 +89,14 @@ func pan(delta_pixels: Vector2) -> void:
 	var forward := Vector3(sin(yaw_rad), 0, cos(yaw_rad))
 	focus -= right * delta_pixels.x * scale_factor
 	focus -= forward * delta_pixels.y * scale_factor
-	focus.x = clampf(focus.x, -pan_limit.x, pan_limit.x)
-	focus.z = clampf(focus.z, -pan_limit.y, pan_limit.y)
+	focus.x = clampf(focus.x, pan_center.x - pan_limit.x, pan_center.x + pan_limit.x)
+	focus.z = clampf(focus.z, pan_center.y - pan_limit.y, pan_center.y + pan_limit.y)
 	focus.y = 0.0
 
 
 func frame_room(width: float, depth: float) -> void:
 	pan_limit = Vector2(width * 0.6, depth * 0.6)
+	pan_center = Vector2.ZERO
 	focus = Vector3.ZERO
 	distance = clampf(maxf(width, depth) * 1.35, min_distance, max_distance)
 

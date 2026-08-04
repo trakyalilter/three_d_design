@@ -7,6 +7,8 @@ signal start_job(house_id: String)
 signal free_build()
 signal career_reset()
 signal repeat_taken(house_id: String)
+signal district_bought(district_id: String)
+signal district_focused(district_id: String)
 
 var _root: Control
 var _blockers: Array[Control] = []
@@ -67,6 +69,8 @@ func _redraw_sheet() -> void:
 			show_shop(str(showing["id"]))
 		"stock":
 			show_warehouse()
+		"district":
+			show_district(str(showing["id"]))
 
 
 # ------------------------------------------------------------------- top bar
@@ -114,6 +118,10 @@ func _build_top_bar() -> void:
 	_stock_button = UIKit.make_button("Stock", "Everything you own and have not fitted yet")
 	_stock_button.pressed.connect(show_warehouse)
 	row.add_child(_stock_button)
+
+	var quarters := UIKit.make_button("City", "The quarters of the city, and what it costs to work in them")
+	quarters.pressed.connect(show_districts)
+	row.add_child(quarters)
 
 	var sandbox := UIKit.make_button("Free Build", "Design a room with no client and no stock to worry about")
 	sandbox.pressed.connect(func() -> void: free_build.emit())
@@ -260,6 +268,11 @@ func _divider() -> void:
 func show_house(house_id: String) -> void:
 	var job := Jobs.get_job(house_id)
 	if job.is_empty():
+		return
+	# A house in a quarter you have not bought is somebody else's problem.
+	var district_id := Jobs.district_of(house_id)
+	if not Game.is_district_unlocked(district_id):
+		show_district(district_id)
 		return
 
 	var done: bool = Game.is_job_done(house_id)
@@ -422,6 +435,130 @@ func _buy_basket(house_id: String, missing: Dictionary, paints: Array[Dictionary
 		Game.buy_paint(str(paint["surface"]), paint["entry"])
 	toast_message("%d piece%s added to your stock" % [bought, "" if bought == 1 else "s"])
 	show_house(house_id)
+
+
+# ------------------------------------------------------------ district sheet
+
+## The whole city at a glance: which quarters are yours, and what the rest cost.
+func show_districts() -> void:
+	_begin_sheet("The city", "Four quarters. You start with one and buy the rest out of what you earn.")
+	_current_sheet = {"kind": "districts"}
+
+	for district: Dictionary in Jobs.districts():
+		var district_id := str(district["id"])
+		var owned: bool = Game.is_district_unlocked(district_id)
+		var row := HBoxContainer.new()
+
+		var chip := ColorRect.new()
+		chip.color = district["accent"] if owned else Color(0.35, 0.36, 0.40)
+		chip.custom_minimum_size = Vector2(10, 40)
+		row.add_child(chip)
+
+		var name_label := UIKit.label(
+			str(district["name"]), 18, UIKit.TEXT if owned else UIKit.MUTED)
+		name_label.custom_minimum_size = Vector2(210, 0)
+		name_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		row.add_child(name_label)
+		row.add_child(UIKit.spacer())
+
+		if owned:
+			var done := 0
+			var houses := Jobs.houses_in(district_id)
+			for house: Dictionary in houses:
+				if Game.is_job_done(str(house["id"])):
+					done += 1
+			row.add_child(UIKit.label("%d / %d handed over" % [done, houses.size()], 17, UIKit.GOOD))
+		else:
+			row.add_child(UIKit.label(UIKit.money(int(district["cost"])), 17, UIKit.GOLD))
+
+		var open := UIKit.make_button("Open")
+		open.pressed.connect(func() -> void: show_district(district_id))
+		row.add_child(open)
+		_sheet_body.add_child(row)
+
+	_divider()
+	_sheet_body.add_child(UIKit.wrapped_label(
+		"A quarter is bought once and is then yours for good. Buying one puts a fresh set of clients on the map — bigger rooms, longer briefs and fees to match.",
+		440))
+
+	var close := UIKit.make_button("Close")
+	close.pressed.connect(close_sheet)
+	_sheet_actions.add_child(close)
+
+
+func show_district(district_id: String) -> void:
+	var district := Jobs.get_district(district_id)
+	if district.is_empty():
+		return
+	var owned: bool = Game.is_district_unlocked(district_id)
+	var cost := int(district["cost"])
+	var needed_level := int(district["level"])
+
+	_begin_sheet(str(district["name"]), str(district["tagline"]))
+	_current_sheet = {"kind": "district", "id": district_id}
+
+	var asking := Game.district_price(district_id)
+	if owned:
+		_sheet_body.add_child(UIKit.label("Yours", 18, UIKit.GOOD))
+	elif Game.level < needed_level:
+		_sheet_body.add_child(UIKit.label(
+			"Nobody here will hire you below level %d." % needed_level, 18, UIKit.BAD))
+	elif not Game.can_afford(asking):
+		_sheet_body.add_child(UIKit.label(
+			"Short by %s." % UIKit.money(asking - Game.money), 18, UIKit.BAD))
+	else:
+		_sheet_body.add_child(UIKit.label("On the market", 18, UIKit.ACCENT))
+	_divider()
+
+	var summary := Jobs.district_summary(district_id)
+	if not summary.is_empty():
+		_sheet_row("Houses", str(summary["houses"]))
+		_sheet_row("Levels", "%d – %d" % [summary["low_level"], summary["high_level"]])
+		_sheet_row("Fees", "%s – %s" % [
+			UIKit.money(int(summary["low_fee"])), UIKit.money(int(summary["high_fee"]))], UIKit.GOLD)
+	if not owned:
+		_sheet_row("Price", UIKit.money(cost), UIKit.GOLD)
+		_sheet_row("Kept back for furniture", UIKit.money(Jobs.district_float(district_id)))
+		_sheet_row("You need in hand", UIKit.money(asking),
+			UIKit.GOLD if Game.can_afford(asking) else UIKit.BAD)
+	_divider()
+
+	_sheet_body.add_child(UIKit.section_label("Who is waiting"))
+	for house: Dictionary in Jobs.houses_in(district_id):
+		var line := HBoxContainer.new()
+		line.add_child(UIKit.label(str(house["name"]), 17, UIKit.TEXT))
+		line.add_child(UIKit.spacer())
+		line.add_child(UIKit.label("level %d" % int(house["level"]), 17, UIKit.MUTED))
+		line.add_child(UIKit.label("   %s" % UIKit.money(int(house["payout"])), 17, UIKit.GOLD))
+		_sheet_body.add_child(line)
+
+	var back := UIKit.make_button("All quarters")
+	back.pressed.connect(show_districts)
+	_sheet_actions.add_child(back)
+
+	if owned:
+		var go := UIKit.make_primary_button("Show me")
+		go.pressed.connect(func() -> void:
+			close_sheet()
+			district_focused.emit(district_id))
+		_sheet_actions.add_child(go)
+		return
+
+	var buy := UIKit.make_primary_button("Buy the quarter  %s" % UIKit.money(cost))
+	buy.disabled = not Game.can_unlock_district(district_id)
+	buy.pressed.connect(func() -> void: _buy_district(district_id))
+	_sheet_actions.add_child(buy)
+
+
+func _buy_district(district_id: String) -> void:
+	var district := Jobs.get_district(district_id)
+	if not Game.unlock_district(district_id):
+		toast_message("Not enough money")
+		return
+	district_bought.emit(district_id)
+	show_district(district_id)
+	toast_message("%s is yours — %d new clients on the map" % [
+		district["name"], Jobs.houses_in(district_id).size()], 3.0)
 
 
 # ---------------------------------------------------------------- shop sheet
@@ -632,6 +769,7 @@ func _open_guide() -> void:
 		["Fit it out", "Inside a room you place pieces from stock — no money changes hands there. Put a piece back and it returns to the warehouse, ready for the next house."],
 		["Hand it over", "Once every line of the brief is ticked, hand the room over. The furniture you left behind stays with the client, and they mark the room out of three stars — for keeping the big pieces against the walls, holding to a palette, leaving room to move, and coming in on budget. Three stars pays thirty per cent on top of the fee."],
 		["Grow", "Every finished job pays experience. New levels open the pricier shops, the better paints and the larger, more demanding houses."],
+		["Buy the city", "Maple Quarter is only one corner of the map. The other three sit behind hoardings until you buy them outright — tap one to see the price and who is waiting. Each brings four more clients, with longer briefs and much bigger fees."],
 		["Keep going", "A house you have handed over will take you back: open it again and the owner has a fresh room in mind, scaled to the level you have reached."],
 	]
 	for section: Array in sections:

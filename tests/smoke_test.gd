@@ -19,16 +19,28 @@ func _ready() -> void:
 	await get_tree().process_frame
 	Game.reset()
 
+	print("=== districts ===")
+	_check_districts()
+
 	print("=== career ===")
-	for job: Dictionary in Jobs.all():
-		await _play(job)
-	print("--- career done: money %d, level %d, jobs %d/%d" % [
-		Game.money, Game.level, Game.jobs_done(), Jobs.all().size()])
+	for district: Dictionary in Jobs.districts():
+		if not await _acquire(district):
+			break
+		for job: Dictionary in Jobs.houses_in(str(district["id"])):
+			await _play(job)
+	print("--- career done: money %d, level %d, jobs %d, houses %d/%d" % [
+		Game.money, Game.level, Game.jobs_done(),
+		Jobs.unlocked().size(), Jobs.all().size()])
+	_expect(Jobs.unlocked().size() == Jobs.all().size(),
+		"the career run did not manage to buy the whole city")
 
 	print("=== catalogue ===")
 	_check_catalogue()
 
 	print("=== designer ===")
+	# The checks below are about how the designer behaves, not about what the
+	# career left in the bank, so they buy their props out of a fresh float.
+	Game.earn(20000)
 	await _check_placement_aids()
 	await _check_history()
 	await _check_three_stars()
@@ -46,6 +58,112 @@ func _ready() -> void:
 func _expect(condition: bool, message: String) -> void:
 	if not condition:
 		_failures.append(message)
+
+
+# ---------------------------------------------------------------- districts
+
+## A fresh career owns one quarter and can see the rest but not work in them.
+func _check_districts() -> void:
+	var districts := Jobs.districts()
+	_expect(districts.size() >= 2, "the city needs more than one quarter to sell")
+
+	var first := str(districts[0]["id"])
+	_expect(Game.is_district_unlocked(first), "the starting quarter should come free")
+	_expect(int(districts[0]["cost"]) == 0, "the starting quarter should cost nothing")
+
+	var cost := 0
+	for i in range(1, districts.size()):
+		var district: Dictionary = districts[i]
+		var district_id := str(district["id"])
+		_expect(not Game.is_district_unlocked(district_id),
+			"%s should start behind its hoarding" % district_id)
+		_expect(not Game.can_unlock_district(district_id),
+			"%s should not be affordable on day one" % district_id)
+		_expect(int(district["cost"]) > cost,
+			"%s costs no more than the quarter before it" % district_id)
+		cost = int(district["cost"])
+		_expect(not Jobs.houses_in(district_id).is_empty(),
+			"%s has no houses in it" % district_id)
+
+	_expect(Jobs.unlocked().size() == Jobs.houses_in(first).size(),
+		"a new career should only be able to work the first quarter")
+
+	# Every house belongs to a quarter, and sits where that quarter puts it.
+	for house: Dictionary in Jobs.all():
+		var house_id := str(house["id"])
+		var district_id := Jobs.district_of(house_id)
+		_expect(not Jobs.get_district(district_id).is_empty(),
+			"%s is in an unknown quarter" % house_id)
+		var origin: Vector2 = Jobs.get_district(district_id)["origin"]
+		_expect(Jobs.world_position(house_id) == origin + (house["map"]["pos"] as Vector2),
+			"%s is not placed relative to its quarter" % house_id)
+
+	print("districts       %d quarters, %d houses, %s to own the city outright"
+		% [districts.size(), Jobs.all().size(), UIKit.money(_city_price())])
+
+
+func _city_price() -> int:
+	var total := 0
+	for district: Dictionary in Jobs.districts():
+		total += int(district["cost"])
+	return total
+
+
+## Buys a quarter, grinding repeat work at the houses already finished until the
+## money and the level are there. Returns false if it could not be reached.
+func _acquire(district: Dictionary) -> bool:
+	var district_id := str(district["id"])
+	if Game.is_district_unlocked(district_id):
+		return true
+
+	var asking := Game.district_price(district_id)
+	var needed_level := int(district["level"])
+	var money_before := Game.money
+	var contracts := 0
+	while (Game.money < asking or Game.level < needed_level) and contracts < 60:
+		var house_id := _biggest_finished_house()
+		if house_id == "":
+			break
+		var contract := Jobs.generate_contract(house_id, Game.level)
+		if contract.is_empty():
+			break
+		var before := Game.money
+		Game.take_repeat_contract(house_id, contract)
+		await _play(Jobs.get_job(house_id))
+		contracts += 1
+		if Game.money <= before:
+			_failures.append("repeat work at %s did not pay: %s -> %s"
+				% [house_id, UIKit.money(before), UIKit.money(Game.money)])
+			break
+
+	if not Game.unlock_district(district_id):
+		_failures.append("could not buy %s: %s at level %d, wanted %s at level %d"
+			% [district_id, UIKit.money(Game.money), Game.level,
+				UIKit.money(asking), needed_level])
+		return false
+	print("--- bought %-18s %s after %d repeat job%s (had %s, %s left)" % [
+		district["name"], UIKit.money(int(district["cost"])), contracts,
+		"" if contracts == 1 else "s", UIKit.money(money_before), UIKit.money(Game.money)])
+	_expect(Game.money >= Jobs.district_float(district_id),
+		"buying %s left nothing to go shopping with" % district_id)
+	return true
+
+
+## The finished house with the most floor, which is where a repeat contract pays
+## best — the generator scales the brief to the size of the room.
+func _biggest_finished_house() -> String:
+	var best := ""
+	var best_area := 0.0
+	for house: Dictionary in Jobs.unlocked():
+		var house_id := str(house["id"])
+		if not Game.is_job_done(house_id):
+			continue
+		var room: Dictionary = house["room"]
+		var area: float = float(room["w"]) * float(room["d"])
+		if area > best_area:
+			best_area = area
+			best = house_id
+	return best
 
 
 # ---------------------------------------------------------------- catalogue

@@ -19,10 +19,57 @@ extends Node
 ## See RoomReview for what the client is actually judging.
 const MAX_BONUS := 0.30
 
+## The city is laid out as a grid of quarters, `SPACING` apart. Maple Quarter
+## comes with the business; the rest are bought with money once the player has
+## the level to work in them, and each one holds harder, better-paid houses.
+## `origin` is where a quarter's centre sits in the world, and every house in it
+## puts its `map.pos` relative to that.
+const SPACING := 104.0
+
+const DISTRICTS: Array[Dictionary] = [
+	{
+		"id": "maple",
+		"name": "Maple Quarter",
+		"origin": Vector2(0, 0),
+		"cost": 0,
+		"level": 1,
+		"accent": Color(0.45, 0.72, 0.52),
+		"tagline": "Where you started. Two streets of small homes and the shops that supply them.",
+	},
+	{
+		"id": "riverside",
+		"name": "Riverside Wharf",
+		"origin": Vector2(SPACING, 0),
+		"cost": 10000,
+		"level": 4,
+		"accent": Color(0.36, 0.62, 0.82),
+		"tagline": "Old warehouses on the water, being turned into homes by people with taste and deadlines.",
+	},
+	{
+		"id": "hillside",
+		"name": "Hillside Terrace",
+		"origin": Vector2(0, SPACING),
+		"cost": 22000,
+		"level": 5,
+		"accent": Color(0.82, 0.60, 0.34),
+		"tagline": "Family houses up the slope. Whole floors at a time, and clients who know what they want.",
+	},
+	{
+		"id": "skyline",
+		"name": "Skyline Heights",
+		"origin": Vector2(SPACING, SPACING),
+		"cost": 34000,
+		"level": 6,
+		"accent": Color(0.68, 0.48, 0.86),
+		"tagline": "The towers. Every brief here is a showpiece, and the fees say so.",
+	},
+]
+
 const HOUSES: Array[Dictionary] = [
 	{
 		"id": "maple_studio",
 		"short": "Maple Row",
+		"district": "maple",
 		"name": "Maple Row Studio",
 		"client": "Derya",
 		"level": 1,
@@ -43,6 +90,7 @@ const HOUSES: Array[Dictionary] = [
 	{
 		"id": "harbour_lounge",
 		"short": "Harbour Lounge",
+		"district": "maple",
 		"name": "Harbour View Lounge",
 		"client": "Kerem",
 		"level": 1,
@@ -64,6 +112,7 @@ const HOUSES: Array[Dictionary] = [
 	{
 		"id": "willow_reading",
 		"short": "Willow Room",
+		"district": "maple",
 		"name": "Willow Reading Room",
 		"client": "Nil",
 		"level": 1,
@@ -85,6 +134,7 @@ const HOUSES: Array[Dictionary] = [
 	{
 		"id": "orchard_kitchen",
 		"short": "Orchard Kitchen",
+		"district": "maple",
 		"name": "Orchard Family Kitchen",
 		"client": "Emre",
 		"level": 2,
@@ -106,6 +156,7 @@ const HOUSES: Array[Dictionary] = [
 	{
 		"id": "cedar_bathroom",
 		"short": "Cedar Bathroom",
+		"district": "maple",
 		"name": "Cedar Guest Bathroom",
 		"client": "Zeynep",
 		"level": 2,
@@ -127,6 +178,7 @@ const HOUSES: Array[Dictionary] = [
 	{
 		"id": "rosewood_master",
 		"short": "Rosewood Bedroom",
+		"district": "maple",
 		"name": "Rosewood Master Bedroom",
 		"client": "Selin",
 		"level": 3,
@@ -149,6 +201,7 @@ const HOUSES: Array[Dictionary] = [
 	{
 		"id": "pine_loft",
 		"short": "Pine Loft",
+		"district": "maple",
 		"name": "Pine Street Loft",
 		"client": "Baran",
 		"level": 3,
@@ -172,6 +225,7 @@ const HOUSES: Array[Dictionary] = [
 	{
 		"id": "ivy_suite",
 		"short": "Ivy Suite",
+		"district": "maple",
 		"name": "Ivy House Bathroom Suite",
 		"client": "Melis",
 		"level": 4,
@@ -195,6 +249,7 @@ const HOUSES: Array[Dictionary] = [
 	{
 		"id": "grand_avenue",
 		"short": "Grand Avenue",
+		"district": "maple",
 		"name": "Grand Avenue Apartment",
 		"client": "Okan",
 		"level": 4,
@@ -218,6 +273,7 @@ const HOUSES: Array[Dictionary] = [
 	{
 		"id": "corner_townhouse",
 		"short": "Corner Townhouse",
+		"district": "maple",
 		"name": "The Corner Townhouse",
 		"client": "Ayla",
 		"level": 5,
@@ -235,6 +291,319 @@ const HOUSES: Array[Dictionary] = [
 			{"type": "item", "id": "stove", "count": 1},
 			{"type": "item", "id": "bed_double", "count": 1},
 			{"type": "wall_color", "names": ["Harbour", "Storm", "Ink", "Blush"]},
+			{"type": "no_overlap"},
+		],
+	},
+
+	# ------------------------------------------------------- Riverside Wharf
+	{
+		"id": "wharf_loft",
+		"short": "Wharf Loft",
+		"district": "riverside",
+		"name": "Wharf Conversion Loft",
+		"client": "Doruk",
+		"level": 4,
+		"brief": "It was a grain store and the ceiling proves it. I sleep, work and cook in one room, and I would like those to feel like three rooms without a single wall going up.",
+		"room": {"w": 7.0, "d": 5.5, "h": 3.2},
+		"budget": 3400,
+		"payout": 4700,
+		"xp": 300,
+		"map": {"pos": Vector2(-22, -27), "rot": 0.0},
+		"style": {"body": Color(0.72, 0.66, 0.58), "roof": Color(0.34, 0.32, 0.30), "size": Vector3(7.5, 4.6, 6.5)},
+		"requirements": [
+			{"type": "item", "id": "bed_double", "count": 1},
+			{"type": "item", "id": "desk", "count": 1},
+			{"type": "item", "id": "computer", "count": 1},
+			{"type": "item", "id": "counter", "count": 1},
+			{"type": "item", "id": "partition", "count": 1, "label": "Split the room with a partition"},
+			{"type": "categories", "count": 5},
+			{"type": "total", "count": 14},
+			{"type": "no_overlap"},
+		],
+	},
+	{
+		"id": "dockside_kitchen",
+		"short": "Dockside Kitchen",
+		"district": "riverside",
+		"name": "Dockside Kitchen",
+		"client": "Ferda",
+		"level": 4,
+		"brief": "I cook for a living and I am tired of doing it in a corridor. An island I can work all the way round, a machine to do the washing up, and somewhere to put a month of dry goods.",
+		"room": {"w": 6.5, "d": 5.0, "h": 2.9},
+		"budget": 4600,
+		"payout": 6300,
+		"xp": 350,
+		"map": {"pos": Vector2(22, -27), "rot": 0.0},
+		"style": {"body": Color(0.84, 0.78, 0.64), "roof": Color(0.40, 0.34, 0.30), "size": Vector3(7.0, 3.8, 6.0)},
+		"requirements": [
+			{"type": "item", "id": "kitchen_island", "count": 1},
+			{"type": "item", "id": "dishwasher", "count": 1},
+			{"type": "item", "id": "pantry", "count": 1},
+			{"type": "item", "id": "stove", "count": 1},
+			{"type": "item", "id": "fridge", "count": 1},
+			{"type": "item", "id": "counter", "count": 2},
+			{"type": "floor_color", "names": ["Concrete", "Slate", "Chalk"]},
+			{"type": "no_overlap"},
+		],
+	},
+	{
+		"id": "netmaker_media",
+		"short": "Netmaker's",
+		"district": "riverside",
+		"name": "The Netmaker's Screening Room",
+		"client": "Tuna",
+		"level": 5,
+		"brief": "One room, one purpose: films. The biggest screen you can get in here, sound from both sides, and somewhere I will not want to get up from. Keep the walls dark.",
+		"room": {"w": 7.0, "d": 5.5, "h": 3.0},
+		"budget": 5200,
+		"payout": 7200,
+		"xp": 400,
+		"map": {"pos": Vector2(-22, 27), "rot": 180.0},
+		"style": {"body": Color(0.56, 0.60, 0.66), "roof": Color(0.24, 0.26, 0.32), "size": Vector3(7.0, 4.2, 6.5)},
+		"requirements": [
+			{"type": "item", "id": "tv_large", "count": 1},
+			{"type": "item", "id": "speaker_tower", "count": 2},
+			{"type": "item", "id": "soundbar", "count": 1},
+			{"type": "item", "id": "sofa", "count": 1},
+			{"type": "item", "id": "recliner", "count": 2},
+			{"type": "wall_color", "names": ["Ink", "Storm", "Harbour"]},
+			{"type": "total", "count": 12},
+			{"type": "no_overlap"},
+		],
+	},
+	{
+		"id": "harbourmaster_office",
+		"short": "Harbourmaster",
+		"district": "riverside",
+		"name": "The Harbourmaster's Office",
+		"client": "Işıl",
+		"level": 5,
+		"brief": "I run two businesses off this desk and both of them generate paper. Somewhere to work, somewhere to file, and a cabinet good enough to keep the ship models in.",
+		"room": {"w": 6.0, "d": 5.0, "h": 2.9},
+		"budget": 4400,
+		"payout": 6100,
+		"xp": 380,
+		"map": {"pos": Vector2(22, 27), "rot": 180.0},
+		"style": {"body": Color(0.68, 0.74, 0.78), "roof": Color(0.28, 0.34, 0.40), "size": Vector3(6.5, 4.0, 6.0)},
+		"requirements": [
+			{"type": "item", "id": "desk", "count": 1},
+			{"type": "item", "id": "computer", "count": 1},
+			{"type": "item", "id": "printer", "count": 1},
+			{"type": "item", "id": "bookshelf", "count": 2},
+			{"type": "item", "id": "display_cabinet", "count": 1},
+			{"type": "item", "id": "chair", "count": 1},
+			{"type": "categories", "count": 4},
+			{"type": "total", "count": 12},
+			{"type": "no_overlap"},
+		],
+	},
+
+	# ------------------------------------------------------ Hillside Terrace
+	{
+		"id": "terrace_family",
+		"short": "Terrace Family",
+		"district": "hillside",
+		"name": "Terrace Family Room",
+		"client": "Gökçe",
+		"level": 5,
+		"brief": "Five of us and one television. Everybody needs their own seat, the little ones need the floor kept clear, and it has to survive a Sunday.",
+		"room": {"w": 7.5, "d": 5.5, "h": 2.9},
+		"budget": 5400,
+		"payout": 7400,
+		"xp": 420,
+		"map": {"pos": Vector2(-22, -27), "rot": 0.0},
+		"style": {"body": Color(0.88, 0.78, 0.62), "roof": Color(0.50, 0.30, 0.24), "size": Vector3(7.5, 4.0, 6.5)},
+		"requirements": [
+			{"type": "item", "id": "sofa", "count": 1},
+			{"type": "item", "id": "loveseat", "count": 1},
+			{"type": "item", "id": "armchair", "count": 2},
+			{"type": "item", "id": "television", "count": 1},
+			{"type": "item", "id": "tv_stand", "count": 1},
+			{"type": "item", "id": "rug", "count": 1},
+			{"type": "categories", "count": 5},
+			{"type": "total", "count": 16},
+			{"type": "no_overlap"},
+		],
+	},
+	{
+		"id": "crest_nursery",
+		"short": "Crest Nursery",
+		"district": "hillside",
+		"name": "Crest Road Nursery",
+		"client": "Neslihan",
+		"level": 5,
+		"brief": "One baby, one four-year-old, and a room they will grow through. A cot now, bunks for later, and somewhere the washing can live that is not the landing.",
+		"room": {"w": 5.5, "d": 4.5, "h": 2.7},
+		"budget": 4200,
+		"payout": 5800,
+		"xp": 400,
+		"map": {"pos": Vector2(22, -27), "rot": 0.0},
+		"style": {"body": Color(0.90, 0.84, 0.86), "roof": Color(0.46, 0.32, 0.42), "size": Vector3(6.0, 3.6, 5.5)},
+		"requirements": [
+			{"type": "item", "id": "crib", "count": 1},
+			{"type": "item", "id": "bunk_bed", "count": 1},
+			{"type": "item", "id": "dressing_table", "count": 1},
+			{"type": "item", "id": "laundry_basket", "count": 1},
+			{"type": "item", "id": "shoe_rack", "count": 1},
+			{"type": "wall_color", "names": ["Blush", "Sage", "Linen"]},
+			{"type": "total", "count": 11},
+			{"type": "no_overlap"},
+		],
+	},
+	{
+		"id": "slope_suite",
+		"short": "Slope Suite",
+		"district": "hillside",
+		"name": "Slope House Master Suite",
+		"client": "Bora",
+		"level": 6,
+		"brief": "The whole top floor is ours and I want it to feel like a hotel we would go back to. Bed, dressing, storage — and a mirror I can see all of myself in.",
+		"room": {"w": 7.0, "d": 5.5, "h": 3.0},
+		"budget": 6200,
+		"payout": 8600,
+		"xp": 470,
+		"map": {"pos": Vector2(-22, 27), "rot": 180.0},
+		"style": {"body": Color(0.80, 0.72, 0.76), "roof": Color(0.38, 0.24, 0.32), "size": Vector3(7.5, 4.4, 6.5)},
+		"requirements": [
+			{"type": "item", "id": "bed_double", "count": 1},
+			{"type": "item", "id": "wardrobe", "count": 2},
+			{"type": "item", "id": "dressing_table", "count": 1},
+			{"type": "item", "id": "floor_mirror", "count": 1},
+			{"type": "item", "id": "nightstand", "count": 2},
+			{"type": "item", "id": "armchair", "count": 1},
+			{"type": "categories", "count": 4},
+			{"type": "total", "count": 15},
+			{"type": "no_overlap"},
+		],
+	},
+	{
+		"id": "ridge_diner",
+		"short": "Ridge Diner",
+		"district": "hillside",
+		"name": "Ridge Kitchen & Diner",
+		"client": "Alper",
+		"level": 6,
+		"brief": "Knock the wall through and it is one room, so the cooking end has to look as good as the eating end. Eight of us at Sunday lunch, and I refuse to hide the kitchen.",
+		"room": {"w": 8.0, "d": 6.0, "h": 3.0},
+		"budget": 7000,
+		"payout": 9700,
+		"xp": 520,
+		"map": {"pos": Vector2(22, 27), "rot": 180.0},
+		"style": {"body": Color(0.86, 0.82, 0.72), "roof": Color(0.44, 0.36, 0.28), "size": Vector3(8.0, 4.6, 7.0)},
+		"requirements": [
+			{"type": "item", "id": "kitchen_island", "count": 1},
+			{"type": "item", "id": "dining_table", "count": 1},
+			{"type": "item", "id": "chair", "count": 6},
+			{"type": "item", "id": "stove", "count": 1},
+			{"type": "item", "id": "sink_unit", "count": 1},
+			{"type": "item", "id": "display_cabinet", "count": 1},
+			{"type": "categories", "count": 5},
+			{"type": "total", "count": 20},
+			{"type": "no_overlap"},
+		],
+	},
+
+	# ------------------------------------------------------- Skyline Heights
+	{
+		"id": "atrium_gallery",
+		"short": "Atrium Gallery",
+		"district": "skyline",
+		"name": "The Atrium Gallery Floor",
+		"client": "Reyhan",
+		"level": 6,
+		"brief": "I collect, and the collection has outgrown the shelves. Cabinets with glass in them, light in the right places, and enough floor left that people can stand back and look.",
+		"room": {"w": 8.0, "d": 6.0, "h": 3.2},
+		"budget": 7400,
+		"payout": 10200,
+		"xp": 540,
+		"map": {"pos": Vector2(-22, -27), "rot": 0.0},
+		"style": {"body": Color(0.78, 0.76, 0.82), "roof": Color(0.30, 0.28, 0.40), "size": Vector3(8.0, 6.4, 7.0)},
+		"requirements": [
+			{"type": "item", "id": "display_cabinet", "count": 3},
+			{"type": "item", "id": "bookshelf", "count": 2},
+			{"type": "item", "id": "floor_lamp", "count": 2},
+			{"type": "item", "id": "vase", "count": 2},
+			{"type": "item", "id": "armchair", "count": 2},
+			{"type": "categories", "count": 5},
+			{"type": "total", "count": 18},
+			{"type": "no_overlap"},
+		],
+	},
+	{
+		"id": "tower_spa",
+		"short": "Tower Spa",
+		"district": "skyline",
+		"name": "Tower Spa Bathroom",
+		"client": "Cansu",
+		"level": 7,
+		"brief": "A bathroom you would happily spend an hour in. Tub, shower, twin basins in a proper vanity, and every last thing put away out of sight.",
+		"room": {"w": 6.0, "d": 5.0, "h": 2.9},
+		"budget": 6600,
+		"payout": 9100,
+		"xp": 520,
+		"map": {"pos": Vector2(22, -27), "rot": 0.0},
+		"style": {"body": Color(0.76, 0.86, 0.88), "roof": Color(0.22, 0.42, 0.50), "size": Vector3(6.5, 5.6, 6.0)},
+		"requirements": [
+			{"type": "item", "id": "bathtub", "count": 1},
+			{"type": "item", "id": "shower", "count": 1},
+			{"type": "item", "id": "basin", "count": 2},
+			{"type": "item", "id": "vanity_unit", "count": 1},
+			{"type": "item", "id": "bathroom_cabinet", "count": 1},
+			{"type": "item", "id": "bath_mat", "count": 2},
+			{"type": "item", "id": "towel_rail", "count": 2},
+			{"type": "floor_color", "names": ["Chalk", "Sandstone", "Concrete"]},
+			{"type": "no_overlap"},
+		],
+	},
+	{
+		"id": "skyline_penthouse",
+		"short": "Penthouse",
+		"district": "skyline",
+		"name": "Skyline Penthouse",
+		"client": "Levent",
+		"level": 7,
+		"brief": "The whole floor, and the view does half the work. Somewhere to sit, somewhere to eat, somewhere to watch, somewhere to work — and it must read as one room, not four.",
+		"room": {"w": 9.0, "d": 7.0, "h": 3.2},
+		"budget": 9500,
+		"payout": 13200,
+		"xp": 620,
+		"map": {"pos": Vector2(-22, 27), "rot": 180.0},
+		"style": {"body": Color(0.62, 0.64, 0.74), "roof": Color(0.20, 0.22, 0.32), "size": Vector3(8.5, 7.0, 7.0)},
+		"requirements": [
+			{"type": "item", "id": "sofa", "count": 2},
+			{"type": "item", "id": "tv_large", "count": 1},
+			{"type": "item", "id": "dining_table", "count": 1},
+			{"type": "item", "id": "chair", "count": 4},
+			{"type": "item", "id": "desk", "count": 1},
+			{"type": "item", "id": "air_conditioner", "count": 1},
+			{"type": "categories", "count": 6},
+			{"type": "total", "count": 24},
+			{"type": "no_overlap"},
+		],
+	},
+	{
+		"id": "summit_residence",
+		"short": "The Summit",
+		"district": "skyline",
+		"name": "The Summit Residence",
+		"client": "Hülya",
+		"level": 8,
+		"brief": "The last word. Everything the city sells should be represented somewhere on this floor, it should all agree with itself, and I will know if you rushed the corners.",
+		"room": {"w": 10.0, "d": 7.5, "h": 3.2},
+		"budget": 13000,
+		"payout": 18500,
+		"xp": 800,
+		"map": {"pos": Vector2(22, 27), "rot": 180.0},
+		"style": {"body": Color(0.92, 0.88, 0.80), "roof": Color(0.42, 0.20, 0.24), "size": Vector3(9.0, 7.6, 7.5)},
+		"requirements": [
+			{"type": "categories", "count": 8, "label": "Buy from every shop in the city"},
+			{"type": "item", "id": "bed_double", "count": 1},
+			{"type": "item", "id": "bathtub", "count": 1},
+			{"type": "item", "id": "kitchen_island", "count": 1},
+			{"type": "item", "id": "tv_large", "count": 1},
+			{"type": "item", "id": "display_cabinet", "count": 1},
+			{"type": "wall_color", "names": ["Harbour", "Storm", "Ink", "Blush", "Sage"]},
+			{"type": "total", "count": 30},
 			{"type": "no_overlap"},
 		],
 	},
@@ -301,15 +670,97 @@ const CLIENTS: Array[String] = [
 ]
 
 var _by_id: Dictionary = {}
+var _districts_by_id: Dictionary = {}
 
 
 func _ready() -> void:
 	for house in HOUSES:
 		_by_id[house["id"]] = house
+	for district in DISTRICTS:
+		_districts_by_id[district["id"]] = district
 
 
 func all() -> Array[Dictionary]:
 	return HOUSES
+
+
+## Only the houses the player can actually walk into: the ones in quarters they
+## have bought. Everything else is scenery until the deeds change hands.
+func unlocked() -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	for house in HOUSES:
+		if Game.is_district_unlocked(district_of(str(house["id"]))):
+			out.append(house)
+	return out
+
+
+# ------------------------------------------------------------------ districts
+
+func districts() -> Array[Dictionary]:
+	return DISTRICTS
+
+
+func get_district(district_id: String) -> Dictionary:
+	return _districts_by_id.get(district_id, {})
+
+
+func district_of(house_id: String) -> String:
+	var house: Dictionary = _by_id.get(house_id, {})
+	return str(house.get("district", DISTRICTS[0]["id"]))
+
+
+func houses_in(district_id: String) -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	for house in HOUSES:
+		if str(house.get("district", "")) == district_id:
+			out.append(house)
+	return out
+
+
+## Where a house stands in the world, once its quarter's origin is added on.
+func world_position(house_id: String) -> Vector2:
+	var house: Dictionary = _by_id.get(house_id, {})
+	if house.is_empty():
+		return Vector2.ZERO
+	var district := get_district(district_of(house_id))
+	var origin: Vector2 = district.get("origin", Vector2.ZERO)
+	return origin + (house["map"]["pos"] as Vector2)
+
+
+## Working money a quarter has to be bought with on top of its price: enough to
+## shop for its cheapest brief, with room for the paint and for rounding. Buying
+## a quarter and then not being able to afford a single job in it would be a
+## dead end, so this is held back rather than spent.
+func district_float(district_id: String) -> int:
+	var lowest := 0
+	for house: Dictionary in houses_in(district_id):
+		var outlay := minimum_outlay(str(house["id"]))
+		if lowest == 0 or outlay < lowest:
+			lowest = outlay
+	return int(ceilf(float(lowest) * 1.30 / 100.0)) * 100
+
+
+## The span of levels and fees behind a quarter's gate, for the sales pitch.
+func district_summary(district_id: String) -> Dictionary:
+	var houses := houses_in(district_id)
+	if houses.is_empty():
+		return {}
+	var low_level := 99
+	var high_level := 0
+	var low_fee := 1 << 30
+	var high_fee := 0
+	for house in houses:
+		low_level = mini(low_level, int(house["level"]))
+		high_level = maxi(high_level, int(house["level"]))
+		low_fee = mini(low_fee, int(house["payout"]))
+		high_fee = maxi(high_fee, int(house["payout"]))
+	return {
+		"houses": houses.size(),
+		"low_level": low_level,
+		"high_level": high_level,
+		"low_fee": low_fee,
+		"high_fee": high_fee,
+	}
 
 
 ## The brief currently attached to a house: the generated one if the player
