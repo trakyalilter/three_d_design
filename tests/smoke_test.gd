@@ -438,8 +438,8 @@ func _biggest_finished_house() -> String:
 		var house_id := str(house["id"])
 		if not Game.is_job_done(house_id):
 			continue
-		var room: Dictionary = house["room"]
-		var area: float = float(room["w"]) * float(room["d"])
+		# floor_area() covers both shapes; a floor plan has no single w and d.
+		var area: float = Jobs.floor_area(house_id)
 		if area > best_area:
 			best_area = area
 			best = house_id
@@ -460,6 +460,14 @@ func _check_catalogue() -> void:
 			if shop["category"] == category:
 				has_shop = true
 		_expect(has_shop, "category %s is not sold anywhere" % category)
+
+	# Release builds strip the assert in Catalog._add(), so the rule it guards
+	# is checked here as well: an id used twice means the second piece silently
+	# replaced the first.
+	var seen: Dictionary = {}
+	for id in Catalog.ids():
+		_expect(not seen.has(id), "'%s' is in the catalogue twice" % id)
+		seen[id] = true
 
 	for id in Catalog.ids():
 		_expect(Catalog.price(id) > 0, "%s costs nothing" % id)

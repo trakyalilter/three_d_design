@@ -151,11 +151,11 @@ func _build_district(district: Dictionary) -> void:
 	_origin = district["origin"]
 	_locked = not Game.is_district_unlocked(str(district["id"]))
 
-	_build_ground()
+	_build_ground(district.get("ground", GROUND))
 	_build_roads()
 	_build_shops(district)
 	_build_houses(district)
-	_build_greenery()
+	_build_greenery(str(district.get("planting", "street")))
 	if _locked:
 		_build_hoarding(district)
 
@@ -258,8 +258,8 @@ func _build_base_ground() -> void:
 	_batch.box(GROUND.darkened(0.18), Vector3(span.x, 1.0, span.y), Vector3(centre.x, -0.5, centre.y))
 
 
-func _build_ground() -> void:
-	_batch.box(_tone(GROUND), Vector3(QUARTER_HALF * 2.0, 1.0, QUARTER_HALF * 2.0), _at(Vector3(0, -0.48, 0)))
+func _build_ground(tint: Color = GROUND) -> void:
+	_batch.box(_tone(tint), Vector3(QUARTER_HALF * 2.0, 1.0, QUARTER_HALF * 2.0), _at(Vector3(0, -0.48, 0)))
 
 
 ## The roads that run between quarters, so the grid reads as one city. Drawn
@@ -461,42 +461,14 @@ func _build_house(job: Dictionary, stagger: float, district: Dictionary) -> void
 		Vector3(map["pos"].x, 0, map["pos"].y)
 	))
 
-	var body_color: Color = _tone(style["body"])
-	var roof_color: Color = _tone(style["roof"])
-	var trim := _tone(Color(0.95, 0.95, 0.93))
-	var glass := _tone(Color(0.52, 0.70, 0.82, 0.75))
-	var door_color: Color = roof_color.darkened(0.25)
-	var b := world.basis
-
-	# Plot and path.
-	_batch.box(_tone(LAWN), Vector3(size.x + 3.6, 0.10, size.z + 4.0), world * Vector3(0, 0.02, 0), SceneryBatch.Layer.OPAQUE, b)
-	_batch.box(_tone(PAVEMENT), Vector3(1.4, 0.06, (size.z + 4.0) * 0.5), world * Vector3(0, 0.08, size.z * 0.5 + 1.0), SceneryBatch.Layer.OPAQUE, b)
-
-	# Walls, floor band and roof.
-	_batch.box(body_color, size, world * Vector3(0, size.y * 0.5 + 0.1, 0), SceneryBatch.Layer.OPAQUE, b)
-	_batch.box(trim, Vector3(size.x + 0.3, 0.3, size.z + 0.3), world * Vector3(0, 0.25, 0), SceneryBatch.Layer.OPAQUE, b)
-	_batch.prism(roof_color, Vector3(size.x + 0.7, 1.9, size.z + 0.7), world * Vector3(0, size.y + 1.05, 0), SceneryBatch.Layer.OPAQUE, b)
-	_batch.box(roof_color.darkened(0.35), Vector3(0.7, 1.5, 0.7), world * Vector3(size.x * 0.28, size.y + 1.4, -size.z * 0.22), SceneryBatch.Layer.OPAQUE, b)
-
-	# Front door and windows.
-	var front := size.z * 0.5 + 0.06
-	_batch.box(door_color, Vector3(1.1, 2.1, 0.12), world * Vector3(0, 1.15, front), SceneryBatch.Layer.OPAQUE, b)
-	_batch.cylinder(_tone(Color(0.85, 0.72, 0.35)), 0.06, 0.1, world * Vector3(0.38, 1.15, front + 0.08), SceneryBatch.Layer.SHINY, 8, b)
-	for sx in [-1.0, 1.0]:
-		var wx: float = sx * size.x * 0.28
-		_batch.box(trim, Vector3(1.5, 1.4, 0.06), world * Vector3(wx, 1.9, front - 0.02), SceneryBatch.Layer.OPAQUE, b)
-		_batch.box(glass, Vector3(1.3, 1.2, 0.10), world * Vector3(wx, 1.9, front), SceneryBatch.Layer.GLASS, b)
-	# Taller houses carry their windows up the storeys.
-	var storey := 4.2
-	while storey < size.y - 0.6:
-		for sx in [-1.0, 1.0]:
-			_batch.box(glass, Vector3(1.2, 1.1, 0.10), world * Vector3(sx * size.x * 0.28, storey, front), SceneryBatch.Layer.GLASS, b)
-		storey += 2.6
-
-	# A hedge and a bin, so no two plots look identical.
-	var hedge_side: float = -1.0 if int(str(job["id"]).hash()) % 2 == 0 else 1.0
-	_batch.box(_tone(Color(0.26, 0.46, 0.26)), Vector3(0.6, 0.9, size.z + 2.0), world * Vector3(hedge_side * (size.x * 0.5 + 1.4), 0.5, 0), SceneryBatch.Layer.OPAQUE, b)
-	_batch.cylinder(_tone(Color(0.30, 0.34, 0.38)), 0.34, 0.9, world * Vector3(-hedge_side * (size.x * 0.5 + 1.0), 0.5, size.z * 0.4), SceneryBatch.Layer.OPAQUE, 10, b)
+	# Quarters that build to their own pattern say so on the house.
+	match str(style.get("kind", "house")):
+		"machiya":
+			_machiya(job, style, world)
+		"manor":
+			_manor(job, style, world)
+		_:
+			_terrace_house(job, style, world)
 
 	var holder := Node3D.new()
 	holder.name = "House_%s" % job["id"]
@@ -537,6 +509,170 @@ func _build_house(job: Dictionary, stagger: float, district: Dictionary) -> void
 	shape.position = Vector3(0, (size.y + 4.0) * 0.5, 0)
 	pick.add_child(shape)
 	holder.add_child(pick)
+
+
+## The ordinary house, and what most of the city is built of: rendered walls, a
+## pitched roof, a chimney and a hedge.
+func _terrace_house(job: Dictionary, style: Dictionary, world: Transform3D) -> void:
+	var size: Vector3 = style["size"]
+	var body_color: Color = _tone(style["body"])
+	var roof_color: Color = _tone(style["roof"])
+	var trim := _tone(Color(0.95, 0.95, 0.93))
+	var glass := _tone(Color(0.52, 0.70, 0.82, 0.75))
+	var door_color: Color = roof_color.darkened(0.25)
+	var b := world.basis
+
+	# Plot and path.
+	_batch.box(_tone(LAWN), Vector3(size.x + 3.6, 0.10, size.z + 4.0), world * Vector3(0, 0.02, 0), SceneryBatch.Layer.OPAQUE, b)
+	_batch.box(_tone(PAVEMENT), Vector3(1.4, 0.06, (size.z + 4.0) * 0.5), world * Vector3(0, 0.08, size.z * 0.5 + 1.0), SceneryBatch.Layer.OPAQUE, b)
+
+	# Walls, floor band and roof.
+	_batch.box(body_color, size, world * Vector3(0, size.y * 0.5 + 0.1, 0), SceneryBatch.Layer.OPAQUE, b)
+	_batch.box(trim, Vector3(size.x + 0.3, 0.3, size.z + 0.3), world * Vector3(0, 0.25, 0), SceneryBatch.Layer.OPAQUE, b)
+	_batch.prism(roof_color, Vector3(size.x + 0.7, 1.9, size.z + 0.7), world * Vector3(0, size.y + 1.05, 0), SceneryBatch.Layer.OPAQUE, b)
+	_batch.box(roof_color.darkened(0.35), Vector3(0.7, 1.5, 0.7), world * Vector3(size.x * 0.28, size.y + 1.4, -size.z * 0.22), SceneryBatch.Layer.OPAQUE, b)
+
+	# Front door and windows.
+	var front := size.z * 0.5 + 0.06
+	_batch.box(door_color, Vector3(1.1, 2.1, 0.12), world * Vector3(0, 1.15, front), SceneryBatch.Layer.OPAQUE, b)
+	_batch.cylinder(_tone(Color(0.85, 0.72, 0.35)), 0.06, 0.1, world * Vector3(0.38, 1.15, front + 0.08), SceneryBatch.Layer.SHINY, 8, b)
+	for sx in [-1.0, 1.0]:
+		var wx: float = sx * size.x * 0.28
+		_batch.box(trim, Vector3(1.5, 1.4, 0.06), world * Vector3(wx, 1.9, front - 0.02), SceneryBatch.Layer.OPAQUE, b)
+		_batch.box(glass, Vector3(1.3, 1.2, 0.10), world * Vector3(wx, 1.9, front), SceneryBatch.Layer.GLASS, b)
+	# Taller houses carry their windows up the storeys.
+	var storey := 4.2
+	while storey < size.y - 0.6:
+		for sx in [-1.0, 1.0]:
+			_batch.box(glass, Vector3(1.2, 1.1, 0.10), world * Vector3(sx * size.x * 0.28, storey, front), SceneryBatch.Layer.GLASS, b)
+		storey += 2.6
+
+	# A hedge and a bin, so no two plots look identical.
+	var hedge_side: float = -1.0 if int(str(job["id"]).hash()) % 2 == 0 else 1.0
+	_batch.box(_tone(Color(0.26, 0.46, 0.26)), Vector3(0.6, 0.9, size.z + 2.0), world * Vector3(hedge_side * (size.x * 0.5 + 1.4), 0.5, 0), SceneryBatch.Layer.OPAQUE, b)
+	_batch.cylinder(_tone(Color(0.30, 0.34, 0.38)), 0.34, 0.9, world * Vector3(-hedge_side * (size.x * 0.5 + 1.0), 0.5, size.z * 0.4), SceneryBatch.Layer.OPAQUE, 10, b)
+
+
+## Hanami Ward. A townhouse under a broad tiled roof: shallow pitch, eaves that
+## overhang far enough to stand under, a raised veranda along the front and
+## paper panels instead of glass.
+func _machiya(job: Dictionary, style: Dictionary, world: Transform3D) -> void:
+	var size: Vector3 = style["size"]
+	var body_color: Color = _tone(style["body"])
+	var roof_color: Color = _tone(style["roof"])
+	var timber := _tone(Color(0.34, 0.24, 0.18))
+	var paper := _tone(Color(0.96, 0.94, 0.88))
+	var b := world.basis
+
+	# Raked gravel rather than lawn, with stepping stones to the door.
+	_batch.box(_tone(Color(0.72, 0.70, 0.64)), Vector3(size.x + 3.6, 0.10, size.z + 4.2), world * Vector3(0, 0.02, 0), SceneryBatch.Layer.OPAQUE, b)
+	for i in 3:
+		_batch.box(_tone(Color(0.52, 0.52, 0.50)), Vector3(0.8, 0.08, 0.6),
+			world * Vector3(0, 0.09, size.z * 0.5 + 0.9 + float(i) * 0.95), SceneryBatch.Layer.OPAQUE, b)
+
+	# The body, on a plinth, with a timber frame showing at the corners.
+	_batch.box(timber, Vector3(size.x + 0.5, 0.42, size.z + 0.5), world * Vector3(0, 0.21, 0), SceneryBatch.Layer.OPAQUE, b)
+	_batch.box(body_color, size, world * Vector3(0, size.y * 0.5 + 0.42, 0), SceneryBatch.Layer.OPAQUE, b)
+	for sx in [-1.0, 1.0]:
+		for sz in [-1.0, 1.0]:
+			_batch.box(timber, Vector3(0.26, size.y, 0.26),
+				world * Vector3(sx * size.x * 0.5, size.y * 0.5 + 0.42, sz * size.z * 0.5), SceneryBatch.Layer.OPAQUE, b)
+
+	# The engawa: a plank veranda along the front, under the eaves.
+	var front := size.z * 0.5
+	_batch.box(_tone(Color(0.58, 0.44, 0.30)), Vector3(size.x + 0.4, 0.16, 1.5),
+		world * Vector3(0, 0.50, front + 0.75), SceneryBatch.Layer.OPAQUE, b)
+
+	# Shoji panels across the front, split by mullions.
+	var panels := maxi(int(size.x / 1.5), 3)
+	var step := (size.x - 0.6) / float(panels)
+	for i in panels:
+		var px := -size.x * 0.5 + 0.3 + step * (float(i) + 0.5)
+		_batch.box(paper, Vector3(step * 0.86, 1.95, 0.10), world * Vector3(px, 1.55, front + 0.02), SceneryBatch.Layer.OPAQUE, b)
+		_batch.box(timber, Vector3(0.09, 2.05, 0.13), world * Vector3(px + step * 0.5, 1.55, front + 0.04), SceneryBatch.Layer.OPAQUE, b)
+	_batch.box(timber, Vector3(size.x, 0.14, 0.16), world * Vector3(0, 2.56, front + 0.04), SceneryBatch.Layer.OPAQUE, b)
+
+	# The roof: a shallow prism with a deep overhang all round, on a fascia.
+	var eave := 1.5
+	var ridge: float = 0.9 + size.y * 0.10
+	_batch.box(roof_color.darkened(0.25), Vector3(size.x + eave * 2.0, 0.22, size.z + eave * 2.0),
+		world * Vector3(0, size.y + 0.52, 0), SceneryBatch.Layer.OPAQUE, b)
+	_batch.prism(roof_color, Vector3(size.x + eave * 2.0, ridge, size.z + eave * 2.0),
+		world * Vector3(0, size.y + 0.63 + ridge * 0.5, 0), SceneryBatch.Layer.OPAQUE, b)
+	# Two more storeys get a second, smaller roof over them.
+	if size.y > 4.6:
+		_batch.box(roof_color.darkened(0.25), Vector3(size.x + eave, 0.20, size.z + eave),
+			world * Vector3(0, size.y * 0.56, 0), SceneryBatch.Layer.OPAQUE, b)
+
+	# A stone lantern at the corner of the plot.
+	var side: float = -1.0 if int(str(job["id"]).hash()) % 2 == 0 else 1.0
+	var lantern := world * Vector3(side * (size.x * 0.5 + 1.5), 0.0, front + 1.4)
+	_batch.cylinder(_tone(Color(0.55, 0.55, 0.52)), 0.20, 0.9, lantern + Vector3(0, 0.45, 0), SceneryBatch.Layer.OPAQUE, 8)
+	_batch.box(_tone(Color(0.62, 0.62, 0.58)), Vector3(0.60, 0.42, 0.60), lantern + Vector3(0, 1.11, 0), SceneryBatch.Layer.OPAQUE, b)
+	_batch.box(_tone(Color(0.98, 0.92, 0.72)), Vector3(0.40, 0.30, 0.40), lantern + Vector3(0, 1.11, 0), SceneryBatch.Layer.OPAQUE, b)
+	_batch.prism(_tone(Color(0.50, 0.50, 0.47)), Vector3(0.86, 0.34, 0.86), lantern + Vector3(0, 1.49, 0), SceneryBatch.Layer.OPAQUE, b)
+
+
+## Hollow Row. Steep slate, a corner tower with a spire, tall thin windows and
+## an iron railing along the front. Nothing here has been painted this century.
+func _manor(job: Dictionary, style: Dictionary, world: Transform3D) -> void:
+	var size: Vector3 = style["size"]
+	var body_color: Color = _tone(style["body"])
+	var roof_color: Color = _tone(style["roof"])
+	var iron := _tone(Color(0.15, 0.15, 0.18))
+	var glass := _tone(Color(0.86, 0.72, 0.36, 0.85))
+	var b := world.basis
+
+	# A dark, overgrown plot behind railings.
+	_batch.box(_tone(Color(0.22, 0.26, 0.21)), Vector3(size.x + 3.6, 0.10, size.z + 4.2), world * Vector3(0, 0.02, 0), SceneryBatch.Layer.OPAQUE, b)
+	_batch.box(_tone(Color(0.34, 0.33, 0.32)), Vector3(1.3, 0.06, (size.z + 4.2) * 0.5), world * Vector3(0, 0.08, size.z * 0.5 + 1.05), SceneryBatch.Layer.OPAQUE, b)
+	var rail_z := size.z * 0.5 + 2.0
+	_batch.box(iron, Vector3(size.x + 3.4, 0.10, 0.10), world * Vector3(0, 1.05, rail_z), SceneryBatch.Layer.SHINY, b)
+	for i in 11:
+		var rx := -(size.x + 3.2) * 0.5 + (size.x + 3.2) * float(i) / 10.0
+		if absf(rx) < 0.9:
+			continue
+		_batch.box(iron, Vector3(0.08, 1.10, 0.08), world * Vector3(rx, 0.55, rail_z), SceneryBatch.Layer.SHINY, b)
+
+	# Body and a heavy string course.
+	_batch.box(body_color, size, world * Vector3(0, size.y * 0.5 + 0.1, 0), SceneryBatch.Layer.OPAQUE, b)
+	_batch.box(body_color.darkened(0.30), Vector3(size.x + 0.34, 0.34, size.z + 0.34), world * Vector3(0, 0.28, 0), SceneryBatch.Layer.OPAQUE, b)
+	_batch.box(body_color.darkened(0.22), Vector3(size.x + 0.26, 0.26, size.z + 0.26), world * Vector3(0, size.y - 0.2, 0), SceneryBatch.Layer.OPAQUE, b)
+
+	# A steep roof, and a chimney stack at each end.
+	_batch.prism(roof_color, Vector3(size.x + 0.6, size.y * 0.62 + 1.4, size.z + 0.6), world * Vector3(0, size.y + (size.y * 0.62 + 1.4) * 0.5, 0), SceneryBatch.Layer.OPAQUE, b)
+	for sx in [-1.0, 1.0]:
+		_batch.box(body_color.darkened(0.42), Vector3(0.8, 2.3, 0.8), world * Vector3(sx * size.x * 0.34, size.y + 1.5, -size.z * 0.18), SceneryBatch.Layer.OPAQUE, b)
+
+	# The tower on the front corner, with a spire on top.
+	var tx: float = (size.x * 0.5 + 0.5) * (-1.0 if int(str(job["id"]).hash()) % 2 == 0 else 1.0)
+	var tower_h: float = size.y + 2.4
+	var tower := world * Vector3(tx, 0, size.z * 0.5 - 0.6)
+	_batch.cylinder(body_color.darkened(0.12), 1.25, tower_h, tower + Vector3(0, tower_h * 0.5, 0), SceneryBatch.Layer.OPAQUE, 10)
+	_batch.cylinder(body_color.darkened(0.34), 1.38, 0.30, tower + Vector3(0, tower_h - 0.15, 0), SceneryBatch.Layer.OPAQUE, 10)
+	_batch.cone(roof_color.darkened(0.15), 1.42, 3.2, tower + Vector3(0, tower_h + 1.6, 0), SceneryBatch.Layer.OPAQUE, 10)
+	_batch.box(glass, Vector3(0.5, 1.1, 0.14), tower + Vector3(0, tower_h * 0.62, 1.2), SceneryBatch.Layer.GLASS, b)
+
+	# Door and the tall lit windows.
+	var front := size.z * 0.5 + 0.06
+	_batch.box(_tone(Color(0.24, 0.16, 0.14)), Vector3(1.2, 2.4, 0.14), world * Vector3(0, 1.30, front), SceneryBatch.Layer.OPAQUE, b)
+	_batch.prism(_tone(Color(0.24, 0.16, 0.14)), Vector3(1.2, 0.5, 0.14), world * Vector3(0, 2.70, front), SceneryBatch.Layer.OPAQUE, b)
+	var storey := 1.9
+	while storey < size.y - 0.9:
+		for sx in [-1.0, 1.0]:
+			var wx: float = sx * size.x * 0.30
+			_batch.box(glass, Vector3(0.62, 1.7, 0.12), world * Vector3(wx, storey, front), SceneryBatch.Layer.GLASS, b)
+			_batch.prism(body_color.darkened(0.35), Vector3(0.78, 0.42, 0.14), world * Vector3(wx, storey + 1.06, front), SceneryBatch.Layer.OPAQUE, b)
+		storey += 2.7
+
+	# A dead tree leaning over the plot.
+	var side: float = 1.0 if int(str(job["id"]).hash()) % 2 == 0 else -1.0
+	var bare := world * Vector3(side * (size.x * 0.5 + 1.7), 0, -size.z * 0.2)
+	var bark := _tone(Color(0.24, 0.20, 0.18))
+	_batch.cylinder(bark, 0.26, 4.2, bare + Vector3(0, 2.1, 0), SceneryBatch.Layer.OPAQUE, 8)
+	for a in [-52.0, 24.0, 108.0]:
+		var swing := Basis(Vector3.FORWARD, deg_to_rad(a))
+		_batch.cylinder(bark, 0.10, 2.0, bare + Vector3(sin(deg_to_rad(a)) * 0.7, 4.2, cos(deg_to_rad(a)) * 0.4), SceneryBatch.Layer.OPAQUE, 6, swing)
 
 
 ## The floating pin that tells the player what a house wants from them.
@@ -674,15 +810,34 @@ func _build_hoarding(district: Dictionary) -> void:
 
 # ---------------------------------------------------------------- greenery
 
-func _build_greenery() -> void:
+## The trees, lamps and parked cars a quarter is planted with. Two quarters
+## are planted differently enough to be recognisable from map height: Hanami is
+## cherry, and Hollow is whatever is left after the cherry.
+func _build_greenery(planting: String = "street") -> void:
 	var trunk := _tone(Color(0.36, 0.27, 0.19))
 	var leaves := [
 		_tone(Color(0.26, 0.48, 0.26)),
 		_tone(Color(0.32, 0.55, 0.30)),
 		_tone(Color(0.22, 0.42, 0.24)),
 	]
+	if planting == "cherry":
+		trunk = _tone(Color(0.32, 0.24, 0.22))
+		leaves = [
+			_tone(Color(0.92, 0.56, 0.68)),
+			_tone(Color(0.86, 0.44, 0.60)),
+			_tone(Color(0.96, 0.68, 0.78)),
+		]
+	elif planting == "bare":
+		trunk = _tone(Color(0.22, 0.19, 0.18))
+		leaves = [
+			_tone(Color(0.26, 0.24, 0.28)),
+			_tone(Color(0.22, 0.21, 0.26)),
+			_tone(Color(0.30, 0.26, 0.32)),
+		]
 	var post := _tone(Color(0.24, 0.26, 0.30))
 	var glow := _tone(Color(0.98, 0.92, 0.70))
+	if planting == "bare":
+		glow = _tone(Color(0.72, 0.60, 0.92))
 
 	# Street trees down the avenue and the two cross streets.
 	var spots: Array[Vector2] = []
@@ -701,9 +856,21 @@ func _build_greenery() -> void:
 		var scale_factor: float = 0.82 + float(i % 5) * 0.09
 		_batch.cylinder(trunk, 0.22 * scale_factor, 2.2 * scale_factor, _at(Vector3(spot.x, 1.1 * scale_factor, spot.y)), SceneryBatch.Layer.OPAQUE, 8)
 		var canopy: Color = leaves[i % leaves.size()]
+		if planting == "bare":
+			# No canopy at all — three bare limbs off the trunk instead.
+			for a in [-56.0, 18.0, 122.0]:
+				var swing := Basis(Vector3.FORWARD, deg_to_rad(a + float(i) * 11.0))
+				_batch.cylinder(canopy, 0.09 * scale_factor, 1.9 * scale_factor,
+					_at(Vector3(spot.x + sin(deg_to_rad(a)) * 0.6, 2.4 * scale_factor, spot.y + cos(deg_to_rad(a)) * 0.35)),
+					SceneryBatch.Layer.OPAQUE, 6, swing)
+			continue
 		_batch.sphere(canopy, 1.35 * scale_factor, _at(Vector3(spot.x, 3.1 * scale_factor, spot.y)))
 		_batch.sphere(canopy, 0.95 * scale_factor, _at(Vector3(spot.x + 0.7, 2.5 * scale_factor, spot.y - 0.4)))
 		_batch.sphere(canopy, 0.85 * scale_factor, _at(Vector3(spot.x - 0.6, 2.6 * scale_factor, spot.y + 0.5)))
+		if planting == "cherry":
+			# Blossom on the ground under each tree.
+			_batch.box(canopy, Vector3(2.6 * scale_factor, 0.04, 2.6 * scale_factor),
+				_at(Vector3(spot.x, 0.13, spot.y)), SceneryBatch.Layer.OPAQUE)
 
 	for z in [-22.0, -6.0, 6.0, 22.0]:
 		for sx in [-1.0, 1.0]:

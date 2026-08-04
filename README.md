@@ -2,7 +2,7 @@
 
 An Android interior-design game built with [Godot](https://godotengine.org) 4.5.
 
-You start with $3,000 and one quarter of a city. Pick a house off the map, read what the
+You start with $3,000 and one quarter of a city out of six. Pick a house off the map, read what the
 owner wants, go and buy the furniture into your own stock, then fit the room out from that
 stock until every line of the brief is ticked and hand it over for the fee. Finished jobs
 pay experience, and levelling up opens the pricier shops, the better paints and the larger
@@ -19,7 +19,7 @@ the catalogue, lit and furnished by the same code the game runs on. The two swit
 bottom turn the sound and the music off; they are on the guide as well, so you never have to
 come back here for them.
 
-![The whole city: one quarter yours, three still behind hoardings](docs/screenshot-city.png)
+![The whole city: six quarters on a grid, one of them yours to begin with](docs/screenshot-city.png)
 
 | Reading a brief | Buying at a shop |
 |---|---|
@@ -47,7 +47,7 @@ over the last.
 
 ### The city
 
-The map is four quarters laid out on a grid, joined by the roads between them.
+The map is six quarters laid out on a grid, joined by the roads between them.
 
 | Quarter | Costs | Opens at | Houses | Shops | Fees |
 |---|---|---|---|---|---|
@@ -55,12 +55,35 @@ The map is four quarters laid out on a grid, joined by the roads between them.
 | Riverside Wharf | $18,000 | level 7 | 9 | 3 | $4,900 – $9,500 |
 | Hillside Terrace | $36,000 | level 11 | 9 | 3 | $5,200 – $13,000 |
 | Skyline Heights | $58,000 | level 15 | 10 | 3 | $8,800 – $24,800 |
+| Hanami Ward | $68,000 | level 19 | 8 | 3 | $5,600 – $17,500 |
+| Hollow Row | $98,000 | level 24 | 8 | 3 | $11,200 – $29,000 |
 
 Maple Quarter comes with the business — twelve houses along two residential streets, with
-the ten shops down the avenue between them. The other three sit behind builders' hoardings
+the ten shops down the avenue between them. The other five sit behind builders' hoardings
 in a drained-out grey, with the asking price on a sign in the middle, and each has its own
 parade of shops that will not serve you until you hold the deeds. You can fly the camera
 over them from the first minute; you just cannot work or shop there.
+
+The last two are not more of the same street. Each is built to its own pattern, plants its
+own trees and trades in furniture sold nowhere else in the city.
+
+![Hanami Ward: timber houses under broad tiled roofs, cherry trees along the street](docs/screenshot-hanami.png)
+
+**Hanami Ward** is machiya — timber townhouses under a broad tiled roof with eaves deep
+enough to stand under, a plank veranda along the front and paper panels where the windows
+would be. A stone lantern on every plot, cherry along both streets, and blossom on the
+ground under it. Its three shops — Tatami & Tokonoma, Washi & Lantern, Kiri Tansu — furnish
+a room from the floor up: rush matting, a table you kneel at, a chest joined and pegged to
+outlive the house. The briefs here are about restraint. One of them tells you to keep the
+front room bare and means it.
+
+![Hollow Row: steep roofs, corner towers with spires, bare trees and iron railings](docs/screenshot-hollow.png)
+
+**Hollow Row** is the old row at the edge of the map. Steep slate, a corner tower with a
+spire, tall thin windows lit from inside, iron railings and a dead tree leaning over every
+plot. The street lamps burn violet and nothing has been painted this century. Crypt &
+Coffer, The Cauldron and Gargoyle & Gloom serve a sexton, a witch, a werewolf and a family
+that has been at the end of the row three hundred years. Deliveries after dark.
 
 | The hoarding round a quarter you have not bought | What it is asking for |
 |---|---|
@@ -76,7 +99,7 @@ from every shop in the city.
 
 ### Whole floors
 
-Most jobs are one room. Eleven of them are a whole floor — two to five rooms with walls and
+Most jobs are one room. Seventeen of them are a whole floor — two to five rooms with walls and
 doorways between them — and their briefs say which room each thing belongs in. A bed in the
 bathroom does not tick the bedroom's line.
 
@@ -115,6 +138,12 @@ Sandstone* — or leave the room out, which means every room in the flat has to 
 | Zenith Guest Suite | bedroom, bathroom | 48 m² |
 | Heather House, Upstairs | bedroom, children's room, bathroom | 47 m² |
 | The Apex Residence | living room, dining room, bedroom, study | 114 m² |
+| The Engawa House | guest room, living room | 45 m² |
+| The Machiya, Upstairs | bedroom, dining room, store room | 58 m² |
+| The Hanami House | tea room, bedroom, living room, study | 80 m² |
+| The Howler's Den | living room, bedroom | 52 m² |
+| The Undercroft | bedroom, kitchen, study | 72 m² |
+| Hollow House | living room, bedroom, kitchen, study | 95 m² |
 
 A floating pin over each house in a quarter you own tells you where it stands:
 
@@ -269,12 +298,12 @@ silent, and that is the whole cost.
 
 ### Progress
 
-Experience carries you from level 1 to level 20, and it is meant to last the whole city.
-The forty houses are worth about 20,000 experience at two stars apiece; the twenty levels
-cost 20,045 between them. So a competent run arrives at the cap on the fortieth and last
-house, a three-star run gets there three or four houses early, and a scrappier one finishes
-it off with repeat work. Every level from 1 to 19 opens something — a quarter, a shop, a
-tier of stock, a paint, or the next houses on the map — and 20 is the top of the ladder.
+Experience carries you from level 1 to level 30, and it is meant to last the whole city.
+The fifty-six houses are worth about 46,000 experience at two stars apiece; the thirty
+levels cost 45,414 between them. So a competent run arrives at the cap on the fifty-sixth
+and last house, a three-star run gets there a few houses early, and a scrappier one finishes
+it off with repeat work. Every level from 1 to 29 opens something — a quarter, a shop, a
+tier of stock, a paint, or the next houses on the map — and 30 is the top of the ladder.
 
 | Level | What opens |
 |---|---|
@@ -286,12 +315,14 @@ tier of stock, a paint, or the next houses on the map — and 20 is the top of t
 | 11 | **Hillside Terrace**, plus Hearth & Home, The Potting Shed, The Toy Cupboard |
 | 14 | Atelier Nine, Lumen, Vitrine — the last 17 pieces in the city |
 | 15 | **Skyline Heights** |
-| 2, 4, 6, 9, 10, 12, 13, 16–19 | The next houses on the map, and the mid-range paints |
+| 19 | **Hanami Ward**, plus Tatami & Tokonoma, Washi & Lantern, Kiri Tansu — 15 pieces |
+| 24 | **Hollow Row**, plus Crypt & Coffer, The Cauldron, Gargoyle & Gloom — 14 pieces |
+| 2, 4, 6, 9, 10, 12, 13, 16–18, 20–23, 25–29 | The next houses on the map, and the mid-range paints |
 
-Jobs run from a $1,300 studio to a $24,800
-five-room penthouse. A run that buys only what each brief asks for clears Maple Quarter with
-around $31,000 — enough to buy Riverside outright — and owns the whole city, all 40 houses
-handed over, with about $106,000 left. Owning every quarter costs $112,000 in total. Everything — money, level, stock, paints, the quarters you
+Jobs run from a $1,300 studio to a $29,000
+haunted house. A run that buys only what each brief asks for clears Maple Quarter with
+around $31,000 — enough to buy Riverside outright — and owns the whole city, all 56 houses
+handed over, with about $115,000 left. Owning every quarter costs $278,000 in total. Everything — money, level, stock, paints, the quarters you
 have bought, finished jobs and the rooms you left half-done — is saved to the device as you
 go.
 
@@ -307,7 +338,7 @@ everything unlocked, with its own save and load.
 
 ## The catalogue
 
-138 pieces across nineteen shops, all built from primitives at runtime, $45 to $1,250 each.
+167 pieces across twenty-five shops, all built from primitives at runtime, $45 to $1,980 each.
 Ten of the shops stand on Maple Quarter's avenue:
 
 | Shop | Opens | Stock |
@@ -375,9 +406,9 @@ scripts/
   title_screen.gd        The front page: menu, save summary, and a furnished
                          room turning behind it
   data/
-    catalog.gd           Autoload. Every model and price, and the nineteen
+    catalog.gd           Autoload. Every model and price, and the twenty-five
                          shops, with the quarter and level each one opens at
-    jobs.gd              Autoload. The four quarters and the 40 houses in them,
+    jobs.gd              Autoload. The six quarters and the 56 houses in them,
                          the requirement evaluator, the shopping list a brief
                          needs, and the generator for repeat contracts
     game_state.gd        Autoload. Money, XP, levels, the warehouse, the
@@ -392,8 +423,8 @@ scripts/
                          cues through a pool of six voices, and holds the two
                          switches
   city/
-    city_view.gd         The four procedural quarters, their pins, hoardings
-                         and pick volumes
+    city_view.gd         The six procedural quarters, their house archetypes,
+                         planting, pins, hoardings and pick volumes
     scenery_batch.gd     Welds the whole city into three draw calls
     city_ui.gd           Wallet, XP bar, briefing sheet, shop counters, stock,
                          and the quarter you are thinking about buying
@@ -495,15 +526,19 @@ so a new quarter is one entry plus however many houses you want to drop into it:
 
 ```gdscript
 {
-    "id": "riverside", "name": "Riverside Wharf",
-    "origin": Vector2(SPACING, 0), "cost": 10000, "level": 4,
-    "accent": Color(0.36, 0.62, 0.82),
-    "tagline": "Old warehouses on the water, being turned into homes …",
+    "id": "hanami", "name": "Hanami Ward",
+    "origin": Vector2(-SPACING, 0), "cost": 68000, "level": 19,
+    "accent": Color(0.90, 0.62, 0.70),
+    "planting": "cherry", "ground": Color(0.38, 0.50, 0.34),
+    "tagline": "Timber houses under the cherry trees …",
 }
 ```
 
 The city view builds each quarter from the same code, offset by its origin and drained
-towards grey while it is still locked, so adding one costs no new geometry.
+towards grey while it is still locked, so adding one costs no new geometry. `planting` and
+`ground` change what the quarter is grown on and with; a house picks its shape with
+`style.kind`, which is `machiya` and `manor` for the last two quarters and an ordinary
+terrace house for everything else.
 
 ## Checking it still works
 
@@ -529,9 +564,9 @@ tray starts closed and can tell a drag along the row from a tap on a piece, that
 app opens on the title screen with its buttons wired to the right places, that both
 changes of screen are covered end to end by a loading screen whose bar runs from one end to
 the other, that a brief lists every missing piece under the counter that sells it without
-offering to buy any of it for you, that no house opens before the stock its brief asks for
-does, and that the career ends at the level cap without having reached it before the last
-quarter opened, and that every cue the game asks for by name is one the sound bank actually
+offering to buy any of it for you, that no piece is in the catalogue twice, that no house
+opens before the stock its brief asks for does or before the quarter it stands in, and that
+the career ends at the level cap without having reached it before the last quarter opened, and that every cue the game asks for by name is one the sound bank actually
 builds, none of them clipping and none more than half again as loud as the quietest. It
 reports everything that does not hold and exits non-zero.
 

@@ -19,7 +19,7 @@ signal district_unlocked(district_id: String)
 
 const PROFILE_PATH := "user://profile.json"
 const STARTING_MONEY := 3000
-const MAX_LEVEL := 20
+const MAX_LEVEL := 30
 
 var money: int = STARTING_MONEY
 var xp: int = 0
@@ -52,12 +52,13 @@ func _ready() -> void:
 
 ## Experience needed to get from `from_level` to the next one.
 ##
-## The whole career is worth about 20,000 experience at two stars a job, and
-## the twenty levels cost 20,045 between them — so a competent run arrives at
-## the cap on the last of the forty houses, and a scrappier one finishes it off
-## with repeat work. Levelling is meant to last the length of the city.
+## The whole career is worth about 46,000 experience at two stars a job, and
+## the thirty levels cost 45,414 between them — so a competent run arrives at
+## the cap on the last of the fifty-six houses, and a scrappier one finishes it
+## off with repeat work. Levelling is meant to last the length of the city, and
+## the city has grown twice since.
 static func xp_for_level(from_level: int) -> int:
-	return 110 + (from_level - 1) * 105
+	return 110 + (from_level - 1) * 104
 
 
 func xp_needed() -> int:

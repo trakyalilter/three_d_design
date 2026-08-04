@@ -141,6 +141,46 @@ const SHOPS: Array[Dictionary] = [
 		"tagline": "Glass, stone and things to put behind them.",
 		"color": Color(0.52, 0.76, 0.80),
 	},
+
+	# Hanami Ward furnishes rooms that are meant to be mostly empty.
+	{
+		"id": "tatami", "name": "Tatami & Tokonoma", "category": "Living",
+		"district": "hanami", "level": 19,
+		"tagline": "Rush matting, low tables, and the floor as somewhere to sit.",
+		"color": Color(0.78, 0.72, 0.44),
+	},
+	{
+		"id": "washi", "name": "Washi & Lantern", "category": "Decor",
+		"district": "hanami", "level": 19,
+		"tagline": "Paper, light through paper, and a branch cut to length.",
+		"color": Color(0.94, 0.86, 0.76),
+	},
+	{
+		"id": "kiri", "name": "Kiri Tansu", "category": "Storage",
+		"district": "hanami", "level": 19,
+		"tagline": "Paulownia chests, joined and pegged, that outlive the house.",
+		"color": Color(0.66, 0.48, 0.32),
+	},
+
+	# Hollow Row keeps unusual hours.
+	{
+		"id": "crypt", "name": "Crypt & Coffer", "category": "Bedroom",
+		"district": "hollow", "level": 24,
+		"tagline": "Beds for people who keep the curtains shut. Delivery after dark.",
+		"color": Color(0.52, 0.34, 0.60),
+	},
+	{
+		"id": "cauldron", "name": "The Cauldron", "category": "Kitchen",
+		"district": "hollow", "level": 24,
+		"tagline": "Kitchens for a household that brews as much as it cooks.",
+		"color": Color(0.34, 0.56, 0.42),
+	},
+	{
+		"id": "gargoyle", "name": "Gargoyle & Gloom", "category": "Decor",
+		"district": "hollow", "level": 24,
+		"tagline": "Stone, wax and things that watch the room back.",
+		"color": Color(0.46, 0.42, 0.54),
+	},
 ]
 
 ## A colour is bought once at the Colour House and then free to use in any
@@ -221,6 +261,8 @@ func _ready() -> void:
 	_build_hillside()
 	_build_skyline()
 	_build_second_wave()
+	_build_hanami()
+	_build_hollow()
 
 
 func _build() -> void:
@@ -1099,6 +1141,11 @@ func _table(width: float, depth: float, height: float, top: float) -> Array:
 
 
 func _add(def: Dictionary) -> void:
+	# Two pieces with the same id used to mean the second quietly replaced the
+	# first, moving it to another shop and another level and leaving every
+	# brief that asked for it unsatisfiable. Nothing said so at the time.
+	assert(not _items.has(def["id"]),
+		"catalogue already has a piece called '%s'" % def["id"])
 	def["extents"] = _measure(def["parts"])
 	def["level"] = def.get("level", 1)
 	def["price"] = def.get("price", 100)
@@ -2353,5 +2400,452 @@ func _build_deeper_counters() -> void:
 			{"shape": "box", "size": Vector3(0.16, 1.70, 0.02), "pos": Vector3(0, 0.99, 0.115), "mat": "white"},
 			{"shape": "box", "size": Vector3(0.02, 1.70, 0.16), "pos": Vector3(0.115, 0.99, 0), "mat": "white"},
 			{"shape": "box", "size": Vector3(0.28, 0.05, 0.28), "pos": Vector3(0, 1.94, 0), "mat": "steel"},
+		],
+	})
+
+
+# --------------------------------------------------------------- Hanami Ward
+
+## Tatami & Tokonoma, Washi & Lantern and Kiri Tansu. The ward furnishes a room
+## from the floor up rather than from the walls in: everything here is low, and
+## a good deal of it is meant to be moved out of the way at night.
+func _build_hanami() -> void:
+	_add({
+		"id": "tatami_mat", "shop": "tatami",
+		"name": "Tatami Mat", "category": "Living",
+		"price": 240, "level": 19,
+		# Fresh rush, which is green rather than straw — and it needs to be,
+		# because a pale mat on a pale floor was all but invisible.
+		"tint": Color(0.70, 0.73, 0.45),
+		"parts": [
+			{"shape": "box", "size": Vector3(1.90, 0.09, 0.95), "pos": Vector3(0, 0.045, 0), "mat": "tint"},
+			{"shape": "box", "size": Vector3(1.96, 0.10, 0.09), "pos": Vector3(0, 0.05, -0.49), "mat": "wood_dark"},
+			{"shape": "box", "size": Vector3(1.96, 0.10, 0.09), "pos": Vector3(0, 0.05, 0.49), "mat": "wood_dark"},
+			{"shape": "box", "size": Vector3(0.06, 0.10, 1.00), "pos": Vector3(-0.95, 0.05, 0), "mat": "wood_dark"},
+			{"shape": "box", "size": Vector3(0.06, 0.10, 1.00), "pos": Vector3(0.95, 0.05, 0), "mat": "wood_dark"},
+		],
+	})
+	_add({
+		"id": "zabuton", "shop": "tatami",
+		"name": "Zabuton Cushion", "category": "Living",
+		"price": 90, "level": 19,
+		"tint": Color(0.62, 0.26, 0.30),
+		"parts": [
+			{"shape": "box", "size": Vector3(0.62, 0.10, 0.62), "pos": Vector3(0, 0.05, 0), "mat": "tint"},
+			{"shape": "box", "size": Vector3(0.52, 0.05, 0.52), "pos": Vector3(0, 0.11, 0), "mat": "tint"},
+		],
+	})
+	_add({
+		"id": "chabudai", "surface": 0.32, "shop": "tatami",
+		"name": "Chabudai Table", "category": "Living",
+		"price": 320, "level": 19,
+		"tint": Color(0.48, 0.30, 0.19),
+		"parts": [
+			{"shape": "box", "size": Vector3(1.10, 0.06, 0.72), "pos": Vector3(0, 0.29, 0), "mat": "tint"},
+			{"shape": "cyl", "size": Vector3(0.035, 0.29, 0.035), "pos": Vector3(-0.46, 0.145, -0.28), "mat": "wood_dark"},
+			{"shape": "cyl", "size": Vector3(0.035, 0.29, 0.035), "pos": Vector3(0.46, 0.145, -0.28), "mat": "wood_dark"},
+			{"shape": "cyl", "size": Vector3(0.035, 0.29, 0.035), "pos": Vector3(-0.46, 0.145, 0.28), "mat": "wood_dark"},
+			{"shape": "cyl", "size": Vector3(0.035, 0.29, 0.035), "pos": Vector3(0.46, 0.145, 0.28), "mat": "wood_dark"},
+		],
+	})
+	_add({
+		"id": "kotatsu", "surface": 0.40, "shop": "tatami",
+		"name": "Kotatsu", "category": "Living",
+		"price": 520, "level": 19,
+		"tint": Color(0.72, 0.60, 0.44),
+		"parts": [
+			{"shape": "box", "size": Vector3(1.24, 0.05, 0.86), "pos": Vector3(0, 0.375, 0), "mat": "wood_dark"},
+			# The quilt hanging over the frame, which is the whole point of it.
+			{"shape": "box", "size": Vector3(1.34, 0.30, 0.96), "pos": Vector3(0, 0.21, 0), "mat": "tint"},
+			{"shape": "box", "size": Vector3(1.02, 0.06, 0.66), "pos": Vector3(0, 0.36, 0), "mat": "wood"},
+			{"shape": "cyl", "size": Vector3(0.04, 0.34, 0.04), "pos": Vector3(-0.55, 0.17, -0.36), "mat": "wood_dark"},
+			{"shape": "cyl", "size": Vector3(0.04, 0.34, 0.04), "pos": Vector3(0.55, 0.17, -0.36), "mat": "wood_dark"},
+			{"shape": "cyl", "size": Vector3(0.04, 0.34, 0.04), "pos": Vector3(-0.55, 0.17, 0.36), "mat": "wood_dark"},
+			{"shape": "cyl", "size": Vector3(0.04, 0.34, 0.04), "pos": Vector3(0.55, 0.17, 0.36), "mat": "wood_dark"},
+		],
+	})
+	_add({
+		"id": "zaisu", "shop": "tatami",
+		"name": "Zaisu Floor Chair", "category": "Living",
+		"price": 210, "level": 19,
+		"tint": Color(0.36, 0.42, 0.38),
+		"parts": [
+			{"shape": "box", "size": Vector3(0.50, 0.09, 0.48), "pos": Vector3(0, 0.05, 0), "mat": "tint"},
+			{"shape": "box", "size": Vector3(0.50, 0.46, 0.09), "pos": Vector3(0, 0.30, -0.22), "mat": "tint", "rot": Vector3(-12, 0, 0)},
+			{"shape": "box", "size": Vector3(0.54, 0.03, 0.52), "pos": Vector3(0, 0.005, 0), "mat": "wood_dark"},
+		],
+	})
+	_add({
+		"id": "futon_roll", "shop": "tatami",
+		"name": "Futon", "category": "Bedroom",
+		"price": 380, "level": 19,
+		"tint": Color(0.90, 0.88, 0.84),
+		"parts": [
+			{"shape": "box", "size": Vector3(1.02, 0.16, 2.02), "pos": Vector3(0, 0.08, 0), "mat": "tint"},
+			{"shape": "box", "size": Vector3(0.98, 0.10, 1.30), "pos": Vector3(0, 0.20, 0.30), "mat": "tint"},
+			{"shape": "box", "size": Vector3(0.46, 0.13, 0.28), "pos": Vector3(0, 0.22, -0.78), "mat": "white"},
+		],
+	})
+	_add({
+		"id": "shoji_screen", "against_wall": true, "shop": "washi",
+		"name": "Shoji Screen", "category": "Decor",
+		"price": 460, "level": 19,
+		"tint": Color(0.94, 0.92, 0.86),
+		"parts": [
+			{"shape": "box", "size": Vector3(1.80, 1.86, 0.05), "pos": Vector3(0, 0.95, 0), "mat": "tint"},
+			{"shape": "box", "size": Vector3(1.86, 0.09, 0.09), "pos": Vector3(0, 0.04, 0), "mat": "wood_dark"},
+			{"shape": "box", "size": Vector3(1.86, 0.09, 0.09), "pos": Vector3(0, 1.88, 0), "mat": "wood_dark"},
+			{"shape": "box", "size": Vector3(0.07, 1.86, 0.08), "pos": Vector3(-0.89, 0.95, 0), "mat": "wood_dark"},
+			{"shape": "box", "size": Vector3(0.07, 1.86, 0.08), "pos": Vector3(0.89, 0.95, 0), "mat": "wood_dark"},
+			{"shape": "box", "size": Vector3(0.05, 1.86, 0.07), "pos": Vector3(0.0, 0.95, 0), "mat": "wood_dark"},
+			{"shape": "box", "size": Vector3(1.86, 0.05, 0.07), "pos": Vector3(0, 0.62, 0), "mat": "wood_dark"},
+			{"shape": "box", "size": Vector3(1.86, 0.05, 0.07), "pos": Vector3(0, 1.28, 0), "mat": "wood_dark"},
+		],
+	})
+	_add({
+		"id": "byobu", "against_wall": true, "shop": "washi",
+		"name": "Byōbu Folding Screen", "category": "Decor",
+		"price": 640, "level": 19,
+		"tint": Color(0.86, 0.74, 0.42),
+		"parts": [
+			{"shape": "box", "size": Vector3(0.62, 1.52, 0.05), "pos": Vector3(-0.52, 0.78, 0.16), "mat": "tint", "rot": Vector3(0, 26, 0)},
+			{"shape": "box", "size": Vector3(0.62, 1.52, 0.05), "pos": Vector3(0.0, 0.78, -0.02), "mat": "tint", "rot": Vector3(0, -14, 0)},
+			{"shape": "box", "size": Vector3(0.62, 1.52, 0.05), "pos": Vector3(0.54, 0.78, 0.14), "mat": "tint", "rot": Vector3(0, 24, 0)},
+			{"shape": "box", "size": Vector3(0.64, 0.07, 0.07), "pos": Vector3(-0.52, 0.03, 0.16), "mat": "wood_dark", "rot": Vector3(0, 26, 0)},
+			{"shape": "box", "size": Vector3(0.64, 0.07, 0.07), "pos": Vector3(0.0, 0.03, -0.02), "mat": "wood_dark", "rot": Vector3(0, -14, 0)},
+			{"shape": "box", "size": Vector3(0.64, 0.07, 0.07), "pos": Vector3(0.54, 0.03, 0.14), "mat": "wood_dark", "rot": Vector3(0, 24, 0)},
+		],
+	})
+	_add({
+		"id": "andon_lamp", "shop": "washi",
+		"name": "Andon Lantern", "category": "Decor",
+		"price": 280, "level": 19,
+		"tint": Color(0.97, 0.92, 0.74),
+		"parts": [
+			{"shape": "box", "size": Vector3(0.34, 0.03, 0.34), "pos": Vector3(0, 0.015, 0), "mat": "wood_dark"},
+			{"shape": "box", "size": Vector3(0.28, 0.82, 0.28), "pos": Vector3(0, 0.45, 0), "mat": "tint"},
+			{"shape": "box", "size": Vector3(0.04, 0.82, 0.04), "pos": Vector3(-0.14, 0.45, -0.14), "mat": "wood_dark"},
+			{"shape": "box", "size": Vector3(0.04, 0.82, 0.04), "pos": Vector3(0.14, 0.45, -0.14), "mat": "wood_dark"},
+			{"shape": "box", "size": Vector3(0.04, 0.82, 0.04), "pos": Vector3(-0.14, 0.45, 0.14), "mat": "wood_dark"},
+			{"shape": "box", "size": Vector3(0.04, 0.82, 0.04), "pos": Vector3(0.14, 0.45, 0.14), "mat": "wood_dark"},
+			{"shape": "box", "size": Vector3(0.38, 0.04, 0.38), "pos": Vector3(0, 0.88, 0), "mat": "wood_dark"},
+		],
+	})
+	_add({
+		"id": "bonsai", "stackable": true, "shop": "washi",
+		"name": "Bonsai", "category": "Decor",
+		"price": 190, "level": 19,
+		"tint": Color(0.42, 0.30, 0.22),
+		"parts": [
+			{"shape": "box", "size": Vector3(0.30, 0.10, 0.22), "pos": Vector3(0, 0.05, 0), "mat": "tint"},
+			{"shape": "box", "size": Vector3(0.26, 0.02, 0.18), "pos": Vector3(0, 0.11, 0), "mat": "soil"},
+			{"shape": "cyl", "size": Vector3(0.022, 0.16, 0.03), "pos": Vector3(-0.02, 0.19, 0), "mat": "wood_dark", "rot": Vector3(0, 0, 14)},
+			{"shape": "cyl", "size": Vector3(0.016, 0.13, 0.02), "pos": Vector3(0.06, 0.30, 0.01), "mat": "wood_dark", "rot": Vector3(0, 0, -52)},
+			{"shape": "sphere", "size": Vector3(0.13, 0.10, 0.13), "pos": Vector3(0.11, 0.35, 0.01), "mat": "leaf"},
+			{"shape": "sphere", "size": Vector3(0.09, 0.07, 0.09), "pos": Vector3(-0.08, 0.31, -0.02), "mat": "leaf"},
+		],
+	})
+	_add({
+		"id": "ikebana", "stackable": true, "shop": "washi",
+		"name": "Ikebana Arrangement", "category": "Decor",
+		"price": 150, "level": 19,
+		"tint": Color(0.28, 0.32, 0.36),
+		"parts": [
+			{"shape": "cyl", "size": Vector3(0.13, 0.07, 0.13), "pos": Vector3(0, 0.035, 0), "mat": "tint"},
+			{"shape": "cyl", "size": Vector3(0.012, 0.34, 0.015), "pos": Vector3(0.01, 0.24, 0), "mat": "leaf", "rot": Vector3(0, 0, -16)},
+			{"shape": "cyl", "size": Vector3(0.010, 0.24, 0.012), "pos": Vector3(-0.05, 0.18, 0.02), "mat": "leaf", "rot": Vector3(12, 0, 24)},
+			{"shape": "sphere", "size": Vector3(0.05, 0.05, 0.05), "pos": Vector3(0.06, 0.41, 0), "mat": "white"},
+		],
+	})
+	_add({
+		"id": "tansu", "against_wall": true, "surface": 0.92, "shop": "kiri",
+		"name": "Kiri Tansu Chest", "category": "Storage",
+		"price": 720, "level": 19,
+		"tint": Color(0.64, 0.47, 0.31),
+		"parts": [
+			{"shape": "box", "size": Vector3(1.10, 0.90, 0.48), "pos": Vector3(0, 0.45, 0), "mat": "tint"},
+			{"shape": "box", "size": Vector3(1.04, 0.02, 0.02), "pos": Vector3(0, 0.28, 0.25), "mat": "wood_dark"},
+			{"shape": "box", "size": Vector3(1.04, 0.02, 0.02), "pos": Vector3(0, 0.58, 0.25), "mat": "wood_dark"},
+			{"shape": "box", "size": Vector3(0.10, 0.10, 0.03), "pos": Vector3(-0.30, 0.14, 0.25), "mat": "metal"},
+			{"shape": "box", "size": Vector3(0.10, 0.10, 0.03), "pos": Vector3(0.30, 0.14, 0.25), "mat": "metal"},
+			{"shape": "box", "size": Vector3(0.10, 0.10, 0.03), "pos": Vector3(-0.30, 0.44, 0.25), "mat": "metal"},
+			{"shape": "box", "size": Vector3(0.10, 0.10, 0.03), "pos": Vector3(0.30, 0.44, 0.25), "mat": "metal"},
+			{"shape": "box", "size": Vector3(0.10, 0.10, 0.03), "pos": Vector3(0.0, 0.74, 0.25), "mat": "metal"},
+			{"shape": "box", "size": Vector3(1.14, 0.04, 0.52), "pos": Vector3(0, 0.92, 0), "mat": "wood_dark"},
+		],
+	})
+	_add({
+		"id": "kaidan_dansu", "against_wall": true, "surface": 1.30, "shop": "kiri",
+		"name": "Kaidan Step Chest", "category": "Storage",
+		"price": 880, "level": 19,
+		"tint": Color(0.58, 0.42, 0.28),
+		"parts": [
+			{"shape": "box", "size": Vector3(0.52, 0.44, 0.50), "pos": Vector3(-0.55, 0.22, 0), "mat": "tint"},
+			{"shape": "box", "size": Vector3(0.52, 0.88, 0.50), "pos": Vector3(0.0, 0.44, 0), "mat": "tint"},
+			{"shape": "box", "size": Vector3(0.52, 1.30, 0.50), "pos": Vector3(0.55, 0.65, 0), "mat": "tint"},
+			{"shape": "box", "size": Vector3(0.56, 0.03, 0.54), "pos": Vector3(-0.55, 0.45, 0), "mat": "wood_dark"},
+			{"shape": "box", "size": Vector3(0.56, 0.03, 0.54), "pos": Vector3(0.0, 0.89, 0), "mat": "wood_dark"},
+			{"shape": "box", "size": Vector3(0.56, 0.03, 0.54), "pos": Vector3(0.55, 1.31, 0), "mat": "wood_dark"},
+			{"shape": "box", "size": Vector3(0.09, 0.09, 0.03), "pos": Vector3(-0.55, 0.16, 0.26), "mat": "metal"},
+			{"shape": "box", "size": Vector3(0.09, 0.09, 0.03), "pos": Vector3(0.0, 0.60, 0.26), "mat": "metal"},
+		],
+	})
+	_add({
+		"id": "getabako", "against_wall": true, "surface": 0.62, "shop": "kiri",
+		"name": "Getabako Shoe Chest", "category": "Storage",
+		"price": 420, "level": 19,
+		"tint": Color(0.70, 0.56, 0.38),
+		"parts": [
+			{"shape": "box", "size": Vector3(0.86, 0.60, 0.36), "pos": Vector3(0, 0.30, 0), "mat": "tint"},
+			{"shape": "box", "size": Vector3(0.40, 0.26, 0.02), "pos": Vector3(-0.21, 0.17, 0.19), "mat": "wood_light"},
+			{"shape": "box", "size": Vector3(0.40, 0.26, 0.02), "pos": Vector3(0.21, 0.17, 0.19), "mat": "wood_light"},
+			{"shape": "box", "size": Vector3(0.40, 0.26, 0.02), "pos": Vector3(-0.21, 0.45, 0.19), "mat": "wood_light"},
+			{"shape": "box", "size": Vector3(0.40, 0.26, 0.02), "pos": Vector3(0.21, 0.45, 0.19), "mat": "wood_light"},
+			{"shape": "box", "size": Vector3(0.90, 0.04, 0.40), "pos": Vector3(0, 0.62, 0), "mat": "wood_dark"},
+		],
+	})
+	_add({
+		"id": "tsukubai", "shop": "washi",
+		"name": "Tsukubai Basin", "category": "Decor",
+		"price": 340, "level": 19,
+		"tint": Color(0.46, 0.48, 0.46),
+		"parts": [
+			{"shape": "cyl", "size": Vector3(0.30, 0.34, 0.32), "pos": Vector3(0, 0.17, 0), "mat": "tint"},
+			{"shape": "cyl", "size": Vector3(0.22, 0.05, 0.22), "pos": Vector3(0, 0.355, 0), "mat": "glass"},
+			{"shape": "cyl", "size": Vector3(0.035, 0.52, 0.035), "pos": Vector3(-0.02, 0.26, -0.30), "mat": "wood_dark"},
+			{"shape": "cyl", "size": Vector3(0.028, 0.24, 0.028), "pos": Vector3(-0.02, 0.50, -0.19), "mat": "wood_dark", "rot": Vector3(90, 0, 0)},
+			{"shape": "box", "size": Vector3(0.44, 0.06, 0.30), "pos": Vector3(0, 0.03, 0.32), "mat": "tint"},
+		],
+	})
+
+
+# ---------------------------------------------------------------- Hollow Row
+
+## Crypt & Coffer, The Cauldron and Gargoyle & Gloom. The row's clients keep
+## late hours and have firm views about drapery; the trade here is heavy, dark
+## and lit by candles, and none of it is sold anywhere else in the city.
+func _build_hollow() -> void:
+	_add({
+		"id": "coffin_bed", "against_wall": true, "shop": "crypt",
+		"name": "Casket Bed", "category": "Bedroom",
+		"price": 1450, "level": 24,
+		"tint": Color(0.24, 0.16, 0.20),
+		"parts": [
+			{"shape": "box", "size": Vector3(1.05, 0.30, 2.10), "pos": Vector3(0, 0.30, 0), "mat": "tint"},
+			{"shape": "box", "size": Vector3(0.86, 0.20, 1.94), "pos": Vector3(0, 0.52, 0), "mat": "tint"},
+			{"shape": "box", "size": Vector3(0.78, 0.12, 1.86), "pos": Vector3(0, 0.60, 0), "mat": "towel"},
+			{"shape": "box", "size": Vector3(0.44, 0.14, 0.28), "pos": Vector3(0, 0.70, -0.76), "mat": "white"},
+			{"shape": "box", "size": Vector3(1.09, 0.16, 0.14), "pos": Vector3(0, 0.22, -1.02), "mat": "metal"},
+			{"shape": "box", "size": Vector3(1.09, 0.16, 0.14), "pos": Vector3(0, 0.22, 1.02), "mat": "metal"},
+			{"shape": "cyl", "size": Vector3(0.05, 0.16, 0.05), "pos": Vector3(-0.46, 0.08, -0.86), "mat": "metal"},
+			{"shape": "cyl", "size": Vector3(0.05, 0.16, 0.05), "pos": Vector3(0.46, 0.08, -0.86), "mat": "metal"},
+			{"shape": "cyl", "size": Vector3(0.05, 0.16, 0.05), "pos": Vector3(-0.46, 0.08, 0.86), "mat": "metal"},
+			{"shape": "cyl", "size": Vector3(0.05, 0.16, 0.05), "pos": Vector3(0.46, 0.08, 0.86), "mat": "metal"},
+		],
+	})
+	_add({
+		"id": "four_poster", "against_wall": true, "shop": "crypt",
+		"name": "Draped Four-Poster", "category": "Bedroom",
+		"price": 1980, "level": 24,
+		"tint": Color(0.36, 0.16, 0.24),
+		"parts": [
+			{"shape": "box", "size": Vector3(1.55, 0.34, 2.10), "pos": Vector3(0, 0.30, 0), "mat": "wood_dark"},
+			{"shape": "box", "size": Vector3(1.45, 0.20, 2.00), "pos": Vector3(0, 0.55, 0), "mat": "tint"},
+			{"shape": "box", "size": Vector3(0.60, 0.14, 0.34), "pos": Vector3(-0.36, 0.70, -0.78), "mat": "white"},
+			{"shape": "box", "size": Vector3(0.60, 0.14, 0.34), "pos": Vector3(0.36, 0.70, -0.78), "mat": "white"},
+			{"shape": "cyl", "size": Vector3(0.06, 2.20, 0.06), "pos": Vector3(-0.74, 1.10, -1.00), "mat": "wood_dark"},
+			{"shape": "cyl", "size": Vector3(0.06, 2.20, 0.06), "pos": Vector3(0.74, 1.10, -1.00), "mat": "wood_dark"},
+			{"shape": "cyl", "size": Vector3(0.06, 2.20, 0.06), "pos": Vector3(-0.74, 1.10, 1.00), "mat": "wood_dark"},
+			{"shape": "cyl", "size": Vector3(0.06, 2.20, 0.06), "pos": Vector3(0.74, 1.10, 1.00), "mat": "wood_dark"},
+			{"shape": "box", "size": Vector3(1.60, 0.10, 2.10), "pos": Vector3(0, 2.18, 0), "mat": "wood_dark"},
+			# The drapes, hung at the head and gathered at each post.
+			{"shape": "box", "size": Vector3(1.50, 1.70, 0.06), "pos": Vector3(0, 1.30, -1.02), "mat": "tint"},
+			{"shape": "box", "size": Vector3(0.22, 1.90, 0.22), "pos": Vector3(-0.72, 1.18, 0.98), "mat": "tint"},
+			{"shape": "box", "size": Vector3(0.22, 1.90, 0.22), "pos": Vector3(0.72, 1.18, 0.98), "mat": "tint"},
+		],
+	})
+	_add({
+		"id": "casket_chest", "against_wall": true, "surface": 0.74, "shop": "crypt",
+		"name": "Iron-Bound Chest", "category": "Storage",
+		"price": 760, "level": 24,
+		"tint": Color(0.30, 0.22, 0.18),
+		"parts": [
+			{"shape": "box", "size": Vector3(1.05, 0.62, 0.55), "pos": Vector3(0, 0.31, 0), "mat": "tint"},
+			{"shape": "box", "size": Vector3(1.09, 0.10, 0.59), "pos": Vector3(0, 0.68, 0), "mat": "wood_dark"},
+			{"shape": "box", "size": Vector3(0.09, 0.74, 0.59), "pos": Vector3(-0.34, 0.36, 0), "mat": "metal"},
+			{"shape": "box", "size": Vector3(0.09, 0.74, 0.59), "pos": Vector3(0.34, 0.36, 0), "mat": "metal"},
+			{"shape": "box", "size": Vector3(0.16, 0.18, 0.06), "pos": Vector3(0, 0.52, 0.29), "mat": "metal"},
+		],
+	})
+	_add({
+		"id": "high_back_chair", "shop": "crypt",
+		"name": "High-Backed Chair", "category": "Living",
+		"price": 890, "level": 24,
+		"tint": Color(0.42, 0.14, 0.20),
+		"parts": [
+			{"shape": "box", "size": Vector3(0.74, 0.16, 0.70), "pos": Vector3(0, 0.46, 0), "mat": "tint"},
+			{"shape": "box", "size": Vector3(0.74, 1.36, 0.14), "pos": Vector3(0, 1.10, -0.34), "mat": "tint"},
+			{"shape": "box", "size": Vector3(0.13, 0.70, 0.60), "pos": Vector3(-0.34, 1.20, -0.02), "mat": "tint"},
+			{"shape": "box", "size": Vector3(0.13, 0.70, 0.60), "pos": Vector3(0.34, 1.20, -0.02), "mat": "tint"},
+			{"shape": "box", "size": Vector3(0.15, 0.22, 0.62), "pos": Vector3(-0.33, 0.63, 0.02), "mat": "wood_dark"},
+			{"shape": "box", "size": Vector3(0.15, 0.22, 0.62), "pos": Vector3(0.33, 0.63, 0.02), "mat": "wood_dark"},
+			{"shape": "cyl", "size": Vector3(0.05, 0.38, 0.05), "pos": Vector3(-0.30, 0.19, -0.28), "mat": "wood_dark"},
+			{"shape": "cyl", "size": Vector3(0.05, 0.38, 0.05), "pos": Vector3(0.30, 0.19, -0.28), "mat": "wood_dark"},
+			{"shape": "cyl", "size": Vector3(0.05, 0.38, 0.05), "pos": Vector3(-0.30, 0.19, 0.28), "mat": "wood_dark"},
+			{"shape": "cyl", "size": Vector3(0.05, 0.38, 0.05), "pos": Vector3(0.30, 0.19, 0.28), "mat": "wood_dark"},
+		],
+	})
+	_add({
+		"id": "cauldron_stove", "shop": "cauldron",
+		"name": "Cauldron & Hearth", "category": "Kitchen",
+		"price": 1120, "level": 24,
+		"tint": Color(0.20, 0.21, 0.24),
+		"parts": [
+			{"shape": "cyl", "size": Vector3(0.44, 0.20, 0.48), "pos": Vector3(0, 0.10, 0), "mat": "dark"},
+			{"shape": "cyl", "size": Vector3(0.05, 0.62, 0.05), "pos": Vector3(-0.34, 0.31, -0.20), "mat": "metal"},
+			{"shape": "cyl", "size": Vector3(0.05, 0.62, 0.05), "pos": Vector3(0.34, 0.31, -0.20), "mat": "metal"},
+			{"shape": "cyl", "size": Vector3(0.05, 0.62, 0.05), "pos": Vector3(0, 0.31, 0.38), "mat": "metal"},
+			{"shape": "sphere", "size": Vector3(0.42, 0.62, 0.42), "pos": Vector3(0, 0.72, 0), "mat": "tint"},
+			{"shape": "cyl", "size": Vector3(0.40, 0.06, 0.40), "pos": Vector3(0, 0.94, 0), "mat": "tint"},
+			{"shape": "cyl", "size": Vector3(0.34, 0.03, 0.34), "pos": Vector3(0, 0.95, 0), "mat": "leaf"},
+		],
+	})
+	_add({
+		"id": "apothecary_counter", "against_wall": true, "surface": 0.94, "shop": "cauldron",
+		"name": "Apothecary Counter", "category": "Kitchen",
+		"price": 1240, "level": 24,
+		"tint": Color(0.28, 0.20, 0.16),
+		"parts": [
+			{"shape": "box", "size": Vector3(1.80, 0.88, 0.62), "pos": Vector3(0, 0.44, 0), "mat": "tint"},
+			{"shape": "box", "size": Vector3(1.88, 0.06, 0.68), "pos": Vector3(0, 0.91, 0), "mat": "wood_dark"},
+			{"shape": "box", "size": Vector3(0.26, 0.24, 0.02), "pos": Vector3(-0.62, 0.66, 0.32), "mat": "wood_light"},
+			{"shape": "box", "size": Vector3(0.26, 0.24, 0.02), "pos": Vector3(-0.21, 0.66, 0.32), "mat": "wood_light"},
+			{"shape": "box", "size": Vector3(0.26, 0.24, 0.02), "pos": Vector3(0.21, 0.66, 0.32), "mat": "wood_light"},
+			{"shape": "box", "size": Vector3(0.26, 0.24, 0.02), "pos": Vector3(0.62, 0.66, 0.32), "mat": "wood_light"},
+			{"shape": "box", "size": Vector3(0.26, 0.24, 0.02), "pos": Vector3(-0.62, 0.30, 0.32), "mat": "wood_light"},
+			{"shape": "box", "size": Vector3(0.26, 0.24, 0.02), "pos": Vector3(-0.21, 0.30, 0.32), "mat": "wood_light"},
+			{"shape": "box", "size": Vector3(0.26, 0.24, 0.02), "pos": Vector3(0.21, 0.30, 0.32), "mat": "wood_light"},
+			{"shape": "box", "size": Vector3(0.26, 0.24, 0.02), "pos": Vector3(0.62, 0.30, 0.32), "mat": "wood_light"},
+		],
+	})
+	_add({
+		"id": "drying_rack", "against_wall": true, "shop": "cauldron",
+		"name": "Drying Rack", "category": "Kitchen",
+		"price": 480, "level": 24,
+		"tint": Color(0.36, 0.26, 0.18),
+		"parts": [
+			{"shape": "box", "size": Vector3(0.08, 1.72, 0.08), "pos": Vector3(-0.52, 0.86, 0), "mat": "tint"},
+			{"shape": "box", "size": Vector3(0.08, 1.72, 0.08), "pos": Vector3(0.52, 0.86, 0), "mat": "tint"},
+			{"shape": "box", "size": Vector3(1.12, 0.07, 0.07), "pos": Vector3(0, 1.70, 0), "mat": "tint"},
+			{"shape": "box", "size": Vector3(1.12, 0.06, 0.06), "pos": Vector3(0, 1.18, 0), "mat": "tint"},
+			{"shape": "box", "size": Vector3(0.16, 0.44, 0.14), "pos": Vector3(-0.30, 1.46, 0), "mat": "leaf"},
+			{"shape": "box", "size": Vector3(0.14, 0.36, 0.12), "pos": Vector3(0.06, 1.50, 0), "mat": "leaf"},
+			{"shape": "box", "size": Vector3(0.15, 0.40, 0.13), "pos": Vector3(0.34, 1.48, 0), "mat": "leaf"},
+			{"shape": "box", "size": Vector3(0.13, 0.30, 0.11), "pos": Vector3(-0.10, 1.01, 0), "mat": "leaf"},
+			{"shape": "box", "size": Vector3(1.08, 0.05, 0.36), "pos": Vector3(0, 0.10, 0), "mat": "wood_dark"},
+		],
+	})
+	_add({
+		"id": "candelabra", "shop": "gargoyle",
+		"name": "Iron Candelabra", "category": "Decor",
+		"price": 560, "level": 24,
+		"tint": Color(0.18, 0.18, 0.21),
+		"parts": [
+			{"shape": "cyl", "size": Vector3(0.30, 0.06, 0.34), "pos": Vector3(0, 0.03, 0), "mat": "tint"},
+			{"shape": "cyl", "size": Vector3(0.05, 1.30, 0.05), "pos": Vector3(0, 0.68, 0), "mat": "tint"},
+			{"shape": "box", "size": Vector3(0.86, 0.05, 0.05), "pos": Vector3(0, 1.24, 0), "mat": "tint"},
+			{"shape": "box", "size": Vector3(0.05, 0.05, 0.60), "pos": Vector3(0, 1.10, 0), "mat": "tint"},
+			{"shape": "cyl", "size": Vector3(0.05, 0.22, 0.05), "pos": Vector3(-0.42, 1.36, 0), "mat": "white"},
+			{"shape": "cyl", "size": Vector3(0.05, 0.22, 0.05), "pos": Vector3(0.42, 1.36, 0), "mat": "white"},
+			{"shape": "cyl", "size": Vector3(0.05, 0.22, 0.05), "pos": Vector3(0, 1.22, -0.29), "mat": "white"},
+			{"shape": "cyl", "size": Vector3(0.05, 0.22, 0.05), "pos": Vector3(0, 1.22, 0.29), "mat": "white"},
+			{"shape": "cyl", "size": Vector3(0.05, 0.26, 0.05), "pos": Vector3(0, 1.46, 0), "mat": "white"},
+		],
+	})
+	_add({
+		"id": "gargoyle_statue", "shop": "gargoyle",
+		"name": "Gargoyle", "category": "Decor",
+		"price": 820, "level": 24,
+		"tint": Color(0.44, 0.44, 0.46),
+		"parts": [
+			{"shape": "box", "size": Vector3(0.46, 0.52, 0.46), "pos": Vector3(0, 0.26, 0), "mat": "tint"},
+			{"shape": "box", "size": Vector3(0.38, 0.06, 0.38), "pos": Vector3(0, 0.55, 0), "mat": "tint"},
+			{"shape": "box", "size": Vector3(0.34, 0.40, 0.32), "pos": Vector3(0, 0.78, 0), "mat": "tint"},
+			{"shape": "sphere", "size": Vector3(0.15, 0.15, 0.15), "pos": Vector3(0, 1.04, 0.02), "mat": "tint"},
+			{"shape": "box", "size": Vector3(0.07, 0.11, 0.07), "pos": Vector3(-0.08, 1.14, 0), "mat": "tint"},
+			{"shape": "box", "size": Vector3(0.07, 0.11, 0.07), "pos": Vector3(0.08, 1.14, 0), "mat": "tint"},
+			{"shape": "box", "size": Vector3(0.34, 0.44, 0.06), "pos": Vector3(-0.24, 0.86, -0.12), "mat": "tint", "rot": Vector3(0, -34, 18)},
+			{"shape": "box", "size": Vector3(0.34, 0.44, 0.06), "pos": Vector3(0.24, 0.86, -0.12), "mat": "tint", "rot": Vector3(0, 34, -18)},
+		],
+	})
+	_add({
+		"id": "raven_perch", "shop": "gargoyle",
+		"name": "Raven on a Stand", "category": "Decor",
+		"price": 390, "level": 24,
+		"tint": Color(0.14, 0.14, 0.17),
+		"parts": [
+			{"shape": "cyl", "size": Vector3(0.26, 0.05, 0.28), "pos": Vector3(0, 0.025, 0), "mat": "wood_dark"},
+			{"shape": "cyl", "size": Vector3(0.035, 1.24, 0.035), "pos": Vector3(0, 0.64, 0), "mat": "wood_dark"},
+			{"shape": "cyl", "size": Vector3(0.03, 0.34, 0.03), "pos": Vector3(0, 1.24, 0), "mat": "wood_dark", "rot": Vector3(90, 0, 0)},
+			{"shape": "sphere", "size": Vector3(0.11, 0.16, 0.11), "pos": Vector3(0, 1.34, 0.06), "mat": "tint"},
+			{"shape": "sphere", "size": Vector3(0.07, 0.07, 0.07), "pos": Vector3(0, 1.45, 0.02), "mat": "tint"},
+			{"shape": "box", "size": Vector3(0.03, 0.02, 0.09), "pos": Vector3(0, 1.45, -0.06), "mat": "wood_light"},
+			{"shape": "box", "size": Vector3(0.05, 0.09, 0.20), "pos": Vector3(0, 1.30, 0.16), "mat": "tint", "rot": Vector3(24, 0, 0)},
+		],
+	})
+	_add({
+		"id": "crystal_ball", "stackable": true, "shop": "gargoyle",
+		"name": "Scrying Globe", "category": "Decor",
+		"price": 260, "level": 24,
+		"tint": Color(0.56, 0.48, 0.72),
+		"parts": [
+			{"shape": "cyl", "size": Vector3(0.11, 0.05, 0.13), "pos": Vector3(0, 0.025, 0), "mat": "metal"},
+			{"shape": "cyl", "size": Vector3(0.07, 0.04, 0.09), "pos": Vector3(0, 0.06, 0), "mat": "metal"},
+			{"shape": "sphere", "size": Vector3(0.11, 0.22, 0.11), "pos": Vector3(0, 0.18, 0), "mat": "glass"},
+			{"shape": "sphere", "size": Vector3(0.07, 0.14, 0.07), "pos": Vector3(0, 0.18, 0), "mat": "tint"},
+		],
+	})
+	_add({
+		"id": "skull_candle", "stackable": true, "shop": "gargoyle",
+		"name": "Candle & Skull", "category": "Decor",
+		"price": 130, "level": 24,
+		"tint": Color(0.88, 0.86, 0.80),
+		"parts": [
+			{"shape": "box", "size": Vector3(0.22, 0.03, 0.20), "pos": Vector3(0, 0.015, 0), "mat": "wood_dark"},
+			{"shape": "sphere", "size": Vector3(0.08, 0.09, 0.08), "pos": Vector3(-0.05, 0.07, 0), "mat": "tint"},
+			{"shape": "box", "size": Vector3(0.07, 0.04, 0.06), "pos": Vector3(-0.05, 0.03, 0.05), "mat": "tint"},
+			{"shape": "cyl", "size": Vector3(0.035, 0.20, 0.035), "pos": Vector3(0.07, 0.13, 0), "mat": "white"},
+			{"shape": "cyl", "size": Vector3(0.006, 0.03, 0.006), "pos": Vector3(0.07, 0.245, 0), "mat": "dark"},
+		],
+	})
+	_add({
+		"id": "black_mirror", "against_wall": true, "shop": "gargoyle",
+		"name": "Tall Dark Mirror", "category": "Decor",
+		"price": 940, "level": 24,
+		"tint": Color(0.22, 0.18, 0.24),
+		"parts": [
+			{"shape": "box", "size": Vector3(0.86, 1.90, 0.10), "pos": Vector3(0, 0.98, 0), "mat": "tint"},
+			{"shape": "box", "size": Vector3(0.68, 1.70, 0.04), "pos": Vector3(0, 0.98, 0.05), "mat": "mirror"},
+			{"shape": "box", "size": Vector3(0.94, 0.12, 0.16), "pos": Vector3(0, 1.98, 0), "mat": "tint"},
+			{"shape": "box", "size": Vector3(0.94, 0.10, 0.20), "pos": Vector3(0, 0.05, 0), "mat": "tint"},
+			{"shape": "sphere", "size": Vector3(0.07, 0.07, 0.07), "pos": Vector3(-0.38, 2.06, 0), "mat": "metal"},
+			{"shape": "sphere", "size": Vector3(0.07, 0.07, 0.07), "pos": Vector3(0.38, 2.06, 0), "mat": "metal"},
+		],
+	})
+	_add({
+		"id": "grimoire_case", "against_wall": true, "surface": 1.86, "shop": "gargoyle",
+		"name": "Grimoire Case", "category": "Storage",
+		"price": 1080, "level": 24,
+		"tint": Color(0.26, 0.19, 0.17),
+		"parts": [
+			{"shape": "box", "size": Vector3(1.15, 1.84, 0.36), "pos": Vector3(0, 0.92, -0.02), "mat": "tint"},
+			{"shape": "box", "size": Vector3(1.06, 0.04, 0.32), "pos": Vector3(0, 0.50, 0), "mat": "wood_dark"},
+			{"shape": "box", "size": Vector3(1.06, 0.04, 0.32), "pos": Vector3(0, 0.96, 0), "mat": "wood_dark"},
+			{"shape": "box", "size": Vector3(1.06, 0.04, 0.32), "pos": Vector3(0, 1.42, 0), "mat": "wood_dark"},
+			{"shape": "box", "size": Vector3(0.30, 0.34, 0.22), "pos": Vector3(-0.32, 0.68, 0.02), "mat": "wood_dark"},
+			{"shape": "box", "size": Vector3(0.24, 0.30, 0.20), "pos": Vector3(0.10, 0.66, 0.02), "mat": "leaf"},
+			{"shape": "box", "size": Vector3(0.28, 0.36, 0.22), "pos": Vector3(-0.20, 1.15, 0.02), "mat": "wood"},
+			{"shape": "box", "size": Vector3(0.22, 0.28, 0.20), "pos": Vector3(0.28, 1.11, 0.02), "mat": "wood_dark"},
+			{"shape": "box", "size": Vector3(1.20, 0.08, 0.42), "pos": Vector3(0, 1.88, 0), "mat": "wood_dark"},
 		],
 	})
