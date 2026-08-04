@@ -50,9 +50,9 @@ The map is four quarters laid out on a grid, joined by the roads between them.
 | Quarter | Costs | Opens at | Houses | Shops | Fees |
 |---|---|---|---|---|---|
 | Maple Quarter | — | level 1 | 12 | 10 | $1,300 – $10,500 |
-| Riverside Wharf | $18,000 | level 4 | 9 | 3 | $4,900 – $9,500 |
-| Hillside Terrace | $36,000 | level 5 | 9 | 3 | $5,200 – $13,000 |
-| Skyline Heights | $58,000 | level 6 | 10 | 3 | $8,800 – $24,800 |
+| Riverside Wharf | $18,000 | level 7 | 9 | 3 | $4,900 – $9,500 |
+| Hillside Terrace | $36,000 | level 11 | 9 | 3 | $5,200 – $13,000 |
+| Skyline Heights | $58,000 | level 15 | 10 | 3 | $8,800 – $24,800 |
 
 Maple Quarter comes with the business — twelve houses along two residential streets, with
 the ten shops down the avenue between them. The other three sit behind builders' hoardings
@@ -238,7 +238,26 @@ and only then does the overlay fade away.
 
 ### Progress
 
-Experience carries you from level 1 to level 8. Jobs run from a $1,300 studio to a $24,800
+Experience carries you from level 1 to level 20, and it is meant to last the whole city.
+The forty houses are worth about 20,000 experience at two stars apiece; the twenty levels
+cost 20,045 between them. So a competent run arrives at the cap on the fortieth and last
+house, a three-star run gets there three or four houses early, and a scrappier one finishes
+it off with repeat work. Every level from 1 to 19 opens something — a quarter, a shop, a
+tier of stock, a paint, or the next houses on the map — and 20 is the top of the ladder.
+
+| Level | What opens |
+|---|---|
+| 1 | Maple Quarter, its six starting shops, 21 pieces, 8 paints, and the first two briefs |
+| 3 | Kitchen Works, Splash & Tile, Volt & Wire — 34 more pieces |
+| 5 | Attic & Loft, and 26 pieces including the baths and the bigger beds |
+| 7 | **Riverside Wharf** goes on sale |
+| 8 | Dock & Salvage, Ropewalk & Co, The Chandlery — the wharf's own trade |
+| 11 | **Hillside Terrace**, plus Hearth & Home, The Potting Shed, The Toy Cupboard |
+| 14 | Atelier Nine, Lumen, Vitrine — the last 17 pieces in the city |
+| 15 | **Skyline Heights** |
+| 2, 4, 6, 9, 10, 12, 13, 16–19 | The next houses on the map, and the mid-range paints |
+
+Jobs run from a $1,300 studio to a $24,800
 five-room penthouse. A run that buys only what each brief asks for clears Maple Quarter with
 around $31,000 — enough to buy Riverside outright — and owns the whole city, all 40 houses
 handed over, with about $106,000 left. Owning every quarter costs $112,000 in total. Everything — money, level, stock, paints, the quarters you
@@ -458,8 +477,8 @@ godot --headless -- --smoke
 
 It resets the profile and plays the whole city: all 40 jobs, quarter by quarter, buying
 each quarter out of the money it has actually earned — taking repeat contracts at the
-houses it has already finished when it is short — shopping for each brief, fitting the room
-from stock and handing it over. Then it checks that every quarter is priced above the one
+houses it has already finished when it is short of money or of levels — shopping for each
+brief, fitting the room from stock and handing it over. Then it checks that every quarter is priced above the one
 before and starts locked, that every shop stands in a real quarter and no brief asks for
 stock the player could not have bought by then, that no client is asked for more furniture
 than their budget covers, that no two rooms of a floor plan overlap and a bed in the wrong
@@ -471,9 +490,10 @@ three stars, that a generated repeat contract can be shopped for and finished, a
 tray starts closed and can tell a drag along the row from a tap on a piece, that the
 app opens on the title screen with its buttons wired to the right places, that both
 changes of screen are covered end to end by a loading screen whose bar runs from one end to
-the other, and that a brief lists every missing piece under the counter that sells it
-without offering to buy any of it for you. It reports everything that does not hold and
-exits non-zero.
+the other, that a brief lists every missing piece under the counter that sells it without
+offering to buy any of it for you, that no house opens before the stock its brief asks for
+does, and that the career ends at the level cap without having reached it before the last
+quarter opened. It reports everything that does not hold and exits non-zero.
 
 ## Building it yourself
 

@@ -28,22 +28,25 @@ func _ready() -> void:
 	_check_districts()
 
 	print("=== career ===")
+	# Where the player stood when the last quarter opened. Levelling is meant
+	# to still be running then, not finished a third of the way in.
+	var level_at_last_quarter := 1
 	for district: Dictionary in Jobs.districts():
 		if not await _acquire(district):
 			break
-		# Cheapest brief first, the way anyone short of money would work a new
-		# quarter. The float held back when buying it only guarantees the
-		# cheapest one is affordable.
-		var houses := Jobs.houses_in(str(district["id"]))
-		houses.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
-			return Jobs.minimum_outlay(str(a["id"])) < Jobs.minimum_outlay(str(b["id"])))
-		for job: Dictionary in houses:
-			await _play(job)
-	print("--- career done: money %d, level %d, jobs %d, houses %d/%d" % [
-		Game.money, Game.level, Game.jobs_done(),
+		level_at_last_quarter = Game.level
+		await _work_quarter(district)
+	print("--- career done: money %d, level %d/%d, jobs %d, houses %d/%d" % [
+		Game.money, Game.level, Game.MAX_LEVEL, Game.jobs_done(),
 		Jobs.unlocked().size(), Jobs.all().size()])
 	_expect(Jobs.unlocked().size() == Jobs.all().size(),
 		"the career run did not manage to buy the whole city")
+	_expect(Game.level == Game.MAX_LEVEL,
+		"the career ended at level %d of %d, so the last levels are unreachable"
+			% [Game.level, Game.MAX_LEVEL])
+	_expect(level_at_last_quarter < Game.MAX_LEVEL,
+		"the level cap was already reached before the last quarter opened, so "
+		+ "the whole of it is played with nothing left to earn")
 
 	print("=== catalogue ===")
 	_check_catalogue()
@@ -272,20 +275,9 @@ func _acquire(district: Dictionary) -> bool:
 	var money_before := Game.money
 	var contracts := 0
 	while (Game.money < asking or Game.level < needed_level) and contracts < 60:
-		var house_id := _biggest_finished_house()
-		if house_id == "":
+		if not await _take_repeat():
 			break
-		var contract := Jobs.generate_contract(house_id, Game.level)
-		if contract.is_empty():
-			break
-		var before := Game.money
-		Game.take_repeat_contract(house_id, contract)
-		await _play(Jobs.get_job(house_id))
 		contracts += 1
-		if Game.money <= before:
-			_failures.append("repeat work at %s did not pay: %s -> %s"
-				% [house_id, UIKit.money(before), UIKit.money(Game.money)])
-			break
 
 	if not Game.unlock_district(district_id):
 		_failures.append("could not buy %s: %s at level %d, wanted %s at level %d"
@@ -298,6 +290,63 @@ func _acquire(district: Dictionary) -> bool:
 	_expect(Game.money >= Jobs.district_float(district_id),
 		"buying %s left nothing to go shopping with" % district_id)
 	return true
+
+
+## Takes one repeat contract at the best-paying finished house and works it.
+## This is how a player closes a gap — in money towards the next quarter, or in
+## levels towards a house still out of reach. False when there is no repeat to
+## be had, or when one did not pay.
+func _take_repeat() -> bool:
+	var house_id := _biggest_finished_house()
+	if house_id == "":
+		return false
+	var contract := Jobs.generate_contract(house_id, Game.level)
+	if contract.is_empty():
+		return false
+	var before := Game.money
+	Game.take_repeat_contract(house_id, contract)
+	await _play(Jobs.get_job(house_id))
+	if Game.money <= before:
+		_failures.append("repeat work at %s did not pay: %s -> %s"
+			% [house_id, UIKit.money(before), UIKit.money(Game.money)])
+		return false
+	return true
+
+
+## Works a quarter until every house in it has been handed over. Cheapest brief
+## first, the way anyone short of money would — and when everything left is
+## still above the player's level, repeat work at a finished house is what
+## closes the gap. That is what the level gates are there to make you do.
+func _work_quarter(district: Dictionary) -> void:
+	var remaining: Array[Dictionary] = Jobs.houses_in(str(district["id"]))
+	var grinds := 0
+	while not remaining.is_empty():
+		remaining.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+			return Jobs.minimum_outlay(str(a["id"])) < Jobs.minimum_outlay(str(b["id"])))
+
+		var next := -1
+		for i in remaining.size():
+			if Game.level >= int(remaining[i]["level"]):
+				next = i
+				break
+
+		if next < 0:
+			if grinds >= 40 or not await _take_repeat():
+				_failures.append(
+					"%s cannot be finished: %d house%s left above level %d" % [
+						district["id"], remaining.size(),
+						"" if remaining.size() == 1 else "s", Game.level])
+				return
+			grinds += 1
+			continue
+
+		var job: Dictionary = remaining[next]
+		remaining.remove_at(next)
+		await _play(job)
+
+	if grinds > 0:
+		print("--- %s took %d repeat job%s to reach the level for the rest" % [
+			district["name"], grinds, "" if grinds == 1 else "s"])
 
 
 ## The finished house with the most floor, which is where a repeat contract pays
@@ -369,6 +418,21 @@ func _check_catalogue() -> void:
 				"%s (%s) needs %s, which is only sold in %s"
 					% [house_id, quarter, req["id"], sold_in])
 
+	# A brief can only ask for what the player's level can buy by the time the
+	# house opens. Houses and stock are gated on the same ladder, and this is
+	# what keeps the two in step — get it wrong and the job is unfinishable
+	# rather than merely hard.
+	for house: Dictionary in Jobs.all():
+		var house_id := str(house["id"])
+		var gate := int(house["level"])
+		for req: Dictionary in house["requirements"]:
+			var needed := _requirement_level(req)
+			_expect(needed <= gate,
+				"%s opens at level %d but its %s needs level %d"
+					% [house_id, gate, req.get("type", "?"), needed])
+		_expect(gate >= int(Jobs.get_district(Jobs.district_of(house_id))["level"]),
+			"%s opens before the quarter it stands in" % house_id)
+
 	# And the client's budget has to cover what they are asking for, or the
 	# fifth star is unreachable however well the room is laid out.
 	for house: Dictionary in Jobs.all():
@@ -380,6 +444,29 @@ func _check_catalogue() -> void:
 
 	print("catalogue       %d pieces across %d categories and %d shops, %d of them exclusive"
 		% [total, Catalog.CATEGORIES.size(), Catalog.SHOPS.size(), exclusive])
+
+
+## The level a player has to reach before one line of a brief can be satisfied:
+## the piece it names, or the cheapest way of meeting it where it names a
+## category or a choice of colours.
+static func _requirement_level(req: Dictionary) -> int:
+	match str(req.get("type", "")):
+		"item":
+			return Catalog.effective_unlock_level(str(req["id"]))
+		"category":
+			var best := 99
+			for id in Catalog.ids_in(str(req["category"])):
+				if Catalog.is_stackable(id):
+					continue
+				best = mini(best, Catalog.effective_unlock_level(id))
+			return 1 if best == 99 else best
+		"color":
+			var best := 99
+			for entry: Dictionary in Catalog.PAINT[str(req.get("surface", "floor"))]:
+				if str(entry["name"]) in req.get("names", []):
+					best = mini(best, int(entry["level"]))
+			return 1 if best == 99 else best
+	return 1
 
 
 # ----------------------------------------------------------------- the plans

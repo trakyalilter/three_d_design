@@ -43,17 +43,17 @@ const SHOPS: Array[Dictionary] = [
 		"color": Color(0.24, 0.68, 0.62),
 	},
 	{
-		"id": "kitchen", "name": "Kitchen Works", "category": "Kitchen", "district": "maple", "level": 2,
+		"id": "kitchen", "name": "Kitchen Works", "category": "Kitchen", "district": "maple", "level": 3,
 		"tagline": "Counters, cookers and cold storage.",
 		"color": Color(0.85, 0.32, 0.30),
 	},
 	{
-		"id": "bathroom", "name": "Splash & Tile", "category": "Bathroom", "district": "maple", "level": 2,
+		"id": "bathroom", "name": "Splash & Tile", "category": "Bathroom", "district": "maple", "level": 3,
 		"tagline": "Toilets, basins, tubs and showers.",
 		"color": Color(0.32, 0.72, 0.92),
 	},
 	{
-		"id": "electronics", "name": "Volt & Wire", "category": "Electronics", "district": "maple", "level": 2,
+		"id": "electronics", "name": "Volt & Wire", "category": "Electronics", "district": "maple", "level": 3,
 		"tagline": "Screens, speakers and everything with a plug.",
 		"color": Color(0.36, 0.40, 0.86),
 	},
@@ -75,7 +75,7 @@ const SHOPS: Array[Dictionary] = [
 
 	{
 		"id": "attic", "name": "Attic & Loft", "category": "Storage",
-		"district": "maple", "level": 3,
+		"district": "maple", "level": 5,
 		"tagline": "The things that come down from upstairs when somebody moves.",
 		"color": Color(0.74, 0.62, 0.42),
 	},
@@ -83,13 +83,13 @@ const SHOPS: Array[Dictionary] = [
 	# Riverside Wharf trades in what the warehouses left behind.
 	{
 		"id": "salvage", "name": "Dock & Salvage", "category": "Storage",
-		"district": "riverside", "level": 4,
+		"district": "riverside", "level": 8,
 		"tagline": "Crates, pipework and benches, straight off the quay.",
 		"color": Color(0.72, 0.52, 0.28),
 	},
 	{
 		"id": "ropewalk", "name": "Ropewalk & Co", "category": "Decor",
-		"district": "riverside", "level": 4,
+		"district": "riverside", "level": 8,
 		"tagline": "Canvas, rope and brass, from the people who rigged the boats.",
 		"color": Color(0.30, 0.58, 0.72),
 	},
@@ -97,27 +97,27 @@ const SHOPS: Array[Dictionary] = [
 	# Hillside is family houses and gardens.
 	{
 		"id": "chandlery", "name": "The Chandlery", "category": "Kitchen",
-		"district": "riverside", "level": 4,
+		"district": "riverside", "level": 8,
 		"tagline": "Lamps, casks and everything a galley ever needed.",
 		"color": Color(0.86, 0.66, 0.30),
 	},
 
 	{
 		"id": "hearth", "name": "Hearth & Home", "category": "Living",
-		"district": "hillside", "level": 5,
+		"district": "hillside", "level": 11,
 		"tagline": "The comfortable end of the trade: seats, benches and sideboards.",
 		"color": Color(0.86, 0.46, 0.34),
 	},
 	{
 		"id": "potting", "name": "The Potting Shed", "category": "Decor",
-		"district": "hillside", "level": 5,
+		"district": "hillside", "level": 11,
 		"tagline": "Everything green, and somewhere to stand it.",
 		"color": Color(0.42, 0.68, 0.34),
 	},
 
 	{
 		"id": "toybox", "name": "The Toy Cupboard", "category": "Bedroom",
-		"district": "hillside", "level": 5,
+		"district": "hillside", "level": 11,
 		"tagline": "For the rooms with somebody small in them.",
 		"color": Color(0.94, 0.58, 0.62),
 	},
@@ -125,19 +125,19 @@ const SHOPS: Array[Dictionary] = [
 	# Skyline sells to people who do not ask the price.
 	{
 		"id": "atelier", "name": "Atelier Nine", "category": "Living",
-		"district": "skyline", "level": 6,
+		"district": "skyline", "level": 14,
 		"tagline": "One of everything, and nothing you have seen before.",
 		"color": Color(0.60, 0.42, 0.78),
 	},
 	{
 		"id": "lumen", "name": "Lumen", "category": "Decor",
-		"district": "skyline", "level": 6,
+		"district": "skyline", "level": 14,
 		"tagline": "Light, and the things that throw it.",
 		"color": Color(0.94, 0.80, 0.34),
 	},
 	{
 		"id": "vitrine", "name": "Vitrine", "category": "Decor",
-		"district": "skyline", "level": 6,
+		"district": "skyline", "level": 14,
 		"tagline": "Glass, stone and things to put behind them.",
 		"color": Color(0.52, 0.76, 0.80),
 	},
@@ -155,20 +155,20 @@ const PAINT: Dictionary = {
 		{"name": "Walnut", "color": Color(0.55, 0.42, 0.30), "level": 1},
 		{"name": "Espresso", "color": Color(0.36, 0.27, 0.20), "level": 1},
 		{"name": "Chalk", "color": Color(0.85, 0.83, 0.80), "level": 1},
-		{"name": "Concrete", "color": Color(0.62, 0.64, 0.66), "level": 2},
-		{"name": "Slate", "color": Color(0.30, 0.32, 0.36), "level": 3},
-		{"name": "Sandstone", "color": Color(0.74, 0.72, 0.62), "level": 3},
-		{"name": "Sea Glass", "color": Color(0.52, 0.60, 0.55), "level": 4},
+		{"name": "Concrete", "color": Color(0.62, 0.64, 0.66), "level": 3},
+		{"name": "Slate", "color": Color(0.30, 0.32, 0.36), "level": 5},
+		{"name": "Sandstone", "color": Color(0.74, 0.72, 0.62), "level": 4},
+		{"name": "Sea Glass", "color": Color(0.52, 0.60, 0.55), "level": 8},
 	],
 	"wall": [
 		{"name": "Cotton", "color": Color(0.92, 0.91, 0.88), "level": 1},
 		{"name": "Morning", "color": Color(0.86, 0.88, 0.90), "level": 1},
 		{"name": "Sage", "color": Color(0.80, 0.84, 0.79), "level": 1},
 		{"name": "Linen", "color": Color(0.89, 0.84, 0.78), "level": 1},
-		{"name": "Harbour", "color": Color(0.70, 0.74, 0.80), "level": 2},
-		{"name": "Storm", "color": Color(0.55, 0.58, 0.64), "level": 3},
-		{"name": "Blush", "color": Color(0.78, 0.72, 0.72), "level": 3},
-		{"name": "Ink", "color": Color(0.36, 0.38, 0.44), "level": 4},
+		{"name": "Harbour", "color": Color(0.70, 0.74, 0.80), "level": 3},
+		{"name": "Storm", "color": Color(0.55, 0.58, 0.64), "level": 5},
+		{"name": "Blush", "color": Color(0.78, 0.72, 0.72), "level": 4},
+		{"name": "Ink", "color": Color(0.36, 0.38, 0.44), "level": 8},
 	],
 }
 
@@ -251,7 +251,7 @@ func _build() -> void:
 	})
 	_add({
 		"id": "tv_stand", "against_wall": true, "surface": 0.52, "name": "TV Stand", "category": "Living",
-		"price": 220, "level": 2,
+		"price": 220, "level": 3,
 		"tint": Color(0.33, 0.21, 0.13),
 		"parts": [
 			{"shape": "box", "size": Vector3(1.50, 0.06, 0.42), "pos": Vector3(0, 0.49, 0), "mat": "tint"},
@@ -263,7 +263,7 @@ func _build() -> void:
 	})
 	_add({
 		"id": "television", "stackable": true, "name": "Television", "category": "Electronics",
-		"price": 520, "level": 3,
+		"price": 520, "level": 5,
 		"tint": Color(0.16, 0.17, 0.2),
 		"parts": [
 			{"shape": "box", "size": Vector3(0.40, 0.03, 0.22), "pos": Vector3(0, 0.015, 0), "mat": "dark"},
@@ -276,7 +276,7 @@ func _build() -> void:
 	# --------------------------------------------------------------- Bedroom
 	_add({
 		"id": "bed_double", "against_wall": true, "name": "Double Bed", "category": "Bedroom",
-		"price": 620, "level": 2,
+		"price": 620, "level": 3,
 		"tint": Color(0.30, 0.53, 0.72),
 		"parts": _bed(1.62, 2.05),
 	})
@@ -302,7 +302,7 @@ func _build() -> void:
 	})
 	_add({
 		"id": "dresser", "against_wall": true, "surface": 0.925, "name": "Dresser", "category": "Bedroom",
-		"price": 340, "level": 2,
+		"price": 340, "level": 3,
 		"tint": Color(0.62, 0.58, 0.50),
 		"parts": [
 			{"shape": "box", "size": Vector3(1.20, 0.85, 0.48), "pos": Vector3(0, 0.50, 0), "mat": "tint"},
@@ -322,7 +322,7 @@ func _build() -> void:
 	})
 	_add({
 		"id": "round_table", "surface": 0.78, "name": "Round Table", "category": "Dining",
-		"price": 350, "level": 2,
+		"price": 350, "level": 3,
 		"tint": Color(0.79, 0.64, 0.45),
 		"parts": [
 			{"shape": "cyl", "size": Vector3(0.60, 0.06, 0.60), "pos": Vector3(0, 0.75, 0), "mat": "tint"},
@@ -345,7 +345,7 @@ func _build() -> void:
 	})
 	_add({
 		"id": "bar_stool", "name": "Bar Stool", "category": "Dining",
-		"price": 110, "level": 3,
+		"price": 110, "level": 5,
 		"tint": Color(0.16, 0.17, 0.2),
 		"parts": [
 			{"shape": "cyl", "size": Vector3(0.19, 0.07, 0.19), "pos": Vector3(0, 0.72, 0), "mat": "tint"},
@@ -370,7 +370,7 @@ func _build() -> void:
 	})
 	_add({
 		"id": "fridge", "against_wall": true, "name": "Refrigerator", "category": "Kitchen",
-		"price": 700, "level": 2,
+		"price": 700, "level": 3,
 		"tint": Color(0.85, 0.86, 0.88),
 		"parts": [
 			{"shape": "box", "size": Vector3(0.72, 1.82, 0.70), "pos": Vector3(0, 0.91, 0), "mat": "tint"},
@@ -382,7 +382,7 @@ func _build() -> void:
 	})
 	_add({
 		"id": "stove", "against_wall": true, "name": "Stove", "category": "Kitchen",
-		"price": 540, "level": 3,
+		"price": 540, "level": 5,
 		"tint": Color(0.16, 0.17, 0.2),
 		"parts": [
 			{"shape": "box", "size": Vector3(0.60, 0.86, 0.62), "pos": Vector3(0, 0.47, 0), "mat": "tint"},
@@ -398,7 +398,7 @@ func _build() -> void:
 	})
 	_add({
 		"id": "sink_unit", "against_wall": true, "surface": 0.91, "name": "Sink Unit", "category": "Kitchen",
-		"price": 430, "level": 2,
+		"price": 430, "level": 3,
 		"tint": Color(0.93, 0.93, 0.9),
 		"parts": [
 			{"shape": "box", "size": Vector3(0.90, 0.82, 0.62), "pos": Vector3(0, 0.45, 0), "mat": "tint"},
@@ -439,7 +439,7 @@ func _build() -> void:
 	})
 	_add({
 		"id": "bathtub", "against_wall": true, "name": "Bathtub", "category": "Bathroom",
-		"price": 780, "level": 3,
+		"price": 780, "level": 5,
 		"tint": Color(0.97, 0.97, 0.96),
 		"parts": [
 			{"shape": "box", "size": Vector3(1.70, 0.52, 0.76), "pos": Vector3(0, 0.26, 0), "mat": "tint"},
@@ -451,7 +451,7 @@ func _build() -> void:
 	})
 	_add({
 		"id": "shower", "against_wall": true, "name": "Shower", "category": "Bathroom",
-		"price": 620, "level": 2,
+		"price": 620, "level": 3,
 		"tint": Color(0.85, 0.86, 0.88),
 		"parts": [
 			{"shape": "box", "size": Vector3(0.92, 0.12, 0.92), "pos": Vector3(0, 0.06, 0), "mat": "porcelain"},
@@ -465,7 +465,7 @@ func _build() -> void:
 	})
 	_add({
 		"id": "washing_machine", "against_wall": true, "name": "Washing Machine", "category": "Bathroom",
-		"price": 560, "level": 3,
+		"price": 560, "level": 5,
 		"tint": Color(0.93, 0.93, 0.9),
 		"parts": [
 			{"shape": "box", "size": Vector3(0.60, 0.86, 0.62), "pos": Vector3(0, 0.43, 0), "mat": "tint"},
@@ -477,7 +477,7 @@ func _build() -> void:
 	})
 	_add({
 		"id": "vanity_unit", "against_wall": true, "surface": 0.72, "name": "Vanity Unit", "category": "Bathroom",
-		"price": 340, "level": 2,
+		"price": 340, "level": 3,
 		"tint": Color(0.62, 0.58, 0.50),
 		"parts": [
 			{"shape": "box", "size": Vector3(0.78, 0.62, 0.42), "pos": Vector3(0, 0.35, 0), "mat": "tint"},
@@ -507,7 +507,7 @@ func _build() -> void:
 	# --------------------------------------------------------------- Storage
 	_add({
 		"id": "wardrobe", "against_wall": true, "name": "Wardrobe", "category": "Storage",
-		"price": 560, "level": 2,
+		"price": 560, "level": 3,
 		"tint": Color(0.93, 0.93, 0.9),
 		"parts": [
 			{"shape": "box", "size": Vector3(1.25, 2.05, 0.62), "pos": Vector3(0, 1.05, 0), "mat": "tint"},
@@ -537,7 +537,7 @@ func _build() -> void:
 	})
 	_add({
 		"id": "desk", "against_wall": true, "surface": 0.755, "name": "Desk", "category": "Storage",
-		"price": 330, "level": 2,
+		"price": 330, "level": 3,
 		"tint": Color(0.93, 0.93, 0.9),
 		"parts": [
 			{"shape": "box", "size": Vector3(1.40, 0.05, 0.68), "pos": Vector3(0, 0.73, 0), "mat": "tint"},
@@ -550,7 +550,7 @@ func _build() -> void:
 	})
 	_add({
 		"id": "cabinet", "against_wall": true, "surface": 0.84, "name": "Low Cabinet", "category": "Storage",
-		"price": 260, "level": 3,
+		"price": 260, "level": 5,
 		"tint": Color(0.45, 0.38, 0.66),
 		"parts": [
 			{"shape": "box", "size": Vector3(0.90, 0.80, 0.42), "pos": Vector3(0, 0.44, 0), "mat": "tint"},
@@ -616,7 +616,7 @@ func _build() -> void:
 	})
 	_add({
 		"id": "partition", "against_wall": true, "name": "Partition", "category": "Decor",
-		"price": 210, "level": 4,
+		"price": 210, "level": 8,
 		"tint": Color(0.62, 0.58, 0.50),
 		"parts": [
 			{"shape": "box", "size": Vector3(1.40, 1.75, 0.06), "pos": Vector3(0, 0.90, 0), "mat": "tint"},
@@ -632,7 +632,7 @@ func _build_extras() -> void:
 	# ---------------------------------------------------------------- Living
 	_add({
 		"id": "recliner", "against_wall": true, "name": "Recliner",
-		"category": "Living", "price": 380, "level": 3,
+		"category": "Living", "price": 380, "level": 5,
 		"tint": Color(0.40, 0.30, 0.26),
 		"parts": [
 			{"shape": "box", "size": Vector3(0.90, 0.34, 0.92), "pos": Vector3(0, 0.24, -0.04), "mat": "tint"},
@@ -658,7 +658,7 @@ func _build_extras() -> void:
 	})
 	_add({
 		"id": "console_table", "against_wall": true, "surface": 0.78,
-		"name": "Console Table", "category": "Living", "price": 210, "level": 2,
+		"name": "Console Table", "category": "Living", "price": 210, "level": 3,
 		"tint": Color(0.50, 0.36, 0.26),
 		"parts": [
 			{"shape": "box", "size": Vector3(1.10, 0.05, 0.35), "pos": Vector3(0, 0.755, 0), "mat": "tint"},
@@ -673,7 +673,7 @@ func _build_extras() -> void:
 	# --------------------------------------------------------------- Bedroom
 	_add({
 		"id": "bunk_bed", "against_wall": true, "name": "Bunk Bed",
-		"category": "Bedroom", "price": 780, "level": 4,
+		"category": "Bedroom", "price": 780, "level": 8,
 		"tint": Color(0.58, 0.44, 0.32),
 		"parts": [
 			{"shape": "box", "size": Vector3(1.00, 0.18, 2.00), "pos": Vector3(0, 0.30, 0), "mat": "wood_dark"},
@@ -692,7 +692,7 @@ func _build_extras() -> void:
 	})
 	_add({
 		"id": "crib", "against_wall": true, "name": "Crib",
-		"category": "Bedroom", "price": 300, "level": 3,
+		"category": "Bedroom", "price": 300, "level": 5,
 		"tint": Color(0.90, 0.89, 0.86),
 		"parts": [
 			{"shape": "box", "size": Vector3(0.70, 0.08, 1.30), "pos": Vector3(0, 0.40, 0), "mat": "tint"},
@@ -709,7 +709,7 @@ func _build_extras() -> void:
 	})
 	_add({
 		"id": "dressing_table", "against_wall": true, "surface": 0.76,
-		"name": "Dressing Table", "category": "Bedroom", "price": 360, "level": 3,
+		"name": "Dressing Table", "category": "Bedroom", "price": 360, "level": 5,
 		"tint": Color(0.86, 0.82, 0.78),
 		"parts": [
 			{"shape": "box", "size": Vector3(1.00, 0.05, 0.45), "pos": Vector3(0, 0.735, 0), "mat": "tint"},
@@ -736,7 +736,7 @@ func _build_extras() -> void:
 	# ---------------------------------------------------------------- Dining
 	_add({
 		"id": "dining_bench", "name": "Dining Bench",
-		"category": "Dining", "price": 180, "level": 2,
+		"category": "Dining", "price": 180, "level": 3,
 		"tint": Color(0.50, 0.36, 0.24),
 		"parts": [
 			{"shape": "box", "size": Vector3(1.40, 0.06, 0.35), "pos": Vector3(0, 0.43, 0), "mat": "tint"},
@@ -747,7 +747,7 @@ func _build_extras() -> void:
 	})
 	_add({
 		"id": "kitchen_island", "surface": 0.96, "name": "Kitchen Island",
-		"category": "Dining", "price": 680, "level": 4,
+		"category": "Dining", "price": 680, "level": 8,
 		"tint": Color(0.90, 0.89, 0.86),
 		"parts": [
 			{"shape": "box", "size": Vector3(1.60, 0.86, 0.90), "pos": Vector3(0, 0.47, 0), "mat": "tint"},
@@ -761,7 +761,7 @@ func _build_extras() -> void:
 	# --------------------------------------------------------------- Kitchen
 	_add({
 		"id": "dishwasher", "against_wall": true, "name": "Dishwasher",
-		"category": "Kitchen", "price": 560, "level": 3,
+		"category": "Kitchen", "price": 560, "level": 5,
 		"tint": Color(0.88, 0.89, 0.90),
 		"parts": [
 			{"shape": "box", "size": Vector3(0.60, 0.86, 0.62), "pos": Vector3(0, 0.43, 0), "mat": "tint"},
@@ -772,7 +772,7 @@ func _build_extras() -> void:
 	})
 	_add({
 		"id": "pantry", "against_wall": true, "name": "Pantry Cupboard",
-		"category": "Kitchen", "price": 500, "level": 3,
+		"category": "Kitchen", "price": 500, "level": 5,
 		"tint": Color(0.90, 0.89, 0.86),
 		"parts": [
 			{"shape": "box", "size": Vector3(0.90, 2.00, 0.60), "pos": Vector3(0, 1.04, 0), "mat": "tint"},
@@ -818,7 +818,7 @@ func _build_extras() -> void:
 	})
 	_add({
 		"id": "bathroom_cabinet", "against_wall": true, "name": "Tall Cabinet",
-		"category": "Bathroom", "price": 260, "level": 2,
+		"category": "Bathroom", "price": 260, "level": 3,
 		"tint": Color(0.92, 0.92, 0.90),
 		"parts": [
 			{"shape": "box", "size": Vector3(0.40, 1.66, 0.35), "pos": Vector3(0, 0.89, 0), "mat": "tint"},
@@ -855,7 +855,7 @@ func _build_extras() -> void:
 	})
 	_add({
 		"id": "display_cabinet", "against_wall": true, "name": "Display Cabinet",
-		"category": "Storage", "price": 460, "level": 4, "surface": 1.85,
+		"category": "Storage", "price": 460, "level": 8, "surface": 1.85,
 		"tint": Color(0.40, 0.30, 0.22),
 		"parts": [
 			{"shape": "box", "size": Vector3(0.90, 1.80, 0.40), "pos": Vector3(0, 0.95, 0), "mat": "tint"},
@@ -872,7 +872,7 @@ func _build_extras() -> void:
 	# ----------------------------------------------------------------- Decor
 	_add({
 		"id": "floor_mirror", "against_wall": true, "name": "Floor Mirror",
-		"category": "Decor", "price": 200, "level": 2,
+		"category": "Decor", "price": 200, "level": 3,
 		"tint": Color(0.52, 0.38, 0.26),
 		"parts": [
 			{"shape": "box", "size": Vector3(0.70, 1.68, 0.06), "pos": Vector3(0, 0.90, 0), "mat": "tint"},
@@ -882,7 +882,7 @@ func _build_extras() -> void:
 	})
 	_add({
 		"id": "rug_round", "name": "Round Rug",
-		"category": "Decor", "price": 180, "level": 2,
+		"category": "Decor", "price": 180, "level": 3,
 		"tint": Color(0.44, 0.52, 0.62),
 		"parts": [
 			{"shape": "cyl", "size": Vector3(0.85, 0.02, 0.85), "pos": Vector3(0, 0.01, 0), "mat": "tint"},
@@ -919,7 +919,7 @@ func _build_extras() -> void:
 func _build_electronics() -> void:
 	_add({
 		"id": "tv_large", "against_wall": true, "name": "Wide Television",
-		"category": "Electronics", "price": 880, "level": 4,
+		"category": "Electronics", "price": 880, "level": 8,
 		"tint": Color(0.14, 0.15, 0.18),
 		"parts": [
 			{"shape": "box", "size": Vector3(0.52, 0.03, 0.26), "pos": Vector3(0, 0.015, 0), "mat": "dark"},
@@ -930,7 +930,7 @@ func _build_electronics() -> void:
 	})
 	_add({
 		"id": "computer", "stackable": true, "name": "Computer",
-		"category": "Electronics", "price": 640, "level": 2,
+		"category": "Electronics", "price": 640, "level": 3,
 		"tint": Color(0.22, 0.23, 0.27),
 		"parts": [
 			{"shape": "box", "size": Vector3(0.24, 0.02, 0.16), "pos": Vector3(0, 0.01, -0.06), "mat": "dark"},
@@ -943,7 +943,7 @@ func _build_electronics() -> void:
 	})
 	_add({
 		"id": "speaker_tower", "against_wall": true, "name": "Floor Speaker",
-		"category": "Electronics", "price": 430, "level": 3,
+		"category": "Electronics", "price": 430, "level": 5,
 		"tint": Color(0.20, 0.21, 0.24),
 		"parts": [
 			{"shape": "box", "size": Vector3(0.28, 0.03, 0.32), "pos": Vector3(0, 0.015, 0), "mat": "dark"},
@@ -955,7 +955,7 @@ func _build_electronics() -> void:
 	})
 	_add({
 		"id": "soundbar", "stackable": true, "name": "Soundbar",
-		"category": "Electronics", "price": 290, "level": 3,
+		"category": "Electronics", "price": 290, "level": 5,
 		"tint": Color(0.18, 0.19, 0.22),
 		"parts": [
 			{"shape": "box", "size": Vector3(0.92, 0.09, 0.10), "pos": Vector3(0, 0.045, 0), "mat": "tint"},
@@ -964,7 +964,7 @@ func _build_electronics() -> void:
 	})
 	_add({
 		"id": "game_console", "stackable": true, "name": "Games Console",
-		"category": "Electronics", "price": 340, "level": 2,
+		"category": "Electronics", "price": 340, "level": 3,
 		"tint": Color(0.24, 0.25, 0.30),
 		"parts": [
 			{"shape": "box", "size": Vector3(0.34, 0.07, 0.26), "pos": Vector3(0, 0.035, 0), "mat": "tint"},
@@ -974,7 +974,7 @@ func _build_electronics() -> void:
 	})
 	_add({
 		"id": "printer", "stackable": true, "name": "Printer",
-		"category": "Electronics", "price": 260, "level": 2,
+		"category": "Electronics", "price": 260, "level": 3,
 		"tint": Color(0.88, 0.88, 0.86),
 		"parts": [
 			{"shape": "box", "size": Vector3(0.42, 0.22, 0.36), "pos": Vector3(0, 0.11, 0), "mat": "tint"},
@@ -984,7 +984,7 @@ func _build_electronics() -> void:
 	})
 	_add({
 		"id": "air_conditioner", "against_wall": true, "name": "Portable Air Con",
-		"category": "Electronics", "price": 700, "level": 4,
+		"category": "Electronics", "price": 700, "level": 8,
 		"tint": Color(0.90, 0.90, 0.88),
 		"parts": [
 			{"shape": "box", "size": Vector3(0.42, 0.78, 0.38), "pos": Vector3(0, 0.40, 0), "mat": "tint"},
@@ -996,7 +996,7 @@ func _build_electronics() -> void:
 	})
 	_add({
 		"id": "floor_fan", "name": "Floor Fan",
-		"category": "Electronics", "price": 150, "level": 2,
+		"category": "Electronics", "price": 150, "level": 3,
 		"tint": Color(0.86, 0.86, 0.84),
 		"parts": [
 			{"shape": "cyl", "size": Vector3(0.20, 0.04, 0.22), "pos": Vector3(0, 0.02, 0), "mat": "dark"},
@@ -1007,7 +1007,7 @@ func _build_electronics() -> void:
 	})
 	_add({
 		"id": "microwave", "stackable": true, "name": "Microwave",
-		"category": "Electronics", "price": 240, "level": 2,
+		"category": "Electronics", "price": 240, "level": 3,
 		"tint": Color(0.85, 0.86, 0.88),
 		"parts": [
 			{"shape": "box", "size": Vector3(0.50, 0.28, 0.36), "pos": Vector3(0, 0.14, 0), "mat": "tint"},
@@ -1289,7 +1289,7 @@ func _build_riverside() -> void:
 	_add({
 		"id": "crate_shelf", "against_wall": true, "shop": "salvage",
 		"name": "Crate Shelving", "category": "Storage",
-		"price": 340, "level": 4,
+		"price": 340, "level": 8,
 		"tint": Color(0.68, 0.50, 0.30),
 		"parts": [
 			{"shape": "box", "size": Vector3(0.52, 0.42, 0.36), "pos": Vector3(-0.28, 0.21, 0), "mat": "tint"},
@@ -1305,7 +1305,7 @@ func _build_riverside() -> void:
 	_add({
 		"id": "pipe_rack", "against_wall": true, "shop": "salvage",
 		"name": "Pipe Clothes Rail", "category": "Storage",
-		"price": 280, "level": 4,
+		"price": 280, "level": 8,
 		"tint": Color(0.52, 0.54, 0.58),
 		"parts": [
 			{"shape": "cyl", "size": Vector3(0.035, 1.62, 0.035), "pos": Vector3(-0.55, 0.81, 0), "mat": "tint"},
@@ -1320,7 +1320,7 @@ func _build_riverside() -> void:
 	_add({
 		"id": "workbench", "against_wall": true, "shop": "salvage",
 		"name": "Salvage Workbench", "category": "Storage",
-		"price": 420, "level": 4,
+		"price": 420, "level": 8,
 		"tint": Color(0.46, 0.32, 0.20),
 		"parts": [
 			{"shape": "box", "size": Vector3(1.60, 0.09, 0.68), "pos": Vector3(0, 0.87, 0), "mat": "tint"},
@@ -1336,7 +1336,7 @@ func _build_riverside() -> void:
 	_add({
 		"id": "steamer_trunk", "shop": "salvage",
 		"name": "Steamer Trunk", "category": "Storage",
-		"price": 310, "level": 4,
+		"price": 310, "level": 8,
 		"tint": Color(0.40, 0.26, 0.20),
 		"parts": [
 			{"shape": "box", "size": Vector3(0.94, 0.40, 0.54), "pos": Vector3(0, 0.24, 0), "mat": "tint"},
@@ -1351,7 +1351,7 @@ func _build_riverside() -> void:
 	_add({
 		"id": "barrel_table", "shop": "salvage",
 		"name": "Barrel Table", "category": "Dining",
-		"price": 360, "level": 4,
+		"price": 360, "level": 8,
 		"tint": Color(0.55, 0.35, 0.22),
 		"parts": [
 			{"shape": "cyl", "size": Vector3(0.34, 0.70, 0.34), "pos": Vector3(0, 0.35, 0), "mat": "tint"},
@@ -1365,7 +1365,7 @@ func _build_riverside() -> void:
 	_add({
 		"id": "deck_chair", "shop": "ropewalk",
 		"name": "Deck Chair", "category": "Living",
-		"price": 220, "level": 4,
+		"price": 220, "level": 8,
 		"tint": Color(0.82, 0.78, 0.66),
 		"parts": [
 			{"shape": "box", "size": Vector3(0.56, 0.04, 0.60), "pos": Vector3(0, 0.40, 0.06), "mat": "tint"},
@@ -1379,7 +1379,7 @@ func _build_riverside() -> void:
 	_add({
 		"id": "net_hammock", "shop": "ropewalk",
 		"name": "Net Hammock", "category": "Bedroom",
-		"price": 390, "level": 4,
+		"price": 390, "level": 8,
 		"tint": Color(0.86, 0.80, 0.64),
 		"parts": [
 			{"shape": "box", "size": Vector3(0.10, 1.30, 0.10), "pos": Vector3(-0.95, 0.65, 0), "mat": "wood_dark", "rot": Vector3(0, 0, 10)},
@@ -1393,7 +1393,7 @@ func _build_riverside() -> void:
 	_add({
 		"id": "porthole_mirror", "against_wall": true, "shop": "ropewalk",
 		"name": "Porthole Mirror", "category": "Decor",
-		"price": 260, "level": 4,
+		"price": 260, "level": 8,
 		"tint": Color(0.78, 0.62, 0.30),
 		"parts": [
 			{"shape": "cyl", "size": Vector3(0.10, 1.10, 0.10), "pos": Vector3(0, 0.55, 0), "mat": "wood_dark"},
@@ -1405,7 +1405,7 @@ func _build_riverside() -> void:
 	_add({
 		"id": "rope_light", "shop": "ropewalk",
 		"name": "Rope Lamp", "category": "Decor",
-		"price": 190, "level": 4,
+		"price": 190, "level": 8,
 		"tint": Color(0.80, 0.72, 0.54),
 		"parts": [
 			{"shape": "cyl", "size": Vector3(0.20, 0.05, 0.20), "pos": Vector3(0, 0.02, 0), "mat": "dark"},
@@ -1418,7 +1418,7 @@ func _build_riverside() -> void:
 	_add({
 		"id": "sail_screen", "against_wall": true, "shop": "ropewalk",
 		"name": "Sail Screen", "category": "Decor",
-		"price": 300, "level": 4,
+		"price": 300, "level": 8,
 		"tint": Color(0.90, 0.88, 0.80),
 		"parts": [
 			{"shape": "cyl", "size": Vector3(0.05, 1.80, 0.05), "pos": Vector3(-0.62, 0.90, 0), "mat": "wood_light"},
@@ -1438,7 +1438,7 @@ func _build_hillside() -> void:
 	_add({
 		"id": "window_seat", "against_wall": true, "shop": "hearth",
 		"name": "Window Seat", "category": "Living",
-		"price": 430, "level": 5,
+		"price": 430, "level": 11,
 		"tint": Color(0.74, 0.72, 0.62),
 		"parts": [
 			{"shape": "box", "size": Vector3(1.60, 0.34, 0.56), "pos": Vector3(0, 0.17, 0), "mat": "wood_light"},
@@ -1453,7 +1453,7 @@ func _build_hillside() -> void:
 	_add({
 		"id": "ottoman", "shop": "hearth",
 		"name": "Ottoman", "category": "Living",
-		"price": 260, "level": 5,
+		"price": 260, "level": 11,
 		"tint": Color(0.62, 0.40, 0.36),
 		"parts": [
 			{"shape": "box", "size": Vector3(0.90, 0.34, 0.66), "pos": Vector3(0, 0.21, 0), "mat": "tint"},
@@ -1468,7 +1468,7 @@ func _build_hillside() -> void:
 	_add({
 		"id": "sideboard", "against_wall": true, "shop": "hearth",
 		"name": "Sideboard", "category": "Dining",
-		"price": 520, "level": 5,
+		"price": 520, "level": 11,
 		"tint": Color(0.50, 0.34, 0.22),
 		"parts": [
 			{"shape": "box", "size": Vector3(1.70, 0.72, 0.46), "pos": Vector3(0, 0.48, 0), "mat": "tint"},
@@ -1487,7 +1487,7 @@ func _build_hillside() -> void:
 	_add({
 		"id": "rocking_chair", "shop": "hearth",
 		"name": "Rocking Chair", "category": "Living",
-		"price": 340, "level": 5,
+		"price": 340, "level": 11,
 		"tint": Color(0.58, 0.38, 0.24),
 		"parts": [
 			{"shape": "box", "size": Vector3(0.54, 0.06, 0.50), "pos": Vector3(0, 0.44, 0.02), "mat": "tint"},
@@ -1505,7 +1505,7 @@ func _build_hillside() -> void:
 	_add({
 		"id": "high_chair", "shop": "hearth",
 		"name": "High Chair", "category": "Dining",
-		"price": 210, "level": 5,
+		"price": 210, "level": 11,
 		"tint": Color(0.86, 0.82, 0.74),
 		"parts": [
 			{"shape": "box", "size": Vector3(0.36, 0.04, 0.34), "pos": Vector3(0, 0.58, 0), "mat": "tint"},
@@ -1522,7 +1522,7 @@ func _build_hillside() -> void:
 	_add({
 		"id": "planter_box", "shop": "potting",
 		"name": "Planter Trough", "category": "Decor",
-		"price": 230, "level": 5,
+		"price": 230, "level": 11,
 		"tint": Color(0.58, 0.48, 0.38),
 		"parts": [
 			{"shape": "box", "size": Vector3(1.20, 0.42, 0.38), "pos": Vector3(0, 0.21, 0), "mat": "tint"},
@@ -1536,7 +1536,7 @@ func _build_hillside() -> void:
 	_add({
 		"id": "garden_bench", "against_wall": true, "shop": "potting",
 		"name": "Garden Bench", "category": "Decor",
-		"price": 280, "level": 5,
+		"price": 280, "level": 11,
 		"tint": Color(0.44, 0.52, 0.42),
 		"parts": [
 			{"shape": "box", "size": Vector3(1.44, 0.05, 0.16), "pos": Vector3(0, 0.44, -0.14), "mat": "tint"},
@@ -1552,7 +1552,7 @@ func _build_hillside() -> void:
 	_add({
 		"id": "fern_stand", "shop": "potting",
 		"name": "Fern Stand", "category": "Decor",
-		"price": 170, "level": 5,
+		"price": 170, "level": 11,
 		"tint": Color(0.66, 0.54, 0.42),
 		"parts": [
 			{"shape": "cyl", "size": Vector3(0.20, 0.04, 0.20), "pos": Vector3(0, 0.02, 0), "mat": "wood_dark"},
@@ -1567,7 +1567,7 @@ func _build_hillside() -> void:
 	_add({
 		"id": "herb_rack", "against_wall": true, "shop": "potting",
 		"name": "Herb Rack", "category": "Kitchen",
-		"price": 200, "level": 5,
+		"price": 200, "level": 11,
 		"tint": Color(0.60, 0.46, 0.32),
 		"parts": [
 			{"shape": "box", "size": Vector3(0.06, 1.40, 0.06), "pos": Vector3(-0.42, 0.70, 0), "mat": "tint"},
@@ -1585,7 +1585,7 @@ func _build_hillside() -> void:
 	_add({
 		"id": "watering_shelf", "against_wall": true, "shop": "potting",
 		"name": "Potting Shelf", "category": "Decor",
-		"price": 240, "level": 5,
+		"price": 240, "level": 11,
 		"tint": Color(0.56, 0.50, 0.40),
 		"parts": [
 			{"shape": "box", "size": Vector3(1.10, 0.05, 0.44), "pos": Vector3(0, 0.75, 0), "mat": "tint"},
@@ -1610,7 +1610,7 @@ func _build_skyline() -> void:
 	_add({
 		"id": "designer_sofa", "against_wall": true, "shop": "atelier",
 		"name": "Gallery Sofa", "category": "Living",
-		"price": 1250, "level": 6,
+		"price": 1250, "level": 14,
 		"tint": Color(0.26, 0.30, 0.36),
 		"parts": [
 			{"shape": "box", "size": Vector3(2.40, 0.30, 0.92), "pos": Vector3(0, 0.30, 0), "mat": "tint"},
@@ -1626,7 +1626,7 @@ func _build_skyline() -> void:
 	_add({
 		"id": "wing_chair", "shop": "atelier",
 		"name": "Wing Chair", "category": "Living",
-		"price": 680, "level": 6,
+		"price": 680, "level": 14,
 		"tint": Color(0.44, 0.26, 0.32),
 		"parts": [
 			{"shape": "box", "size": Vector3(0.76, 0.32, 0.74), "pos": Vector3(0, 0.32, 0), "mat": "tint"},
@@ -1643,7 +1643,7 @@ func _build_skyline() -> void:
 	_add({
 		"id": "marble_table", "shop": "atelier",
 		"name": "Marble Table", "category": "Dining",
-		"price": 980, "level": 6,
+		"price": 980, "level": 14,
 		"tint": Color(0.92, 0.92, 0.90),
 		"parts": [
 			{"shape": "box", "size": Vector3(2.00, 0.09, 1.00), "pos": Vector3(0, 0.72, 0), "mat": "tint"},
@@ -1656,7 +1656,7 @@ func _build_skyline() -> void:
 	_add({
 		"id": "sculpture_plinth", "shop": "atelier",
 		"name": "Sculpture Plinth", "category": "Decor",
-		"price": 540, "level": 6,
+		"price": 540, "level": 14,
 		"tint": Color(0.94, 0.93, 0.90),
 		"parts": [
 			{"shape": "box", "size": Vector3(0.42, 1.06, 0.42), "pos": Vector3(0, 0.53, 0), "mat": "tint"},
@@ -1670,7 +1670,7 @@ func _build_skyline() -> void:
 	_add({
 		"id": "drinks_cabinet", "against_wall": true, "shop": "atelier",
 		"name": "Drinks Cabinet", "category": "Storage",
-		"price": 860, "level": 6,
+		"price": 860, "level": 14,
 		"tint": Color(0.30, 0.22, 0.26),
 		"parts": [
 			{"shape": "box", "size": Vector3(0.96, 1.10, 0.44), "pos": Vector3(0, 0.72, 0), "mat": "tint"},
@@ -1691,7 +1691,7 @@ func _build_skyline() -> void:
 	_add({
 		"id": "arc_lamp", "shop": "lumen",
 		"name": "Arc Lamp", "category": "Decor",
-		"price": 620, "level": 6,
+		"price": 620, "level": 14,
 		"tint": Color(0.86, 0.86, 0.88),
 		"parts": [
 			{"shape": "cyl", "size": Vector3(0.30, 0.06, 0.30), "pos": Vector3(0, 0.03, 0), "mat": "steel"},
@@ -1704,7 +1704,7 @@ func _build_skyline() -> void:
 	_add({
 		"id": "pendant_cluster", "shop": "lumen",
 		"name": "Pendant Cluster", "category": "Decor",
-		"price": 480, "level": 6,
+		"price": 480, "level": 14,
 		"tint": Color(0.22, 0.23, 0.27),
 		"parts": [
 			{"shape": "cyl", "size": Vector3(0.24, 0.05, 0.24), "pos": Vector3(0, 0.02, 0), "mat": "dark"},
@@ -1718,7 +1718,7 @@ func _build_skyline() -> void:
 	_add({
 		"id": "floor_uplighter", "shop": "lumen",
 		"name": "Uplighter", "category": "Decor",
-		"price": 330, "level": 6,
+		"price": 330, "level": 14,
 		"tint": Color(0.78, 0.80, 0.84),
 		"parts": [
 			{"shape": "cyl", "size": Vector3(0.22, 0.05, 0.22), "pos": Vector3(0, 0.02, 0), "mat": "dark"},
@@ -1729,7 +1729,7 @@ func _build_skyline() -> void:
 	_add({
 		"id": "smart_panel", "against_wall": true, "shop": "lumen",
 		"name": "Smart Panel", "category": "Electronics",
-		"price": 740, "level": 6,
+		"price": 740, "level": 14,
 		"tint": Color(0.20, 0.21, 0.25),
 		"parts": [
 			{"shape": "box", "size": Vector3(0.50, 0.04, 0.34), "pos": Vector3(0, 0.02, 0), "mat": "dark"},
@@ -1742,7 +1742,7 @@ func _build_skyline() -> void:
 	_add({
 		"id": "projector", "against_wall": true, "shop": "lumen",
 		"name": "Projector & Screen", "category": "Electronics",
-		"price": 920, "level": 6,
+		"price": 920, "level": 14,
 		"tint": Color(0.94, 0.94, 0.92),
 		"parts": [
 			{"shape": "cyl", "size": Vector3(0.04, 1.94, 0.04), "pos": Vector3(-0.82, 0.97, 0), "mat": "steel"},
@@ -1776,7 +1776,7 @@ func _build_attic() -> void:
 	_add({
 		"id": "blanket_box", "shop": "attic",
 		"name": "Blanket Box", "category": "Storage",
-		"price": 190, "level": 3,
+		"price": 190, "level": 5,
 		"tint": Color(0.62, 0.46, 0.30),
 		"parts": [
 			{"shape": "box", "size": Vector3(1.00, 0.38, 0.46), "pos": Vector3(0, 0.22, 0), "mat": "tint"},
@@ -1789,7 +1789,7 @@ func _build_attic() -> void:
 	_add({
 		"id": "hat_stand", "shop": "attic",
 		"name": "Hat Stand", "category": "Decor",
-		"price": 150, "level": 3,
+		"price": 150, "level": 5,
 		"tint": Color(0.42, 0.30, 0.22),
 		"parts": [
 			{"shape": "cyl", "size": Vector3(0.24, 0.05, 0.24), "pos": Vector3(0, 0.02, 0), "mat": "wood_dark"},
@@ -1804,7 +1804,7 @@ func _build_attic() -> void:
 	_add({
 		"id": "step_ladder", "shop": "attic",
 		"name": "Step Ladder", "category": "Storage",
-		"price": 170, "level": 3,
+		"price": 170, "level": 5,
 		"tint": Color(0.76, 0.68, 0.52),
 		"parts": [
 			{"shape": "box", "size": Vector3(0.05, 1.50, 0.05), "pos": Vector3(-0.26, 0.75, -0.16), "mat": "tint", "rot": Vector3(-10, 0, 0)},
@@ -1821,7 +1821,7 @@ func _build_attic() -> void:
 	_add({
 		"id": "trunk_stack", "against_wall": true, "shop": "attic",
 		"name": "Stacked Trunks", "category": "Storage",
-		"price": 240, "level": 3,
+		"price": 240, "level": 5,
 		"tint": Color(0.48, 0.34, 0.26),
 		"parts": [
 			{"shape": "box", "size": Vector3(0.90, 0.42, 0.52), "pos": Vector3(0, 0.21, 0), "mat": "tint"},
@@ -1836,7 +1836,7 @@ func _build_attic() -> void:
 	_add({
 		"id": "mantel_clock", "stackable": true, "shop": "attic",
 		"name": "Mantel Clock", "category": "Decor",
-		"price": 90, "level": 3,
+		"price": 90, "level": 5,
 		"tint": Color(0.44, 0.28, 0.18),
 		"parts": [
 			{"shape": "box", "size": Vector3(0.26, 0.30, 0.12), "pos": Vector3(0, 0.17, 0), "mat": "tint"},
@@ -1853,7 +1853,7 @@ func _build_chandlery() -> void:
 	_add({
 		"id": "lantern", "shop": "chandlery",
 		"name": "Deck Lantern", "category": "Decor",
-		"price": 160, "level": 4,
+		"price": 160, "level": 8,
 		"tint": Color(0.30, 0.34, 0.38),
 		"parts": [
 			{"shape": "box", "size": Vector3(0.34, 0.05, 0.34), "pos": Vector3(0, 0.02, 0), "mat": "tint"},
@@ -1867,7 +1867,7 @@ func _build_chandlery() -> void:
 	_add({
 		"id": "rope_coil", "stackable": true, "shop": "chandlery",
 		"name": "Coil of Rope", "category": "Decor",
-		"price": 80, "level": 4,
+		"price": 80, "level": 8,
 		"tint": Color(0.78, 0.70, 0.52),
 		"parts": [
 			{"shape": "cyl", "size": Vector3(0.30, 0.07, 0.30), "pos": Vector3(0, 0.035, 0), "mat": "tint"},
@@ -1878,7 +1878,7 @@ func _build_chandlery() -> void:
 	_add({
 		"id": "galley_shelf", "against_wall": true, "shop": "chandlery",
 		"name": "Galley Shelf", "category": "Kitchen",
-		"price": 290, "level": 4,
+		"price": 290, "level": 8,
 		"tint": Color(0.66, 0.56, 0.44),
 		"parts": [
 			{"shape": "box", "size": Vector3(1.20, 0.06, 0.34), "pos": Vector3(0, 0.86, 0), "mat": "tint"},
@@ -1895,7 +1895,7 @@ func _build_chandlery() -> void:
 	_add({
 		"id": "cask_stand", "shop": "chandlery",
 		"name": "Cask Stand", "category": "Kitchen",
-		"price": 330, "level": 4,
+		"price": 330, "level": 8,
 		"tint": Color(0.52, 0.34, 0.22),
 		"parts": [
 			{"shape": "cyl", "size": Vector3(0.30, 0.90, 0.30), "pos": Vector3(0, 0.52, 0), "mat": "tint", "rot": Vector3(90, 0, 0)},
@@ -1914,7 +1914,7 @@ func _build_chandlery() -> void:
 	_add({
 		"id": "signal_flags", "against_wall": true, "shop": "chandlery",
 		"name": "Signal Flags", "category": "Decor",
-		"price": 140, "level": 4,
+		"price": 140, "level": 8,
 		"tint": Color(0.88, 0.34, 0.30),
 		"parts": [
 			{"shape": "cyl", "size": Vector3(0.04, 1.80, 0.04), "pos": Vector3(-0.60, 0.90, 0), "mat": "wood_light"},
@@ -1935,7 +1935,7 @@ func _build_toybox() -> void:
 	_add({
 		"id": "toy_chest", "shop": "toybox",
 		"name": "Toy Chest", "category": "Bedroom",
-		"price": 220, "level": 5,
+		"price": 220, "level": 11,
 		"tint": Color(0.94, 0.60, 0.34),
 		"parts": [
 			{"shape": "box", "size": Vector3(0.90, 0.40, 0.44), "pos": Vector3(0, 0.24, 0), "mat": "tint"},
@@ -1950,7 +1950,7 @@ func _build_toybox() -> void:
 	_add({
 		"id": "play_mat", "shop": "toybox",
 		"name": "Play Mat", "category": "Decor",
-		"price": 130, "level": 5,
+		"price": 130, "level": 11,
 		"tint": Color(0.44, 0.72, 0.86),
 		"parts": [
 			{"shape": "box", "size": Vector3(1.70, 0.03, 1.30), "pos": Vector3(0, 0.015, 0), "mat": "tint"},
@@ -1962,7 +1962,7 @@ func _build_toybox() -> void:
 	_add({
 		"id": "rocking_horse", "shop": "toybox",
 		"name": "Rocking Horse", "category": "Decor",
-		"price": 260, "level": 5,
+		"price": 260, "level": 11,
 		"tint": Color(0.84, 0.70, 0.52),
 		"parts": [
 			{"shape": "box", "size": Vector3(0.06, 0.10, 0.94), "pos": Vector3(-0.20, 0.06, 0), "mat": "wood_dark"},
@@ -1978,7 +1978,7 @@ func _build_toybox() -> void:
 	_add({
 		"id": "bookcase_low", "against_wall": true, "shop": "toybox",
 		"name": "Low Bookcase", "category": "Bedroom",
-		"price": 280, "level": 5,
+		"price": 280, "level": 11,
 		"tint": Color(0.96, 0.80, 0.42),
 		"parts": [
 			{"shape": "box", "size": Vector3(0.05, 0.86, 0.30), "pos": Vector3(-0.55, 0.43, 0), "mat": "tint"},
@@ -1994,7 +1994,7 @@ func _build_toybox() -> void:
 	_add({
 		"id": "night_light", "stackable": true, "shop": "toybox",
 		"name": "Night Light", "category": "Decor",
-		"price": 70, "level": 5,
+		"price": 70, "level": 11,
 		"tint": Color(0.98, 0.86, 0.56),
 		"parts": [
 			{"shape": "cyl", "size": Vector3(0.11, 0.04, 0.11), "pos": Vector3(0, 0.02, 0), "mat": "white"},
@@ -2010,7 +2010,7 @@ func _build_vitrine() -> void:
 	_add({
 		"id": "glass_case", "against_wall": true, "shop": "vitrine",
 		"name": "Glass Case", "category": "Storage",
-		"price": 780, "level": 6,
+		"price": 780, "level": 14,
 		"tint": Color(0.24, 0.25, 0.30),
 		"parts": [
 			{"shape": "box", "size": Vector3(1.10, 0.14, 0.48), "pos": Vector3(0, 0.07, 0), "mat": "tint"},
@@ -2028,7 +2028,7 @@ func _build_vitrine() -> void:
 	_add({
 		"id": "pedestal_vase", "shop": "vitrine",
 		"name": "Pedestal Vase", "category": "Decor",
-		"price": 420, "level": 6,
+		"price": 420, "level": 14,
 		"tint": Color(0.72, 0.78, 0.80),
 		"parts": [
 			{"shape": "cyl", "size": Vector3(0.28, 0.10, 0.28), "pos": Vector3(0, 0.05, 0), "mat": "steel"},
@@ -2042,7 +2042,7 @@ func _build_vitrine() -> void:
 	_add({
 		"id": "art_easel", "shop": "vitrine",
 		"name": "Art Easel", "category": "Decor",
-		"price": 360, "level": 6,
+		"price": 360, "level": 14,
 		"tint": Color(0.58, 0.44, 0.28),
 		"parts": [
 			{"shape": "box", "size": Vector3(0.05, 1.70, 0.05), "pos": Vector3(-0.30, 0.85, 0.10), "mat": "tint", "rot": Vector3(8, 0, 0)},
@@ -2056,7 +2056,7 @@ func _build_vitrine() -> void:
 	_add({
 		"id": "mirror_wall", "against_wall": true, "shop": "vitrine",
 		"name": "Gallery Mirror", "category": "Decor",
-		"price": 690, "level": 6,
+		"price": 690, "level": 14,
 		"tint": Color(0.30, 0.31, 0.36),
 		"parts": [
 			{"shape": "box", "size": Vector3(1.40, 2.00, 0.09), "pos": Vector3(0, 1.00, 0), "mat": "tint"},
@@ -2068,7 +2068,7 @@ func _build_vitrine() -> void:
 	_add({
 		"id": "crystal_bowl", "stackable": true, "shop": "vitrine",
 		"name": "Crystal Bowl", "category": "Decor",
-		"price": 240, "level": 6,
+		"price": 240, "level": 14,
 		"tint": Color(0.74, 0.86, 0.90),
 		"parts": [
 			{"shape": "cyl", "size": Vector3(0.20, 0.13, 0.11), "pos": Vector3(0, 0.10, 0), "mat": "glass"},
@@ -2082,7 +2082,7 @@ func _build_vitrine() -> void:
 func _build_deeper_counters() -> void:
 	_add({
 		"id": "chaise", "against_wall": true, "name": "Chaise Longue", "category": "Living",
-		"price": 560, "level": 3,
+		"price": 560, "level": 5,
 		"tint": Color(0.46, 0.34, 0.46),
 		"parts": _sofa(1.10, 1.90) + [
 			{"shape": "box", "size": Vector3(1.02, 0.20, 0.44), "pos": Vector3(0, 0.48, 0.62), "mat": "white"},
@@ -2090,7 +2090,7 @@ func _build_deeper_counters() -> void:
 	})
 	_add({
 		"id": "corner_sofa", "against_wall": true, "name": "Corner Sofa", "category": "Living",
-		"price": 940, "level": 3,
+		"price": 940, "level": 5,
 		"tint": Color(0.38, 0.40, 0.46),
 		"parts": _sofa(2.30, 0.95) + [
 			{"shape": "box", "size": Vector3(0.95, 0.32, 1.10), "pos": Vector3(1.62, 0.22, 0.55), "mat": "tint"},
@@ -2100,13 +2100,13 @@ func _build_deeper_counters() -> void:
 	})
 	_add({
 		"id": "bed_king", "against_wall": true, "name": "King Bed", "category": "Bedroom",
-		"price": 880, "level": 3,
+		"price": 880, "level": 5,
 		"tint": Color(0.40, 0.36, 0.46),
 		"parts": _bed(1.90, 2.10),
 	})
 	_add({
 		"id": "bedside_shelf", "against_wall": true, "name": "Bedside Shelf", "category": "Bedroom",
-		"price": 150, "level": 2,
+		"price": 150, "level": 3,
 		"tint": Color(0.72, 0.62, 0.48),
 		"parts": [
 			{"shape": "box", "size": Vector3(0.46, 0.04, 0.32), "pos": Vector3(0, 0.56, 0), "mat": "tint"},
@@ -2120,7 +2120,7 @@ func _build_deeper_counters() -> void:
 	})
 	_add({
 		"id": "bistro_table", "name": "Bistro Table", "category": "Dining",
-		"price": 260, "level": 2,
+		"price": 260, "level": 3,
 		"tint": Color(0.86, 0.86, 0.84),
 		"parts": [
 			{"shape": "cyl", "size": Vector3(0.38, 0.05, 0.38), "pos": Vector3(0, 0.73, 0), "mat": "tint"},
@@ -2131,7 +2131,7 @@ func _build_deeper_counters() -> void:
 	})
 	_add({
 		"id": "bench_long", "name": "Long Bench", "category": "Dining",
-		"price": 240, "level": 2,
+		"price": 240, "level": 3,
 		"tint": Color(0.60, 0.42, 0.26),
 		"parts": [
 			{"shape": "box", "size": Vector3(1.70, 0.07, 0.36), "pos": Vector3(0, 0.44, 0), "mat": "tint"},
@@ -2143,7 +2143,7 @@ func _build_deeper_counters() -> void:
 	})
 	_add({
 		"id": "range_hood", "against_wall": true, "name": "Range Hood", "category": "Kitchen",
-		"price": 420, "level": 3,
+		"price": 420, "level": 5,
 		"tint": Color(0.82, 0.84, 0.87),
 		"parts": [
 			{"shape": "box", "size": Vector3(0.90, 0.16, 0.52), "pos": Vector3(0, 1.52, 0), "mat": "tint"},
@@ -2156,7 +2156,7 @@ func _build_deeper_counters() -> void:
 	})
 	_add({
 		"id": "kitchen_trolley", "name": "Kitchen Trolley", "category": "Kitchen",
-		"price": 290, "level": 2,
+		"price": 290, "level": 3,
 		"tint": Color(0.88, 0.88, 0.86),
 		"parts": [
 			{"shape": "box", "size": Vector3(0.80, 0.05, 0.44), "pos": Vector3(0, 0.85, 0), "mat": "wood_light"},
@@ -2173,7 +2173,7 @@ func _build_deeper_counters() -> void:
 	})
 	_add({
 		"id": "corner_shower", "against_wall": true, "name": "Corner Shower", "category": "Bathroom",
-		"price": 700, "level": 3,
+		"price": 700, "level": 5,
 		"tint": Color(0.94, 0.95, 0.96),
 		"parts": [
 			{"shape": "box", "size": Vector3(1.10, 0.12, 1.10), "pos": Vector3(0, 0.06, 0), "mat": "tint"},
@@ -2187,7 +2187,7 @@ func _build_deeper_counters() -> void:
 	})
 	_add({
 		"id": "bath_screen", "against_wall": true, "name": "Bath Screen", "category": "Bathroom",
-		"price": 260, "level": 3,
+		"price": 260, "level": 5,
 		"tint": Color(0.86, 0.90, 0.92),
 		"parts": [
 			{"shape": "box", "size": Vector3(0.08, 1.50, 0.08), "pos": Vector3(-0.42, 0.75, 0), "mat": "steel"},
@@ -2198,7 +2198,7 @@ func _build_deeper_counters() -> void:
 	})
 	_add({
 		"id": "turntable", "stackable": true, "name": "Turntable", "category": "Electronics",
-		"price": 460, "level": 3,
+		"price": 460, "level": 5,
 		"tint": Color(0.20, 0.21, 0.24),
 		"parts": [
 			{"shape": "box", "size": Vector3(0.46, 0.11, 0.36), "pos": Vector3(0, 0.055, 0), "mat": "tint"},
@@ -2210,7 +2210,7 @@ func _build_deeper_counters() -> void:
 	})
 	_add({
 		"id": "robot_vacuum", "name": "Robot Vacuum", "category": "Electronics",
-		"price": 380, "level": 3,
+		"price": 380, "level": 5,
 		"tint": Color(0.26, 0.27, 0.32),
 		"parts": [
 			{"shape": "cyl", "size": Vector3(0.18, 0.09, 0.18), "pos": Vector3(0, 0.045, 0), "mat": "tint"},
@@ -2220,7 +2220,7 @@ func _build_deeper_counters() -> void:
 	})
 	_add({
 		"id": "filing_cabinet", "against_wall": true, "name": "Filing Cabinet", "category": "Storage",
-		"price": 310, "level": 2,
+		"price": 310, "level": 3,
 		"tint": Color(0.62, 0.64, 0.68),
 		"parts": [
 			{"shape": "box", "size": Vector3(0.48, 1.06, 0.60), "pos": Vector3(0, 0.55, 0), "mat": "tint"},
@@ -2236,7 +2236,7 @@ func _build_deeper_counters() -> void:
 	})
 	_add({
 		"id": "ladder_shelf", "against_wall": true, "name": "Ladder Shelf", "category": "Storage",
-		"price": 340, "level": 2,
+		"price": 340, "level": 3,
 		"tint": Color(0.68, 0.50, 0.32),
 		"parts": [
 			{"shape": "box", "size": Vector3(0.06, 1.82, 0.06), "pos": Vector3(-0.42, 0.91, 0.06), "mat": "tint", "rot": Vector3(6, 0, 0)},
@@ -2250,7 +2250,7 @@ func _build_deeper_counters() -> void:
 	})
 	_add({
 		"id": "wall_art", "against_wall": true, "name": "Framed Print", "category": "Decor",
-		"price": 190, "level": 2,
+		"price": 190, "level": 3,
 		"tint": Color(0.34, 0.30, 0.26),
 		"parts": [
 			{"shape": "box", "size": Vector3(0.10, 1.34, 0.10), "pos": Vector3(0, 0.67, 0), "mat": "wood_dark"},
@@ -2273,7 +2273,7 @@ func _build_deeper_counters() -> void:
 	_add({
 		"id": "girder_shelf", "against_wall": true, "shop": "salvage",
 		"name": "Girder Shelving", "category": "Storage",
-		"price": 460, "level": 4,
+		"price": 460, "level": 8,
 		"tint": Color(0.56, 0.36, 0.28),
 		"parts": [
 			{"shape": "box", "size": Vector3(0.10, 2.00, 0.10), "pos": Vector3(-0.80, 1.00, -0.20), "mat": "tint"},
@@ -2291,7 +2291,7 @@ func _build_deeper_counters() -> void:
 	_add({
 		"id": "rope_swing", "shop": "ropewalk",
 		"name": "Rope Swing", "category": "Decor",
-		"price": 280, "level": 4,
+		"price": 280, "level": 8,
 		"tint": Color(0.84, 0.76, 0.58),
 		"parts": [
 			{"shape": "box", "size": Vector3(0.09, 2.00, 0.09), "pos": Vector3(-0.62, 1.00, 0), "mat": "wood_dark", "rot": Vector3(0, 0, 7)},
@@ -2305,7 +2305,7 @@ func _build_deeper_counters() -> void:
 	_add({
 		"id": "fireside_set", "against_wall": true, "shop": "hearth",
 		"name": "Fireside Set", "category": "Decor",
-		"price": 230, "level": 5,
+		"price": 230, "level": 11,
 		"tint": Color(0.26, 0.27, 0.30),
 		"parts": [
 			{"shape": "box", "size": Vector3(0.80, 0.14, 0.34), "pos": Vector3(0, 0.07, 0), "mat": "tint"},
@@ -2320,7 +2320,7 @@ func _build_deeper_counters() -> void:
 	_add({
 		"id": "tall_planter", "shop": "potting",
 		"name": "Tall Planter", "category": "Decor",
-		"price": 260, "level": 5,
+		"price": 260, "level": 11,
 		"tint": Color(0.64, 0.58, 0.46),
 		"parts": [
 			{"shape": "cyl", "size": Vector3(0.26, 0.86, 0.22), "pos": Vector3(0, 0.43, 0), "mat": "tint"},
@@ -2335,7 +2335,7 @@ func _build_deeper_counters() -> void:
 	_add({
 		"id": "marble_console", "against_wall": true, "shop": "atelier",
 		"name": "Marble Console", "category": "Storage",
-		"price": 720, "level": 6,
+		"price": 720, "level": 14,
 		"tint": Color(0.90, 0.90, 0.88),
 		"parts": _table(1.50, 0.42, 0.82, 0.08) + [
 			{"shape": "box", "size": Vector3(1.34, 0.03, 0.34), "pos": Vector3(0, 0.30, 0), "mat": "steel"},
@@ -2345,7 +2345,7 @@ func _build_deeper_counters() -> void:
 	_add({
 		"id": "light_column", "shop": "lumen",
 		"name": "Light Column", "category": "Decor",
-		"price": 540, "level": 6,
+		"price": 540, "level": 14,
 		"tint": Color(0.90, 0.92, 0.94),
 		"parts": [
 			{"shape": "box", "size": Vector3(0.34, 0.06, 0.34), "pos": Vector3(0, 0.03, 0), "mat": "dark"},
