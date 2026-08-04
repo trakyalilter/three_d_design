@@ -216,6 +216,23 @@ scales between 50 % and 200 %, recolours, duplicates and puts back. **Top View**
 a plan view and drops the walls; **Snap** toggles the 25 cm grid. Walls between you and the
 room hide themselves as you orbit, and a piece that overlaps another glows red.
 
+### Changing screens
+
+Nothing in the game is a saved scene, so every screen is built the moment you ask for it —
+the map welds a few thousand pieces of scenery into batched meshes, and a five-room job lays
+out its floor plan and stands every piece you left there back up. That is real work, and it
+used to happen with the last frame of the old screen frozen on the display.
+
+![Loading the map: the quarter being laid out, a progress bar and a tip](docs/screenshot-loading.png)
+
+Now a loading screen goes up first and is given a frame to actually paint before the old
+screen comes down, so there is never a blank frame between the two. The build then runs one
+stage per frame underneath it — the map a quarter at a time, a job through its shell, its
+walls, its tools and its furniture — and each stage names itself as it starts, so the bar
+moves for a reason rather than on a timer. When it reaches the end the new screen is left to
+draw a few more frames behind the overlay, which is where the first shader compiles land,
+and only then does the overlay fade away.
+
 ### Progress
 
 Experience carries you from level 1 to level 8. Jobs run from a $1,300 studio to a $24,800
@@ -300,7 +317,8 @@ rather than sticking out through the wall.
 scenes/main.tscn         One node; everything else is built in code
 scripts/
   game.gd                Swaps between the title screen, the city and the
-                         designer
+                         designer, running each build a stage at a time behind
+                         a loading screen
   title_screen.gd        The front page: menu, save summary, and a furnished
                          room turning behind it
   data/
@@ -447,9 +465,10 @@ survives a save and reload, that every catalogue entry is priced, stocked and
 physically sane, that wall snap lands flush and stacking finds the right height, that undo and redo
 keep the room and the warehouse in step, that a properly arranged room really does reach
 three stars, that a generated repeat contract can be shopped for and finished, and that the
-tray starts closed and can tell a drag along the row from a tap on a piece, and that the
-app opens on the title screen with its buttons wired to the right places. It reports
-everything that does not hold and exits non-zero.
+tray starts closed and can tell a drag along the row from a tap on a piece, that the
+app opens on the title screen with its buttons wired to the right places, and that both
+changes of screen are covered end to end by a loading screen whose bar runs from one end to
+the other. It reports everything that does not hold and exits non-zero.
 
 ## Building it yourself
 

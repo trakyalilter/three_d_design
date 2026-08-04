@@ -21,6 +21,7 @@ func _ready() -> void:
 
 	print("=== the front page ===")
 	await _check_title()
+	await _check_loading()
 
 	print("=== districts ===")
 	_check_districts()
@@ -73,6 +74,21 @@ func _expect(condition: bool, message: String) -> void:
 		_failures.append(message)
 
 
+## Screen changes run behind a loading screen, a build stage per frame, so the
+## new screen is not there the moment it is asked for. Waits for whichever
+## change is in flight to finish.
+func _settle() -> void:
+	var main := get_tree().current_scene
+	var guard := 0
+	while main.is_changing():
+		guard += 1
+		if guard > 4000:
+			_failures.append("a screen change never finished")
+			return
+		await get_tree().process_frame
+	await get_tree().process_frame
+
+
 # --------------------------------------------------------------- front page
 
 ## The app opens on the title screen, not on the map, and its buttons lead
@@ -86,20 +102,59 @@ func _check_title() -> void:
 		return
 
 	main.title.play_requested.emit()
-	await get_tree().process_frame
+	_expect(main.is_changing(), "Carry on did not put a loading screen up")
+	await _settle()
 	_expect(main.city != null, "Carry on did not open the city")
 	_expect(main.title == null, "the title screen stayed behind the city")
 
 	main.enter_title()
 	await get_tree().process_frame
 	main.title.free_build_requested.emit()
-	await get_tree().process_frame
+	await _settle()
 	_expect(main.designer != null and not main.designer.job_mode(),
 		"Free Build did not open the sandbox")
 
 	main.enter_title()
 	await get_tree().process_frame
 	print("title           opens the app; Carry on and Free Build both land")
+
+
+## Every change of screen is covered: the overlay is up before the old screen
+## comes down, its bar runs to the end, and it takes itself away afterwards.
+func _check_loading() -> void:
+	var main := get_tree().current_scene
+
+	main.enter_city()
+	var screen: LoadingScreen = main.get_node_or_null("Loading")
+	_expect(screen != null, "no loading screen went up on the way to the city")
+	if screen == null:
+		return
+	_expect(main.title != null,
+		"the title screen was torn down before the loading screen had painted")
+
+	var seen: Array[float] = []
+	while main.is_changing() and is_instance_valid(screen):
+		seen.append(screen.progress())
+		await get_tree().process_frame
+	_expect(seen.size() >= 4, "the city build did not report its stages one at a time")
+	_expect(seen[0] < 0.5 and seen[seen.size() - 1] > 0.9,
+		"the loading bar did not run from one end to the other")
+
+	await _settle()
+	_expect(main.get_node_or_null("Loading") == null, "the loading screen stayed up")
+	_expect(main.city != null and main.title == null,
+		"the loading screen lifted on the wrong scene")
+
+	main.enter_designer("maple_studio")
+	_expect(main.get_node_or_null("Loading") != null,
+		"no loading screen went up on the way to a job")
+	await _settle()
+	_expect(main.designer != null and main.get_node_or_null("Loading") == null,
+		"the job did not come up clean behind its loading screen")
+
+	main.enter_city()
+	await _settle()
+	print("loading         covers both changes of screen, bar runs end to end")
 
 
 # ---------------------------------------------------------------- districts
@@ -315,8 +370,7 @@ func _check_floor_plan() -> void:
 	for item_id: String in Jobs.shopping_list(house_id):
 		Game.buy_item(item_id, int(Jobs.shopping_list(house_id)[item_id]))
 	main.enter_designer(house_id)
-	await get_tree().process_frame
-	await get_tree().process_frame
+	await _settle()
 	var designer = main.designer
 	designer._on_new_requested()
 
@@ -385,7 +439,7 @@ func _check_floor_plan() -> void:
 
 	designer._on_new_requested()
 	main.enter_city()
-	await get_tree().process_frame
+	await _settle()
 
 
 static func _same_color(a: Color, b: Color) -> bool:
@@ -411,8 +465,7 @@ func _check_placement_aids() -> void:
 		Game.buy_item(id, 1)
 
 	main.enter_designer("maple_studio")
-	await get_tree().process_frame
-	await get_tree().process_frame
+	await _settle()
 	var designer = main.designer
 	designer._on_new_requested()
 
@@ -468,7 +521,7 @@ func _check_placement_aids() -> void:
 		% [snapped.z, support, shelf_top])
 	designer._on_new_requested()
 	main.enter_city()
-	await get_tree().process_frame
+	await _settle()
 
 
 # ----------------------------------------------------------------- undo/redo
@@ -477,8 +530,7 @@ func _check_history() -> void:
 	var main := get_tree().current_scene
 	Game.buy_item("plant", 2)
 	main.enter_designer("maple_studio")
-	await get_tree().process_frame
-	await get_tree().process_frame
+	await _settle()
 	var designer = main.designer
 	designer._on_new_requested()
 
@@ -501,7 +553,7 @@ func _check_history() -> void:
 	print("history         place, undo and redo keep room and stock in step")
 	designer._on_new_requested()
 	main.enter_city()
-	await get_tree().process_frame
+	await _settle()
 
 
 # -------------------------------------------------------------------- review
@@ -515,8 +567,7 @@ func _check_three_stars() -> void:
 	Game.buy_item("plant", 2)
 
 	main.enter_designer("maple_studio")
-	await get_tree().process_frame
-	await get_tree().process_frame
+	await _settle()
 	var designer = main.designer
 	designer._on_new_requested()
 
@@ -542,7 +593,7 @@ func _check_three_stars() -> void:
 
 	designer._on_new_requested()
 	main.enter_city()
-	await get_tree().process_frame
+	await _settle()
 
 
 func _failed_notes(review: Dictionary) -> String:
@@ -562,8 +613,7 @@ func _check_tray() -> void:
 	var main := get_tree().current_scene
 	Game.buy_item("sofa", 3)
 	main.enter_designer("maple_studio")
-	await get_tree().process_frame
-	await get_tree().process_frame
+	await _settle()
 	var designer = main.designer
 	designer._on_new_requested()
 	var ui = designer.ui
@@ -597,7 +647,7 @@ func _check_tray() -> void:
 		% strip.scroll_horizontal)
 	designer._on_new_requested()
 	main.enter_city()
-	await get_tree().process_frame
+	await _settle()
 
 
 ## One press, a run of moves, and a release, straight at the strip handler.
@@ -645,8 +695,7 @@ func _check_repeat_contract() -> void:
 		Game.buy_item(item_id, int(basket[item_id]))
 
 	main.enter_designer(house_id)
-	await get_tree().process_frame
-	await get_tree().process_frame
+	await _settle()
 	var designer = main.designer
 	_furnish(designer, job)
 
@@ -661,7 +710,7 @@ func _check_repeat_contract() -> void:
 		print("repeat          %s wants a %s, %s fee — shopped for, built and handed over" % [
 			contract["client"], contract["theme"], UIKit.money(int(contract["payout"]))])
 	main.enter_city()
-	await get_tree().process_frame
+	await _settle()
 
 
 # ------------------------------------------------------------------- career
@@ -687,8 +736,7 @@ func _play(job: Dictionary) -> void:
 			return
 
 	main.enter_designer(house_id)
-	await get_tree().process_frame
-	await get_tree().process_frame
+	await _settle()
 	var designer = main.designer
 	_furnish(designer, job)
 
@@ -696,7 +744,7 @@ func _play(job: Dictionary) -> void:
 	if not Jobs.all_met(results):
 		_failures.append("%s unmet: %s" % [house_id, _unmet(results)])
 		main.enter_city()
-		await get_tree().process_frame
+		await _settle()
 		return
 
 	var installed: int = designer.installed_value()
@@ -704,7 +752,7 @@ func _play(job: Dictionary) -> void:
 		designer._review_entries(), designer.room.area(), installed, int(job["budget"]))
 	designer._on_finish()
 	main.enter_city()
-	await get_tree().process_frame
+	await _settle()
 
 	print("%-18s fitted %5d  %s  money %5d -> %5d  level %d" % [
 		house_id, installed, RoomReview.stars_text(int(review["stars"])),

@@ -73,6 +73,10 @@ var ui_probe: Callable = Callable()
 var _origin := Vector2.ZERO
 var _locked := false
 
+## Set before the node enters the tree when the caller wants to drive the build
+## itself, a stage at a time, behind a loading screen. See build_stages().
+var staged_build := false
+
 
 func _ready() -> void:
 	_build_environment()
@@ -95,6 +99,8 @@ func _ready() -> void:
 	# The map runs to a few hundred metres once the far quarters are in view.
 	rig.camera.far = 520.0
 
+	if staged_build:
+		return
 	_build_city()
 	rig.snap_to_target()
 
@@ -113,16 +119,32 @@ func rebuild() -> void:
 	_build_city()
 
 
-func _build_city() -> void:
-	_batch = SceneryBatch.new()
-	_build_base_ground()
-	_build_links()
+## The map build broken into pieces a loading screen can step through, each one
+## a label and the work it names. Welding a quarter is the expensive part, so
+## every quarter is its own stage.
+func build_stages() -> Array:
+	var stages: Array = []
+	stages.append(["Levelling the ground", func() -> void:
+		_batch = SceneryBatch.new()
+		_build_base_ground()
+		_build_links()])
+
 	for district: Dictionary in Jobs.districts():
-		_build_district(district)
-	_batch.commit(_scenery)
-	_batch = null
-	_apply_camera_limits()
-	refresh_markers()
+		var quarter: Dictionary = district
+		stages.append(["Laying out %s" % quarter["name"], func() -> void:
+			_build_district(quarter)])
+
+	stages.append(["Putting up the signs", func() -> void:
+		_batch.commit(_scenery)
+		_batch = null
+		_apply_camera_limits()
+		refresh_markers()])
+	return stages
+
+
+func _build_city() -> void:
+	for stage: Array in build_stages():
+		(stage[1] as Callable).call()
 
 
 func _build_district(district: Dictionary) -> void:

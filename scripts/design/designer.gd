@@ -50,6 +50,10 @@ var _wall_color: Color = Catalog.PAINT["wall"][0]["color"]
 ## which is the only option a single-room job ever has.
 var _paint_target := ""
 
+## Set before the designer enters the tree when the caller wants to drive the
+## build itself, a stage at a time, behind a loading screen. See build_stages().
+var staged_build := false
+
 
 func job_mode() -> bool:
 	return house_id != ""
@@ -62,6 +66,32 @@ func setup(id: String) -> void:
 
 
 func _ready() -> void:
+	if staged_build:
+		# Half a designer is not one anyone should be touching, and _process
+		# would run against a camera that is not there yet. _open_job puts both
+		# back once the stages are through.
+		set_process(false)
+		set_process_unhandled_input(false)
+		return
+	for stage: Array in build_stages():
+		(stage[1] as Callable).call()
+
+
+## The job build broken into pieces a loading screen can step through, each one
+## a label and the work it names. Laying out a five-room floor plan and standing
+## everything the player left here back up takes long enough to be worth
+## covering.
+func build_stages() -> Array:
+	return [
+		["Turning the key", _build_shell],
+		["Measuring up", _shape_room],
+		["Laying out your tools", _build_ui],
+		["Carrying the furniture in", _furnish_room],
+		["Reading the brief", _open_job],
+	]
+
+
+func _build_shell() -> void:
 	_build_environment()
 
 	room = Room.new()
@@ -80,28 +110,9 @@ func _ready() -> void:
 	rig.name = "CameraRig"
 	add_child(rig)
 
-	ui = DesignerUI.new()
-	ui.name = "UI"
-	add_child(ui)
-	_connect_ui()
-	ui.configure(job)
 
-	_start_room()
-	_history.reset(_serialize())
-	_refresh_stats()
-	_evaluate()
-	_sync_history_buttons()
-
-	if job_mode():
-		ui.toast("%s — tap Brief to see what %s wants" % [job["name"], job["client"]], 4.0)
-	else:
-		ui.toast("Free build: everything is unlocked and nothing costs anything", 3.5)
-
-
-## Sets the room up and restores whatever was left here last time.
-func _start_room() -> void:
-	var saved: Dictionary = Game.layout_for(house_id) if job_mode() else LayoutStore.load_autosave()
-
+## The floor plan itself: walls, dividers and floor, but nothing standing on it.
+func _shape_room() -> void:
 	if job_mode():
 		var spec: Dictionary = job["room"]
 		if job.has("rooms"):
@@ -111,6 +122,10 @@ func _start_room() -> void:
 	else:
 		room.configure(6.0, 5.0, 2.6)
 
+
+## Whatever was left here last time, or a starter set in free build.
+func _furnish_room() -> void:
+	var saved: Dictionary = Game.layout_for(house_id) if job_mode() else LayoutStore.load_autosave()
 	if not saved.is_empty():
 		_restore(saved)
 	else:
@@ -119,9 +134,34 @@ func _start_room() -> void:
 		if not job_mode():
 			_seed_starter_room()
 
+
+func _build_ui() -> void:
+	ui = DesignerUI.new()
+	ui.name = "UI"
+	add_child(ui)
+	_connect_ui()
+	ui.configure(job)
+
+
+func _open_job() -> void:
+	set_process(true)
+	set_process_unhandled_input(true)
+
+	# Free build restores the room it was left at, so its size is only settled
+	# once the furniture is back in.
 	ui.set_room_values(room.width, room.depth, room.height)
 	rig.frame_room(room.width, room.depth)
 	rig.snap_to_target()
+
+	_history.reset(_serialize())
+	_refresh_stats()
+	_evaluate()
+	_sync_history_buttons()
+
+	if job_mode():
+		ui.toast("%s — tap Brief to see what %s wants" % [job["name"], job["client"]], 4.0)
+	else:
+		ui.toast("Free build: everything is unlocked and nothing costs anything", 3.5)
 
 
 func _build_environment() -> void:
