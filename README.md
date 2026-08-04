@@ -21,7 +21,7 @@ the catalogue, lit and furnished by the same code the game runs on.
 
 | Reading a brief | Buying at a shop |
 |---|---|
-| ![A client's brief with its shopping list and a buy-all button](docs/screenshot-brief.png) | ![The bed shop counter with buy buttons and level gates](docs/screenshot-shop.png) |
+| ![A client's brief with the list of what is still to buy and the basket total](docs/screenshot-brief.png) | ![The bed shop counter with buy buttons and level gates](docs/screenshot-shop.png) |
 
 | Your stock | Fitting the room out |
 |---|---|
@@ -148,9 +148,10 @@ stranded with no money and no way out.
 ### A job
 
 The briefing sheet gives you the client's words, the room size, the fee, their budget and
-the experience on offer. Under the brief it lists exactly what you are still missing, and
-the **Buy all** button next to *Start job* fills the whole basket in one tap — including any
-paint the brief calls for.
+the experience on offer. Under the brief it lists exactly what you are still missing, item
+by item with a price against each and the basket total at the bottom. It is a shopping list,
+not a basket: you take it round the shops and buy each piece at the counter that stocks it,
+which is where knowing your way around the city starts to pay.
 
 Take the job and you land in the room with the brief checklist on the right; it re-ticks
 itself live as you work. Once every line is ticked, **Hand over** collects the fee — and the
@@ -466,9 +467,10 @@ physically sane, that wall snap lands flush and stacking finds the right height,
 keep the room and the warehouse in step, that a properly arranged room really does reach
 three stars, that a generated repeat contract can be shopped for and finished, and that the
 tray starts closed and can tell a drag along the row from a tap on a piece, that the
-app opens on the title screen with its buttons wired to the right places, and that both
+app opens on the title screen with its buttons wired to the right places, that both
 changes of screen are covered end to end by a loading screen whose bar runs from one end to
-the other. It reports everything that does not hold and exits non-zero.
+the other, and that a brief lists what is still to buy without offering to buy it for you.
+It reports everything that does not hold and exits non-zero.
 
 ## Building it yourself
 

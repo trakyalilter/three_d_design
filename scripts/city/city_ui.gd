@@ -377,8 +377,8 @@ static func _placed_counts(house_id: String) -> Dictionary:
 	return counts
 
 
-## The gap between what the brief needs and what the player has, with a button
-## that fills the whole basket in one go.
+## The gap between what the brief needs and what the player already has. It is
+## a list to shop from, not a basket: every piece is bought at its own counter.
 func _build_shopping_list(house_id: String) -> void:
 	var missing := Jobs.shopping_list(house_id, _placed_counts(house_id))
 	var paints := Jobs.missing_paints(house_id)
@@ -420,25 +420,8 @@ func _build_shopping_list(house_id: String) -> void:
 		UIKit.GOLD if Game.can_afford(total) else UIKit.BAD))
 	_sheet_body.add_child(summary)
 
-	# The basket button lives in the pinned action row rather than at the
-	# bottom of a long brief, so it is always within reach.
-	var buy_all := UIKit.make_button("Buy all  %s" % UIKit.money(total))
-	buy_all.disabled = not Game.can_afford(total)
-	buy_all.pressed.connect(func() -> void: _buy_basket(house_id, missing, paints))
-	_sheet_actions.add_child(buy_all)
-
-
-func _buy_basket(house_id: String, missing: Dictionary, paints: Array[Dictionary]) -> void:
-	var bought := 0
-	for item_id: String in missing:
-		if not Game.is_item_unlocked(item_id):
-			continue
-		if Game.buy_item(item_id, int(missing[item_id])):
-			bought += int(missing[item_id])
-	for paint: Dictionary in paints:
-		Game.buy_paint(str(paint["surface"]), paint["entry"])
-	toast_message("%d piece%s added to your stock" % [bought, "" if bought == 1 else "s"])
-	show_house(house_id)
+	_sheet_body.add_child(UIKit.wrapped_label(
+		"Buy these at the shops before you start.", 520, UIKit.MUTED))
 
 
 # ------------------------------------------------------------ district sheet

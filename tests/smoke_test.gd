@@ -22,6 +22,7 @@ func _ready() -> void:
 	print("=== the front page ===")
 	await _check_title()
 	await _check_loading()
+	await _check_brief_sheet()
 
 	print("=== districts ===")
 	_check_districts()
@@ -155,6 +156,45 @@ func _check_loading() -> void:
 	main.enter_city()
 	await _settle()
 	print("loading         covers both changes of screen, bar runs end to end")
+
+
+## A brief lists what is still needed and what it comes to, and leaves the
+## buying to the shops — there is no button here that fills the basket.
+func _check_brief_sheet() -> void:
+	var main := get_tree().current_scene
+	if main.city_ui == null:
+		_failures.append("the brief sheet check needs the city open")
+		return
+
+	var house_id := str(Jobs.unlocked()[0]["id"])
+	main.city_ui.show_house(house_id)
+	await get_tree().process_frame
+
+	var labels: Array[String] = []
+	for row: Node in main.city_ui._sheet_body.get_children():
+		_collect_text(row, labels)
+	_expect(labels.has("Still to buy"), "the brief did not list what is still to buy")
+
+	var actions: Array[String] = []
+	for button: Node in main.city_ui._sheet_actions.get_children():
+		if button is Button:
+			actions.append((button as Button).text)
+	for text in actions:
+		_expect(not text.begins_with("Buy all"),
+			"the brief sheet still buys the whole basket in one tap")
+	_expect(actions.has("Start job"), "the brief sheet lost its Start job button")
+
+	main.city_ui.close_sheet()
+	await get_tree().process_frame
+	print("brief           lists the shopping and leaves the buying to the shops: %s"
+		% ", ".join(actions))
+
+
+static func _collect_text(node: Node, into: Array[String]) -> void:
+	if node is Label:
+		into.append((node as Label).text)
+	for child in node.get_children():
+		_collect_text(child, into)
 
 
 # ---------------------------------------------------------------- districts
