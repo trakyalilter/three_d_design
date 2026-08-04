@@ -98,6 +98,9 @@ func frame_room(width: float, depth: float) -> void:
 	pan_limit = Vector2(width * 0.6, depth * 0.6)
 	pan_center = Vector2.ZERO
 	focus = Vector3.ZERO
+	# A whole floor is much wider than a single room, so the ceiling on how far
+	# back you can pull has to grow with it or the far end never fits on screen.
+	max_distance = maxf(26.0, maxf(width, depth) * 2.2)
 	distance = clampf(maxf(width, depth) * 1.35, min_distance, max_distance)
 
 

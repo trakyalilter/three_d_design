@@ -37,6 +37,9 @@ func _ready() -> void:
 	print("=== catalogue ===")
 	_check_catalogue()
 
+	print("=== floor plans ===")
+	await _check_floor_plan()
+
 	print("=== designer ===")
 	# The checks below are about how the designer behaves, not about what the
 	# career left in the bank, so they buy their props out of a fresh float.
@@ -192,6 +195,102 @@ func _check_catalogue() -> void:
 				"%s has a surface above its own top" % id)
 	print("catalogue       %d pieces across %d categories, all stocked and priced"
 		% [total, Catalog.CATEGORIES.size()])
+
+
+# ----------------------------------------------------------------- the plans
+
+## Houses that are a whole floor rather than one room: the shell has to build
+## every room in the plan, and a brief that names a room has to mean it.
+func _check_floor_plan() -> void:
+	var plans := 0
+	for house: Dictionary in Jobs.all():
+		if not house.has("rooms"):
+			continue
+		plans += 1
+		var house_id := str(house["id"])
+		var rects: Array[Rect2] = []
+		for entry: Dictionary in house["rooms"]:
+			rects.append(Rect2(
+				float(entry["x"]) - float(entry["w"]) * 0.5,
+				float(entry["z"]) - float(entry["d"]) * 0.5,
+				float(entry["w"]), float(entry["d"])))
+		# Rooms may share a wall but must never sit on top of each other.
+		for i in rects.size():
+			for j in range(i + 1, rects.size()):
+				var shared := rects[i].intersection(rects[j])
+				_expect(shared.size.x < 0.01 or shared.size.y < 0.01,
+					"%s: %s overlaps %s" % [house_id,
+						house["rooms"][i]["id"], house["rooms"][j]["id"]])
+		# Every room a requirement names has to exist in the plan.
+		var ids: Dictionary = {}
+		for entry: Dictionary in house["rooms"]:
+			ids[str(entry["id"])] = true
+		for req: Dictionary in house["requirements"]:
+			var scope := str(req.get("room", ""))
+			_expect(scope == "" or ids.has(scope),
+				"%s asks for something in '%s', which is not a room" % [house_id, scope])
+
+	_expect(plans > 0, "no house in the city is more than one room")
+
+	# Then take the biggest one into the designer and check it stands up.
+	var house_id := "the_observatory"
+	var job := Jobs.get_job(house_id)
+	var main := get_tree().current_scene
+	for item_id: String in Jobs.shopping_list(house_id):
+		Game.buy_item(item_id, int(Jobs.shopping_list(house_id)[item_id]))
+	main.enter_designer(house_id)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var designer = main.designer
+	designer._on_new_requested()
+
+	var room = designer.room
+	_expect(room.room_count() == job["rooms"].size(),
+		"%s built %d rooms, expected %d" % [house_id, room.room_count(), job["rooms"].size()])
+	_expect(absf(room.area() - Jobs.floor_area(house_id)) < 0.1,
+		"%s floor is %.1f m², the brief says %.1f" % [
+			house_id, room.area(), Jobs.floor_area(house_id)])
+
+	# A piece dropped in the middle of each room is reported as being in it.
+	for entry: Dictionary in room.plan:
+		var rect: Rect2 = entry["rect"]
+		var middle := rect.position + rect.size * 0.5
+		_expect(room.room_id_at(middle) == str(entry["id"]),
+			"the middle of %s reads as %s" % [entry["id"], room.room_id_at(middle)])
+
+	# And the brief means the room it names: a bed in the bathroom is not a bed
+	# in the bedroom.
+	designer._on_place_item("bed_double")
+	var bed = designer.selected
+	var bathroom: Rect2 = room.rect_of("bathroom")
+	var spot := bathroom.position + bathroom.size * 0.5
+	bed.global_position = designer._clamp_to_room(bed, Vector3(spot.x, 0.0, spot.y))
+	_expect(not _line_met(house_id, designer, "bed_double", "bedroom"),
+		"a bed left in the bathroom ticked the bedroom's line")
+
+	var bedroom: Rect2 = room.rect_of("bedroom")
+	spot = bedroom.position + bedroom.size * 0.5
+	bed.global_position = designer._clamp_to_room(bed, Vector3(spot.x, 0.0, spot.y))
+	_expect(_line_met(house_id, designer, "bed_double", "bedroom"),
+		"a bed in the bedroom did not tick the bedroom's line")
+
+	print("plans           %d whole floors, %s builds %d rooms over %.0f m²"
+		% [plans, house_id, room.room_count(), room.area()])
+
+	designer._on_new_requested()
+	main.enter_city()
+	await get_tree().process_frame
+
+
+## Whether the brief's line for `item_id` in `scope` currently reads as met.
+func _line_met(house_id: String, designer, item_id: String, scope: String) -> bool:
+	var job := Jobs.get_job(house_id)
+	var index := 0
+	for req: Dictionary in job["requirements"]:
+		if str(req.get("id", "")) == item_id and str(req.get("room", "")) == scope:
+			return bool(Jobs.evaluate(house_id, designer._context())[index]["met"])
+		index += 1
+	return false
 
 
 # ------------------------------------------------------------ placement aids
@@ -448,18 +547,20 @@ func _unmet(results: Array[Dictionary]) -> String:
 	return ", ".join(missing)
 
 
-## Satisfies a brief as plainly as possible, out of stock.
+## Satisfies a brief as plainly as possible, out of stock. Lines pinned to a
+## room of a flat are placed in that room.
 func _furnish(designer, job: Dictionary) -> void:
 	for req: Dictionary in job["requirements"]:
+		var scope := str(req.get("room", ""))
 		match str(req["type"]):
 			"item":
 				for i in int(req.get("count", 1)):
-					designer._on_place_item(str(req["id"]))
+					_place(designer, str(req["id"]), scope)
 			"category":
 				for i in int(req.get("count", 1)):
 					var pick := _cheapest_owned_in(str(req["category"]))
 					if pick != "":
-						designer._on_place_item(pick)
+						_place(designer, pick, scope)
 			"categories":
 				var used := 0
 				for category in Catalog.CATEGORIES:
@@ -467,23 +568,61 @@ func _furnish(designer, job: Dictionary) -> void:
 						break
 					var id := _cheapest_owned_in(category)
 					if id != "":
-						designer._on_place_item(id)
+						_place(designer, id, scope)
 						used += 1
 			"floor_color":
 				designer._on_floor_paint(_owned_paint("floor", req["names"]))
 			"wall_color":
 				designer._on_wall_paint(_owned_paint("wall", req["names"]))
 
+	# Room-by-room piece counts have to be topped up room by room.
 	for req: Dictionary in job["requirements"]:
 		if str(req["type"]) != "total":
 			continue
+		var scope := str(req.get("room", ""))
 		var guard := 0
-		while designer._items().size() < int(req["count"]) and guard < 80:
+		while _count_in(designer, scope) < int(req["count"]) and guard < 120:
 			var filler := _any_owned()
 			if filler == "":
 				break
-			designer._on_place_item(filler)
+			_place(designer, filler, scope)
 			guard += 1
+
+
+func _count_in(designer, scope: String) -> int:
+	if scope == "":
+		return designer._items().size()
+	var total := 0
+	for item in designer._items():
+		if designer.room.room_id_at(item.footprint_center()) == scope:
+			total += 1
+	return total
+
+
+## Drops a piece and, when the brief named a room, walks it to a free spot in
+## that room — the designer drops at the camera focus, which the test does not
+## move around.
+func _place(designer, item_id: String, scope: String) -> void:
+	designer._on_place_item(item_id)
+	var item = designer.selected
+	if item == null or scope == "" or not designer.room.has_room(scope):
+		return
+	var rect: Rect2 = designer.room.rect_of(scope)
+	# Sweep the room on a half-metre grid and take the first spot that is clear.
+	var step := 0.5
+	var z: float = rect.position.y + step
+	while z < rect.end.y:
+		var x: float = rect.position.x + step
+		while x < rect.end.x:
+			item.global_position = designer._clamp_to_room(item, Vector3(x, 0.0, z))
+			if designer.room.room_id_at(item.footprint_center()) == scope \
+					and not designer._overlaps_any(item):
+				return
+			x += step
+		z += step
+	# Nowhere clear: leave it in the right room and let the overlap check speak.
+	var middle := rect.position + rect.size * 0.5
+	item.global_position = designer._clamp_to_room(item, Vector3(middle.x, 0.0, middle.y))
 
 
 func _cheapest_owned_in(category: String) -> String:

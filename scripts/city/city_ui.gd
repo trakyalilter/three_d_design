@@ -301,8 +301,12 @@ func show_house(house_id: String) -> void:
 	_sheet_body.add_child(UIKit.wrapped_label("“%s”" % job["brief"], 460, UIKit.TEXT))
 	_divider()
 
-	var room: Dictionary = job["room"]
-	_sheet_row("Room", "%.1f × %.1f m  (%.0f m²)" % [room["w"], room["d"], float(room["w"]) * float(room["d"])])
+	_sheet_row("Room" if not job.has("rooms") else "Floor", Jobs.room_line(house_id))
+	# Wrapped rather than a row: five room names on one line stretches the sheet
+	# off the side of the screen.
+	var names := Jobs.room_names(house_id)
+	if not names.is_empty():
+		_sheet_body.add_child(UIKit.wrapped_label("Rooms: %s" % ", ".join(names), 440, UIKit.MUTED))
 	_sheet_row("Fee", UIKit.money(int(job["payout"])), UIKit.GOLD)
 	_sheet_row("Three-star bonus", "+%s" % UIKit.money(Jobs.max_bonus_for(house_id)), UIKit.GOLD)
 	_sheet_row("Client budget", UIKit.money(int(job["budget"])))

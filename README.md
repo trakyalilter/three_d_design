@@ -39,13 +39,13 @@ The map is four quarters laid out on a grid, joined by the roads between them.
 
 | Quarter | Costs | Opens at | Houses | Fees |
 |---|---|---|---|---|
-| Maple Quarter | — | level 1 | 10 | $1,300 – $10,500 |
-| Riverside Wharf | $10,000 | level 4 | 4 | $4,700 – $7,200 |
-| Hillside Terrace | $22,000 | level 5 | 4 | $5,800 – $9,700 |
-| Skyline Heights | $34,000 | level 6 | 4 | $9,100 – $18,500 |
+| Maple Quarter | — | level 1 | 11 | $1,300 – $10,500 |
+| Riverside Wharf | $10,000 | level 4 | 6 | $4,700 – $8,800 |
+| Hillside Terrace | $22,000 | level 5 | 6 | $5,800 – $13,000 |
+| Skyline Heights | $34,000 | level 6 | 6 | $9,100 – $21,500 |
 
-Maple Quarter comes with the business — ten houses along two residential streets, with the
-nine shops down the avenue between them. The other three sit behind builders' hoardings in
+Maple Quarter comes with the business — eleven houses along two residential streets, with
+the nine shops down the avenue between them. The other three sit behind builders' hoardings in
 a drained-out grey, with the asking price on a sign in the middle. You can fly the camera
 over them from the first minute; you just cannot work there until you have bought the deeds.
 
@@ -58,8 +58,34 @@ shop for the cheapest brief inside — otherwise you could sign the cheque and b
 to afford a single sofa. The sheet spells out all three figures before you commit.
 
 The briefs get longer as you go: ten lines instead of four, six shops represented instead of
-three, thirty pieces in a room instead of five. The last house in Skyline Heights wants
-something from every shop in the city.
+three, thirty pieces in a room instead of five. One house in Skyline Heights wants something
+from every shop in the city.
+
+### Whole floors
+
+Most jobs are one room. Seven of them are a whole floor — two to five rooms with walls and
+doorways between them — and their briefs say which room each thing belongs in. A bed in the
+bathroom does not tick the bedroom's line.
+
+| Five rooms, seen from the south | …and from the north |
+|---|---|
+| ![The Observatory: living room, dining room, bedroom, bathroom and study](docs/screenshot-plan.png) | ![The same flat orbited round, every room still visible](docs/screenshot-plan-orbit.png) |
+
+Walls drop out of the way wherever they stand between you and the inside of the flat, so
+every room stays visible however you orbit — and each one is named where it sits. Drag a
+piece across a dividing wall and it moves to the room on the other side; you do not have to
+thread it through the doorway with a fingertip. Wall snap, the grid and the star review all
+work room by room, so a sofa against the living room's partition counts as against a wall.
+
+| Job | Rooms | Floor |
+|---|---|---|
+| The Alder Street Flat | living room, bedroom | 26 m² |
+| The Cooperage Flat | living room, bedroom | 39 m² |
+| The Granary Duplex | living room, kitchen, bathroom | 48 m² |
+| Beacon House Ground Floor | living room, kitchen, bedroom | 75 m² |
+| Fell View, Upstairs | living room, dining room, bedroom, bathroom | 84 m² |
+| Cloud Court, Floor 22 | living room, kitchen, bedroom, study | 114 m² |
+| The Observatory | living room, dining room, bedroom, bathroom, study | 131 m² |
 
 A floating pin over each house in a quarter you own tells you where it stands:
 
@@ -142,10 +168,10 @@ room hide themselves as you orbit, and a piece that overlaps another glows red.
 
 ### Progress
 
-Experience carries you from level 1 to level 8. Jobs run from a $1,300 studio to an $18,500
-penthouse. A run that buys only what each brief asks for clears Maple Quarter with around
-$28,000 — enough to buy Riverside outright — and owns the whole city, all 22 houses handed
-over, with about $44,000 left. Everything — money, level, stock, paints, the quarters you
+Experience carries you from level 1 to level 8. Jobs run from a $1,300 studio to a $21,500
+five-room penthouse. A run that buys only what each brief asks for clears Maple Quarter with
+around $30,000 — enough to buy Riverside outright — and owns the whole city, all 29 houses
+handed over, with about $88,000 left. Everything — money, level, stock, paints, the quarters you
 have bought, finished jobs and the rooms you left half-done — is saved to the device as you
 go.
 
@@ -198,7 +224,7 @@ scripts/
   game.gd                Swaps between the city and the designer
   data/
     catalog.gd           Autoload. Every model, price, shop and unlock level
-    jobs.gd              Autoload. The four quarters and the 22 houses in them,
+    jobs.gd              Autoload. The four quarters and the 29 houses in them,
                          the requirement evaluator, the shopping list a brief
                          needs, and the generator for repeat contracts
     game_state.gd        Autoload. Money, XP, levels, the warehouse, the
@@ -220,7 +246,8 @@ scripts/
     furniture_item.gd    A placed piece: one merged mesh, pick body, footprints
     mesh_builder.gd      Welds a part list into one shared mesh per item type
     proc_textures.gd     Floorboards, plaster and contact shadows, generated
-    room.gd              Floor, walls, skirting, grid; wall auto-hide
+    room.gd              The floor plan: floors, walls, skirting, doorways,
+                         grid and wall auto-hide, for one room or several
     camera_rig.gd        Damped orbit camera, shared by both screens
     selection_marker.gd  Floor highlight under the selection
   ui/ui_kit.gd           The theme and widget helpers both screens share
@@ -277,6 +304,25 @@ stands, so a new contract is a few lines:
 Supported requirement kinds: `item`, `category`, `total`, `categories` (distinct shops),
 `floor_color`, `wall_color` and `no_overlap`.
 
+A job with more than one room carries a `rooms` plan instead of a single rectangle, and its
+`item`, `category` and `total` lines can name one of them:
+
+```gdscript
+"room": {"h": 3.0},
+"rooms": [
+    {"id": "living",  "name": "Living room", "w": 5.0, "d": 4.5, "x": -2.5, "z": 0.0},
+    {"id": "bedroom", "name": "Bedroom",     "w": 3.6, "d": 4.5, "x":  1.8, "z": 0.0},
+],
+"requirements": [
+    {"type": "item", "id": "sofa", "count": 1, "room": "living"},
+    {"type": "item", "id": "bed_double", "count": 1, "room": "bedroom"},
+],
+```
+
+The rectangles just have to butt up against each other. `room.gd` works out for itself
+which runs of wall are the outside of the flat and which divide two rooms, and knocks a
+doorway through every divider — so a new floor plan is a few lines of data, not geometry.
+
 A quarter is a dictionary as well — a name, where it sits on the grid, what it costs and
 the level it opens at. Every house puts its `map.pos` relative to its quarter's `origin`,
 so a new quarter is one entry plus however many houses you want to drop into it:
@@ -301,12 +347,13 @@ towards grey while it is still locked, so adding one costs no new geometry.
 godot --headless -- --smoke
 ```
 
-It resets the profile and plays the whole city: all 22 jobs, quarter by quarter, buying
+It resets the profile and plays the whole city: all 29 jobs, quarter by quarter, buying
 each quarter out of the money it has actually earned — taking repeat contracts at the
 houses it has already finished when it is short — shopping for each brief, fitting the room
 from stock and handing it over. Then it checks that every quarter is priced above the one
-before and starts locked, that every catalogue entry is priced, stocked and physically
-sane, that wall snap lands flush and stacking finds the right height, that undo and redo
+before and starts locked, that no two rooms of a floor plan overlap and a bed in the wrong
+room does not tick the right room's line, that every catalogue entry is priced, stocked and
+physically sane, that wall snap lands flush and stacking finds the right height, that undo and redo
 keep the room and the warehouse in step, that a properly arranged room really does reach
 three stars, and that a generated repeat contract can be shopped for and finished. It
 reports everything that does not hold and exits non-zero.

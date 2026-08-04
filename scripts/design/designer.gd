@@ -101,7 +101,10 @@ func _start_room() -> void:
 
 	if job_mode():
 		var spec: Dictionary = job["room"]
-		room.configure(float(spec["w"]), float(spec["d"]), float(spec["h"]))
+		if job.has("rooms"):
+			room.configure_plan(job["rooms"], float(spec["h"]))
+		else:
+			room.configure(float(spec["w"]), float(spec["d"]), float(spec["h"]))
 	else:
 		room.configure(6.0, 5.0, 2.6)
 
@@ -187,7 +190,7 @@ func _connect_ui() -> void:
 
 func _process(_delta: float) -> void:
 	if rig.camera:
-		room.update_wall_visibility(rig.camera.global_position)
+		room.update_wall_visibility(rig.camera.global_position, rig.focus)
 
 
 # --------------------------------------------------------------------- input
@@ -369,24 +372,26 @@ func _snap_to_walls(item: FurnitureItem, desired: Vector3) -> Vector3:
 		return desired
 
 	const REACH := 0.42
-	var bounds := room.bounds()
-	var room_x: float = bounds.size.x * 0.5
-	var room_z: float = bounds.size.y * 0.5
 	var footprint := item.footprint()
 
 	# Work out which wall is in reach using the rotation the piece has now.
 	var half := _half_extents(footprint, item.rotation.y)
 	var probe := Vector2(desired.x, desired.z) + _center_offset(item, desired)
+	# The walls that matter are the ones around the room it is currently in.
+	var rect := room.rect_at(probe)
+	var middle := rect.position + rect.size * 0.5
+	var room_x: float = rect.size.x * 0.5
+	var room_z: float = rect.size.y * 0.5
 	# Yaw that puts the piece's back (its local -Z) against each wall.
 	var near_x := INF
 	var near_z := INF
-	if absf((probe.x - half.x) + room_x) < REACH:
+	if absf((probe.x - half.x) - (middle.x - room_x)) < REACH:
 		near_x = deg_to_rad(90.0)
-	elif absf((probe.x + half.x) - room_x) < REACH:
+	elif absf((probe.x + half.x) - (middle.x + room_x)) < REACH:
 		near_x = deg_to_rad(-90.0)
-	if absf((probe.y - half.y) + room_z) < REACH:
+	if absf((probe.y - half.y) - (middle.y - room_z)) < REACH:
 		near_z = 0.0
-	elif absf((probe.y + half.y) - room_z) < REACH:
+	elif absf((probe.y + half.y) - (middle.y + room_z)) < REACH:
 		near_z = PI
 
 	# Straighten first, but only a piece that is already close to square with
@@ -403,13 +408,13 @@ func _snap_to_walls(item: FurnitureItem, desired: Vector3) -> Vector3:
 	var cx: float = desired.x + offset.x
 	var cz: float = desired.z + offset.y
 	if near_x == deg_to_rad(90.0):
-		cx = -room_x + half.x
+		cx = middle.x - room_x + half.x
 	elif near_x == deg_to_rad(-90.0):
-		cx = room_x - half.x
+		cx = middle.x + room_x - half.x
 	if near_z == 0.0:
-		cz = -room_z + half.y
+		cz = middle.y - room_z + half.y
 	elif near_z == PI:
-		cz = room_z - half.y
+		cz = middle.y + room_z - half.y
 
 	return Vector3(cx - offset.x, desired.y, cz - offset.y)
 
@@ -706,18 +711,18 @@ func _on_finish() -> void:
 	ui.show_completion(job, result, review, func() -> void: job_finished.emit(house_id))
 
 
-## What the reviewer needs to know about each piece standing in the room.
+## What the reviewer needs to know about each piece standing in the room. A
+## piece is judged against the walls of the room it is actually in, so a sofa
+## against the living room's divider counts as against a wall.
 func _review_entries() -> Array:
-	var bounds := room.bounds()
-	var room_x: float = bounds.size.x * 0.5
-	var room_z: float = bounds.size.y * 0.5
 	var entries: Array = []
 	for item in _items():
 		var half := _half_extents(item.footprint(), item.rotation.y)
 		var centre := item.footprint_center()
+		var rect := room.rect_at(centre)
 		var gap: float = minf(
-			minf((centre.x - half.x) + room_x, room_x - (centre.x + half.x)),
-			minf((centre.y - half.y) + room_z, room_z - (centre.y + half.y))
+			minf(centre.x - half.x - rect.position.x, rect.end.x - (centre.x + half.x)),
+			minf(centre.y - half.y - rect.position.y, rect.end.y - (centre.y + half.y))
 		)
 		var footprint := item.footprint()
 		entries.append({
@@ -770,31 +775,25 @@ func _clear_items() -> void:
 		item.queue_free()
 
 
-## Keeps an item's footprint inside the room walls.
+## Keeps an item's footprint inside the walls of whichever room of the plan it
+## is being dropped into. Dragging a piece across a dividing wall moves it to
+## the room on the other side rather than stopping at the wall — threading a
+## doorway with a fingertip is not a game.
 func _clamp_to_room(item: FurnitureItem, desired: Vector3) -> Vector3:
-	var footprint := item.footprint()
-	var yaw: float = item.rotation.y
-	var c: float = absf(cos(yaw))
-	var s: float = absf(sin(yaw))
-	var half_x: float = (footprint.x * c + footprint.y * s) * 0.5
-	var half_z: float = (footprint.x * s + footprint.y * c) * 0.5
+	var half := _half_extents(item.footprint(), item.rotation.y)
+	var offset := _center_offset(item, desired)
+	var centre := Vector2(desired.x + offset.x, desired.z + offset.y)
+	var rect := room.rect_at(centre)
 
-	# The footprint centre is not always the node origin.
-	var previous := item.global_position
-	item.global_position = desired
-	var center := item.footprint_center()
-	item.global_position = previous
-	var offset := Vector2(center.x - desired.x, center.y - desired.z)
+	var limit_x: float = maxf(rect.size.x * 0.5 - half.x, 0.0)
+	var limit_z: float = maxf(rect.size.y * 0.5 - half.y, 0.0)
+	var middle := rect.position + rect.size * 0.5
 
-	var bounds := room.bounds()
-	var limit_x: float = maxf(bounds.size.x * 0.5 - half_x, 0.0)
-	var limit_z: float = maxf(bounds.size.y * 0.5 - half_z, 0.0)
-
-	var clamped_center := Vector2(
-		clampf(desired.x + offset.x, -limit_x, limit_x),
-		clampf(desired.z + offset.y, -limit_z, limit_z)
+	var clamped := Vector2(
+		clampf(centre.x, middle.x - limit_x, middle.x + limit_x),
+		clampf(centre.y, middle.y - limit_z, middle.y + limit_z)
 	)
-	return Vector3(clamped_center.x - offset.x, desired.y, clamped_center.y - offset.y)
+	return Vector3(clamped.x - offset.x, desired.y, clamped.y - offset.y)
 
 
 ## Nudges a freshly added item along a spiral until it stops overlapping.
@@ -898,6 +897,8 @@ func _context() -> Dictionary:
 			"id": item.item_id,
 			"tint": item.tint,
 			"blocked": item.is_blocked(),
+			# Which room of the plan it is standing in, for briefs that care.
+			"room": room.room_id_at(item.footprint_center()),
 		})
 	return {
 		"items": entries,

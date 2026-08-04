@@ -607,6 +607,243 @@ const HOUSES: Array[Dictionary] = [
 			{"type": "no_overlap"},
 		],
 	},
+
+	# ------------------------------------------------ whole floors, room by room
+	#
+	# These carry a "rooms" plan instead of a single rectangle, and their briefs
+	# pin lines to a room: a bed in the bedroom is not a bed in the hall. The
+	# rectangles have to butt up against each other — wherever two of them share
+	# an edge, the shell puts a doorway through it.
+	{
+		"id": "alder_flat",
+		"short": "Alder Flat",
+		"district": "maple",
+		"name": "The Alder Street Flat",
+		"client": "Yağmur",
+		"level": 4,
+		"brief": "Two rooms and a landlord who wants it let by the month. Somewhere to sit at the front, somewhere to sleep at the back, and please keep them feeling like separate rooms.",
+		"room": {"h": 2.7},
+		"rooms": [
+			{"id": "living", "name": "Living room", "w": 4.5, "d": 3.5, "x": -2.25, "z": 0.0},
+			{"id": "bedroom", "name": "Bedroom", "w": 3.0, "d": 3.5, "x": 1.5, "z": 0.0},
+		],
+		"budget": 3200,
+		"payout": 4400,
+		"xp": 300,
+		"map": {"pos": Vector2(22, 27), "rot": 180.0},
+		"style": {"body": Color(0.84, 0.86, 0.78), "roof": Color(0.36, 0.40, 0.30), "size": Vector3(7.0, 3.4, 5.5)},
+		"requirements": [
+			{"type": "item", "id": "sofa", "count": 1, "room": "living"},
+			{"type": "item", "id": "coffee_table", "count": 1, "room": "living"},
+			{"type": "item", "id": "bed_single", "count": 1, "room": "bedroom"},
+			{"type": "item", "id": "wardrobe", "count": 1, "room": "bedroom"},
+			{"type": "total", "count": 12},
+			{"type": "no_overlap"},
+		],
+	},
+	{
+		"id": "cooperage_flat",
+		"short": "Cooperage",
+		"district": "riverside",
+		"name": "The Cooperage Flat",
+		"client": "Sinem",
+		"level": 5,
+		"brief": "One of six in the old barrel works. I want the living end to be the room people remember and the bedroom to be somewhere I can shut the door on.",
+		"room": {"h": 3.0},
+		"rooms": [
+			{"id": "living", "name": "Living room", "w": 5.0, "d": 4.5, "x": -2.5, "z": 0.0},
+			{"id": "bedroom", "name": "Bedroom", "w": 3.6, "d": 4.5, "x": 1.8, "z": 0.0},
+		],
+		"budget": 4800,
+		"payout": 6600,
+		"xp": 380,
+		"map": {"pos": Vector2(-34, -27), "rot": 0.0},
+		"style": {"body": Color(0.76, 0.70, 0.62), "roof": Color(0.36, 0.32, 0.30), "size": Vector3(7.5, 4.4, 6.0)},
+		"requirements": [
+			{"type": "item", "id": "sofa", "count": 1, "room": "living"},
+			{"type": "item", "id": "television", "count": 1, "room": "living"},
+			{"type": "item", "id": "tv_stand", "count": 1, "room": "living"},
+			{"type": "item", "id": "bed_double", "count": 1, "room": "bedroom"},
+			{"type": "item", "id": "nightstand", "count": 2, "room": "bedroom"},
+			{"type": "item", "id": "wardrobe", "count": 1, "room": "bedroom"},
+			{"type": "total", "count": 16},
+			{"type": "no_overlap"},
+		],
+	},
+	{
+		"id": "granary_duplex",
+		"short": "Granary",
+		"district": "riverside",
+		"name": "The Granary Duplex",
+		"client": "Onur",
+		"level": 6,
+		"brief": "Three rooms off one big space. The kitchen and the bathroom are small so they have to be exactly right, and the living room has to carry the whole flat.",
+		"room": {"h": 3.0},
+		"rooms": [
+			{"id": "living", "name": "Living room", "w": 5.5, "d": 5.0, "x": -2.75, "z": 0.0},
+			{"id": "kitchen", "name": "Kitchen", "w": 4.0, "d": 2.5, "x": 2.0, "z": -1.25},
+			{"id": "bathroom", "name": "Bathroom", "w": 4.0, "d": 2.5, "x": 2.0, "z": 1.25},
+		],
+		"budget": 6400,
+		"payout": 8800,
+		"xp": 460,
+		"map": {"pos": Vector2(34, -27), "rot": 0.0},
+		"style": {"body": Color(0.70, 0.74, 0.80), "roof": Color(0.26, 0.30, 0.38), "size": Vector3(8.0, 5.0, 6.5)},
+		"requirements": [
+			{"type": "item", "id": "sofa", "count": 1, "room": "living"},
+			{"type": "item", "id": "bookshelf", "count": 2, "room": "living"},
+			{"type": "item", "id": "counter", "count": 2, "room": "kitchen"},
+			{"type": "item", "id": "fridge", "count": 1, "room": "kitchen"},
+			{"type": "item", "id": "toilet", "count": 1, "room": "bathroom"},
+			{"type": "item", "id": "basin", "count": 1, "room": "bathroom"},
+			{"type": "item", "id": "shower", "count": 1, "room": "bathroom"},
+			{"type": "total", "count": 20},
+			{"type": "no_overlap"},
+		],
+	},
+	{
+		"id": "beacon_house",
+		"short": "Beacon House",
+		"district": "hillside",
+		"name": "Beacon House Ground Floor",
+		"client": "Merve",
+		"level": 6,
+		"brief": "The whole ground floor in one go. Cooking at the back, sitting at the front, and the long room down the side is for my mother — she is moving in and she is particular.",
+		"room": {"h": 2.9},
+		"rooms": [
+			{"id": "living", "name": "Living room", "w": 5.5, "d": 4.0, "x": -2.75, "z": -2.0},
+			{"id": "kitchen", "name": "Kitchen", "w": 5.5, "d": 3.5, "x": -2.75, "z": 1.75},
+			{"id": "bedroom", "name": "Bedroom", "w": 4.5, "d": 7.5, "x": 2.25, "z": -0.25},
+		],
+		"budget": 7800,
+		"payout": 10700,
+		"xp": 530,
+		"map": {"pos": Vector2(-34, -27), "rot": 0.0},
+		"style": {"body": Color(0.88, 0.80, 0.66), "roof": Color(0.48, 0.32, 0.24), "size": Vector3(8.5, 4.4, 7.0)},
+		"requirements": [
+			{"type": "item", "id": "sofa", "count": 1, "room": "living"},
+			{"type": "item", "id": "armchair", "count": 2, "room": "living"},
+			{"type": "item", "id": "stove", "count": 1, "room": "kitchen"},
+			{"type": "item", "id": "sink_unit", "count": 1, "room": "kitchen"},
+			{"type": "item", "id": "dining_table", "count": 1, "room": "kitchen"},
+			{"type": "item", "id": "bed_double", "count": 1, "room": "bedroom"},
+			{"type": "item", "id": "dresser", "count": 1, "room": "bedroom"},
+			{"type": "categories", "count": 5},
+			{"type": "total", "count": 24},
+			{"type": "no_overlap"},
+		],
+	},
+	{
+		"id": "fell_view",
+		"short": "Fell View",
+		"district": "hillside",
+		"name": "Fell View, Upstairs",
+		"client": "Kaya",
+		"level": 7,
+		"brief": "Four rooms, and I have lived with the builders long enough to know exactly what goes where. Do not put anything in the wrong room; I will notice on the walk-through.",
+		"room": {"h": 2.9},
+		"rooms": [
+			{"id": "living", "name": "Living room", "w": 6.0, "d": 4.5, "x": -3.0, "z": -2.25},
+			{"id": "dining", "name": "Dining room", "w": 6.0, "d": 3.5, "x": -3.0, "z": 1.75},
+			{"id": "bedroom", "name": "Bedroom", "w": 4.5, "d": 4.5, "x": 2.25, "z": -2.25},
+			{"id": "bathroom", "name": "Bathroom", "w": 4.5, "d": 3.5, "x": 2.25, "z": 1.75},
+		],
+		"budget": 9400,
+		"payout": 13000,
+		"xp": 620,
+		"map": {"pos": Vector2(34, -27), "rot": 0.0},
+		"style": {"body": Color(0.80, 0.76, 0.70), "roof": Color(0.34, 0.30, 0.28), "size": Vector3(8.5, 5.6, 7.0)},
+		"requirements": [
+			{"type": "item", "id": "sofa", "count": 1, "room": "living"},
+			{"type": "item", "id": "television", "count": 1, "room": "living"},
+			{"type": "item", "id": "dining_table", "count": 1, "room": "dining"},
+			{"type": "item", "id": "chair", "count": 4, "room": "dining"},
+			{"type": "item", "id": "bed_double", "count": 1, "room": "bedroom"},
+			{"type": "item", "id": "wardrobe", "count": 1, "room": "bedroom"},
+			{"type": "item", "id": "bathtub", "count": 1, "room": "bathroom"},
+			{"type": "item", "id": "toilet", "count": 1, "room": "bathroom"},
+			{"type": "item", "id": "basin", "count": 1, "room": "bathroom"},
+			{"type": "total", "count": 28},
+			{"type": "no_overlap"},
+		],
+	},
+	{
+		"id": "cloud_court",
+		"short": "Cloud Court",
+		"district": "skyline",
+		"name": "Cloud Court, Floor 22",
+		"client": "Devrim",
+		"level": 7,
+		"brief": "Four rooms and a lift that opens into them. I entertain, I work from home, and I sleep badly — so the bedroom has to be the quietest thing you have ever laid out.",
+		"room": {"h": 3.1},
+		"rooms": [
+			{"id": "living", "name": "Living room", "w": 7.0, "d": 5.5, "x": -3.5, "z": -2.75},
+			{"id": "kitchen", "name": "Kitchen", "w": 7.0, "d": 4.0, "x": -3.5, "z": 2.0},
+			{"id": "bedroom", "name": "Bedroom", "w": 5.0, "d": 5.5, "x": 2.5, "z": -2.75},
+			{"id": "study", "name": "Study", "w": 5.0, "d": 4.0, "x": 2.5, "z": 2.0},
+		],
+		"budget": 11800,
+		"payout": 16300,
+		"xp": 720,
+		"map": {"pos": Vector2(-34, -27), "rot": 0.0},
+		"style": {"body": Color(0.66, 0.68, 0.78), "roof": Color(0.22, 0.24, 0.36), "size": Vector3(8.5, 7.4, 7.0)},
+		"requirements": [
+			{"type": "item", "id": "sofa", "count": 2, "room": "living"},
+			{"type": "item", "id": "tv_large", "count": 1, "room": "living"},
+			{"type": "item", "id": "kitchen_island", "count": 1, "room": "kitchen"},
+			{"type": "item", "id": "fridge", "count": 1, "room": "kitchen"},
+			{"type": "item", "id": "dishwasher", "count": 1, "room": "kitchen"},
+			{"type": "item", "id": "bed_double", "count": 1, "room": "bedroom"},
+			{"type": "item", "id": "wardrobe", "count": 2, "room": "bedroom"},
+			{"type": "item", "id": "desk", "count": 1, "room": "study"},
+			{"type": "item", "id": "computer", "count": 1, "room": "study"},
+			{"type": "item", "id": "bookshelf", "count": 2, "room": "study"},
+			{"type": "categories", "count": 6},
+			{"type": "total", "count": 34},
+			{"type": "no_overlap"},
+		],
+	},
+	{
+		"id": "the_observatory",
+		"short": "Observatory",
+		"district": "skyline",
+		"name": "The Observatory",
+		"client": "Perihan",
+		"level": 8,
+		"brief": "Five rooms at the top of the tower, and the last word on what this city can do. Every room finished properly, every room agreeing with the others, and nothing left looking like it was put down in a hurry.",
+		"room": {"h": 3.2},
+		"rooms": [
+			{"id": "living", "name": "Living room", "w": 7.0, "d": 6.0, "x": -3.5, "z": -3.0},
+			{"id": "dining", "name": "Dining room", "w": 7.0, "d": 4.5, "x": -3.5, "z": 2.25},
+			{"id": "bedroom", "name": "Bedroom", "w": 5.5, "d": 6.0, "x": 2.75, "z": -3.0},
+			{"id": "bathroom", "name": "Bathroom", "w": 2.75, "d": 4.5, "x": 1.375, "z": 2.25},
+			{"id": "study", "name": "Study", "w": 2.75, "d": 4.5, "x": 4.125, "z": 2.25},
+		],
+		"budget": 15500,
+		"payout": 21500,
+		"xp": 900,
+		"map": {"pos": Vector2(34, -27), "rot": 0.0},
+		"style": {"body": Color(0.90, 0.88, 0.84), "roof": Color(0.40, 0.20, 0.26), "size": Vector3(9.0, 8.4, 7.5)},
+		"requirements": [
+			{"type": "item", "id": "sofa", "count": 2, "room": "living"},
+			{"type": "item", "id": "tv_large", "count": 1, "room": "living"},
+			{"type": "item", "id": "speaker_tower", "count": 2, "room": "living"},
+			{"type": "item", "id": "dining_table", "count": 1, "room": "dining"},
+			{"type": "item", "id": "chair", "count": 6, "room": "dining"},
+			{"type": "item", "id": "display_cabinet", "count": 1, "room": "dining"},
+			{"type": "item", "id": "bed_double", "count": 1, "room": "bedroom"},
+			{"type": "item", "id": "wardrobe", "count": 2, "room": "bedroom"},
+			{"type": "item", "id": "dressing_table", "count": 1, "room": "bedroom"},
+			{"type": "item", "id": "bathtub", "count": 1, "room": "bathroom"},
+			{"type": "item", "id": "toilet", "count": 1, "room": "bathroom"},
+			{"type": "item", "id": "desk", "count": 1, "room": "study"},
+			{"type": "item", "id": "bookshelf", "count": 2, "room": "study"},
+			{"type": "categories", "count": 7},
+			{"type": "wall_color", "names": ["Harbour", "Storm", "Ink", "Sage", "Linen"]},
+			{"type": "total", "count": 42},
+			{"type": "no_overlap"},
+		],
+	},
 ]
 
 # ------------------------------------------------------- generated contracts
@@ -779,6 +1016,41 @@ func get_job(house_id: String) -> Dictionary:
 	return merged
 
 
+## Total floor the player has to fill: one rectangle, or the sum of a plan.
+func floor_area(house_id: String) -> float:
+	var job := get_job(house_id)
+	if job.is_empty():
+		return 0.0
+	if not job.has("rooms"):
+		var room: Dictionary = job["room"]
+		return float(room["w"]) * float(room["d"])
+	var total := 0.0
+	for entry: Dictionary in job["rooms"]:
+		total += float(entry["w"]) * float(entry["d"])
+	return total
+
+
+## How the job describes its floor on the briefing sheet.
+func room_line(house_id: String) -> String:
+	var job := get_job(house_id)
+	if job.is_empty():
+		return ""
+	if not job.has("rooms"):
+		var room: Dictionary = job["room"]
+		return "%.1f × %.1f m  (%.0f m²)" % [room["w"], room["d"], floor_area(house_id)]
+	return "%d rooms  (%.0f m²)" % [job["rooms"].size(), floor_area(house_id)]
+
+
+## The names of the rooms in a plan, for the brief. Empty for a single room.
+func room_names(house_id: String) -> Array[String]:
+	var out: Array[String] = []
+	var job := get_job(house_id)
+	for entry: Variant in job.get("rooms", []):
+		if typeof(entry) == TYPE_DICTIONARY:
+			out.append(str((entry as Dictionary).get("name", "")))
+	return out
+
+
 func has_repeat_contract(house_id: String) -> bool:
 	return Game.active_contracts.has(house_id)
 
@@ -910,18 +1182,27 @@ func _needed_pieces(house_id: String) -> Dictionary:
 				wanted[pick] = int(wanted.get(pick, 0)) + 1
 				categories_used[category] = true
 
-	# "Furnish with at least N pieces" — top up with the cheapest decor.
+	# "Furnish with at least N pieces" — top up with the cheapest decor. A brief
+	# for a flat can ask room by room, and then the whole floor needs at least
+	# the sum of what its rooms were promised.
+	var whole_floor := 0
+	var per_room := 0
 	for req: Dictionary in job["requirements"]:
 		if str(req.get("type", "")) != "total":
 			continue
+		if str(req.get("room", "")) == "":
+			whole_floor = maxi(whole_floor, int(req.get("count", 1)))
+		else:
+			per_room += int(req.get("count", 1))
+
+	var required: int = maxi(whole_floor, per_room)
+	if required > 0:
 		var placed := 0
 		for count: int in wanted.values():
 			placed += count
 		var filler := _cheapest_in("Decor")
-		if filler != "":
-			var missing: int = maxi(int(req.get("count", 1)) - placed, 0)
-			if missing > 0:
-				wanted[filler] = int(wanted.get(filler, 0)) + missing
+		if filler != "" and required > placed:
+			wanted[filler] = int(wanted.get(filler, 0)) + (required - placed)
 
 	return wanted
 
@@ -1008,7 +1289,16 @@ func evaluate(house_id: String, context: Dictionary) -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	if job.is_empty():
 		return out
+	# Rooms are named in the plan, so a requirement only has to carry the id.
+	var names: Dictionary = {}
+	for entry: Variant in job.get("rooms", []):
+		if typeof(entry) == TYPE_DICTIONARY:
+			names[str((entry as Dictionary)["id"])] = str((entry as Dictionary).get("name", ""))
 	for req: Dictionary in job["requirements"]:
+		var scope := str(req.get("room", ""))
+		if scope != "" and names.has(scope):
+			req = req.duplicate()
+			req["room_name"] = names[scope]
 		out.append(_check(req, context))
 	return out
 
@@ -1029,13 +1319,26 @@ static func met_count(results: Array[Dictionary]) -> int:
 
 
 func _check(req: Dictionary, context: Dictionary) -> Dictionary:
-	var items: Array = context.get("items", [])
 	var room: Dictionary = context.get("room", {})
 	var kind: String = str(req.get("type", ""))
 	var need: int = int(req.get("count", 1))
 	var have := 0
 	var met := false
 	var label := ""
+
+	# A brief for a flat can pin a line to one of its rooms, in which case only
+	# what is standing in that room counts towards it.
+	var scope := str(req.get("room", ""))
+	var items: Array = context.get("items", [])
+	if scope != "":
+		var in_scope: Array = []
+		for entry: Dictionary in items:
+			if str(entry.get("room", "")) == scope:
+				in_scope.append(entry)
+		items = in_scope
+	var where := ""
+	if scope != "":
+		where = " in the %s" % str(req.get("room_name", scope)).to_lower()
 
 	match kind:
 		"item":
@@ -1045,8 +1348,8 @@ func _check(req: Dictionary, context: Dictionary) -> Dictionary:
 					have += 1
 			met = have >= need
 			var piece := Catalog.display_name(wanted)
-			label = "Fit %s %s" % [_article(piece), piece] if need == 1 \
-				else "Fit %d × %s" % [need, piece]
+			label = "Fit %s %s%s" % [_article(piece), piece, where] if need == 1 \
+				else "Fit %d × %s%s" % [need, piece, where]
 
 		"category":
 			var category: String = str(req["category"])
@@ -1054,12 +1357,12 @@ func _check(req: Dictionary, context: Dictionary) -> Dictionary:
 				if Catalog.category_of(entry["id"]) == category:
 					have += 1
 			met = have >= need
-			label = "Add %d %s piece%s" % [need, category, "" if need == 1 else "s"]
+			label = "Add %d %s piece%s%s" % [need, category, "" if need == 1 else "s", where]
 
 		"total":
 			have = items.size()
 			met = have >= need
-			label = "Furnish with at least %d pieces" % need
+			label = "Furnish%s with at least %d pieces" % [where, need]
 
 		"categories":
 			var seen := {}
