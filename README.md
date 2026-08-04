@@ -25,6 +25,8 @@ Flipper's loop, shrunk to a phone screen.
 
 Grab `room-designer-3d.apk` from the [latest release](../../releases/latest) and open it on
 your device. Android asks you to allow installs from an unknown source the first time.
+Releases from 1.12.0 onwards are signed with the same key, so each one installs straight
+over the last.
 
 - **Minimum Android:** 7.0 (API 24)
 - **ABIs:** `arm64-v8a`, `armeabi-v7a`
@@ -449,13 +451,16 @@ build-tools installed:
 
 ```bash
 export ANDROID_HOME=/path/to/android-sdk
-export GODOT_ANDROID_KEYSTORE_RELEASE_PATH=/path/to/release.keystore
-export GODOT_ANDROID_KEYSTORE_RELEASE_USER=your-alias
-export GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD=your-password
+export GODOT_ANDROID_KEYSTORE_RELEASE_PATH="$PWD/signing/room-designer.keystore"
+export GODOT_ANDROID_KEYSTORE_RELEASE_USER=roomdesigner
+export GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD=roomdesigner
 
 godot --headless --import
 godot --headless --export-release "Android" build/room-designer-3d.apk
 ```
+
+Using the project key means a build from your machine installs over one from CI and the
+other way round.
 
 Godot finds the SDK through the editor setting `export/android/android_sdk_path`, so set
 that in the editor, or write `~/.config/godot/editor_settings-4.5.tres` the way the
@@ -463,7 +468,26 @@ workflow does.
 
 ### Signing
 
-If the repository has these secrets, the workflow signs with your own key:
+Android only installs a build over another one signed by the same certificate. So the key
+cannot change between releases, and the repository carries one:
+
+```
+signing/room-designer.keystore     alias roomdesigner, password roomdesigner
+signing/fingerprint.txt            the certificate that key produces
+```
+
+**That key is public and is not a secret.** It exists so that every build — from CI, from
+your machine, from anyone's fork — installs as an update rather than making you uninstall
+first. What it does not do is prove who built an APK: anyone with this repository can sign
+one that Android will accept as an update to this app. That is an acceptable trade for a
+hobby app you install by hand from a Releases page; it would not be for anything on Play.
+
+The workflow checks the certificate it actually produced against `signing/fingerprint.txt`
+and fails the build on a mismatch, because a silently-changed key is exactly the bug this
+is here to prevent.
+
+To sign with a key of your own instead, set these repository secrets — the workflow prefers
+them over the project key, and skips the fingerprint check:
 
 | Secret | Contents |
 |---|---|
@@ -471,9 +495,8 @@ If the repository has these secrets, the workflow signs with your own key:
 | `ANDROID_KEYSTORE_ALIAS` | The key alias |
 | `ANDROID_KEYSTORE_PASSWORD` | The store and key password |
 
-Without them the workflow generates a throwaway key for that build. The APK still installs
-fine, but each build is signed by a different key, so Android will refuse to install one
-over another — uninstall the old copy first. Set the secrets if you plan to ship updates.
+Be aware that switching costs one uninstall: the first build under a new key will not
+install over a release signed with the old one.
 
 ### Changing the ABIs
 

@@ -150,22 +150,21 @@ jobs:
           set -euo pipefail
           KEYSTORE_PATH="$RUNNER_TEMP/release.keystore"
 
+          # Android will only install a build over another one signed by the
+          # same certificate, so the key must never change between releases.
+          # A build key generated per run would force an uninstall every time.
           if [ -n "${KEYSTORE_BASE64:-}" ]; then
             echo "Signing with the keystore from repository secrets."
             echo "$KEYSTORE_BASE64" | base64 -d > "$KEYSTORE_PATH"
             ALIAS="${KEYSTORE_ALIAS}"
             PASSWORD="${KEYSTORE_PASSWORD}"
-            echo "SIGNED_WITH=repository secret" >> "$GITHUB_ENV"
+            echo "SIGNED_WITH=the repository's own keystore secret" >> "$GITHUB_ENV"
           else
-            echo "No ANDROID_KEYSTORE_BASE64 secret set; generating a build key."
+            echo "No ANDROID_KEYSTORE_BASE64 secret set; using the project key."
+            cp signing/room-designer.keystore "$KEYSTORE_PATH"
             ALIAS="roomdesigner"
-            PASSWORD="$(head -c 24 /dev/urandom | base64 | tr -d '/+=')"
-            echo "::add-mask::$PASSWORD"
-            keytool -keyalg RSA -genkeypair -alias "$ALIAS" -keypass "$PASSWORD" \
-              -keystore "$KEYSTORE_PATH" -storepass "$PASSWORD" \
-              -dname "CN=Room Designer 3D,O=Room Designer 3D,C=US" \
-              -validity 10000 -deststoretype pkcs12
-            echo "SIGNED_WITH=throwaway key generated during this build" >> "$GITHUB_ENV"
+            PASSWORD="roomdesigner"
+            echo "SIGNED_WITH=the project key in signing/ (public, same every build)" >> "$GITHUB_ENV"
           fi
 
           echo "GODOT_ANDROID_KEYSTORE_RELEASE_PATH=$KEYSTORE_PATH" >> "$GITHUB_ENV"
@@ -210,6 +209,23 @@ jobs:
           "$BUILD_TOOLS_DIR/apksigner" verify --print-certs "$APK"
           "$BUILD_TOOLS_DIR/aapt2" dump badging "$APK" \
             | grep -E "^(package|sdkVersion|targetSdkVersion|application-label:|native-code)"
+
+          # The whole point of the project key is that it never changes: a build
+          # signed by a different certificate will not install over the last
+          # release, it will make the player uninstall first. Fail loudly rather
+          # than ship that by accident.
+          FINGERPRINT="$("$BUILD_TOOLS_DIR/apksigner" verify --print-certs "$APK" \
+            | sed -n 's/^Signer #1 certificate SHA-256 digest: //p')"
+          echo "Signing certificate: $FINGERPRINT"
+          if [ -z "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" ]; then
+            EXPECTED="$(tr -d '[:space:]' < signing/fingerprint.txt)"
+            if [ "$FINGERPRINT" != "$EXPECTED" ]; then
+              echo "::error::Signed with $FINGERPRINT, but signing/fingerprint.txt says $EXPECTED."
+              echo "::error::This build would not install over the last release."
+              exit 1
+            fi
+            echo "Certificate matches signing/fingerprint.txt; this installs as an update."
+          fi
 
           SIZE="$(du -h "$APK" | cut -f1)"
           SHA="$(sha256sum "$APK" | cut -d' ' -f1)"

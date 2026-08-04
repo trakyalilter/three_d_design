@@ -9,6 +9,8 @@ build/
 *.aab
 *.idsig
 *.keystore
+# ...except the project key, which has to be the same for every build.
+!signing/room-designer.keystore
 *.jks
 
 # OS / editor cruft
