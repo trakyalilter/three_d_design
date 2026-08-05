@@ -145,6 +145,7 @@ func _build_ground() -> void:
 	_batch = SceneryBatch.new()
 	_batch.box(GRASS if is_fields() else Color(0.44, 0.44, 0.41),
 		Vector3(HALF_W * 2.0, 1.0, HALF_D * 2.0), Vector3(0, -0.5, 0))
+	_weather_the_ground()
 
 	# A track down the middle, with the plots either side of it.
 	_batch.box(DIRT, Vector3(HALF_W * 2.0, 0.10, (ROAD_HALF + 1.2) * 2.0), Vector3(0, 0.02, 0))
@@ -170,6 +171,63 @@ func _build_ground() -> void:
 			_batch.box(post, Vector3(0.18, 1.10, 0.18), Vector3(fx, 0.55, edge))
 			fx += 4.0
 		_batch.box(post, Vector3(HALF_W * 2.0, 0.10, 0.10), Vector3(0, 0.92, edge))
+
+
+## One flat plane is the biggest thing on either map and the emptiest. The
+## fields get mown in patches with hedgerows and bushes over them; the works
+## yard gets worn concrete, weeds through the cracks and the odd oil stain.
+## Both are seeded off the map so a map looks the same every time it is built,
+## and both keep clear of the track and the plots.
+func _weather_the_ground() -> void:
+	var seeded := RandomNumberGenerator.new()
+	seeded.seed = 90210 if is_fields() else 40404
+	var base: Color = GRASS if is_fields() else Color(0.44, 0.44, 0.41)
+
+	for _i in 46:
+		var x: float = seeded.randf_range(-HALF_W + 3.0, HALF_W - 3.0)
+		var z: float = seeded.randf_range(-HALF_D + 3.0, HALF_D - 3.0)
+		if absf(z) < ROAD_HALF + 2.4 or _on_a_plot(x, z):
+			continue
+		var w: float = seeded.randf_range(4.0, 13.0)
+		var d: float = seeded.randf_range(4.0, 11.0)
+		var shade: Color
+		if is_fields():
+			shade = base.lerp(Color(0.52, 0.62, 0.36), seeded.randf_range(-0.25, 0.60))
+		else:
+			shade = base.lerp(Color(0.58, 0.57, 0.53), seeded.randf_range(-0.45, 0.75))
+		_batch.box(shade, Vector3(w, 0.05, d), Vector3(x, 0.025, z))
+
+	for _i in 30:
+		var x: float = seeded.randf_range(-HALF_W + 2.0, HALF_W - 2.0)
+		var z: float = seeded.randf_range(-HALF_D + 2.0, HALF_D - 2.0)
+		if absf(z) < ROAD_HALF + 1.6 or _on_a_plot(x, z):
+			continue
+		if is_fields():
+			var r: float = seeded.randf_range(0.5, 1.1)
+			_batch.sphere(Color(0.25, 0.42, 0.24).lerp(GRASS, seeded.randf() * 0.6),
+				r, Vector3(x, r * 0.55, z))
+		elif seeded.randf() < 0.5:
+			# Weeds through a crack, and a pallet or a drum left out.
+			var r2: float = seeded.randf_range(0.25, 0.5)
+			_batch.sphere(Color(0.34, 0.44, 0.26), r2, Vector3(x, r2 * 0.5, z))
+		else:
+			_batch.box(Color(0.30, 0.29, 0.28), Vector3(seeded.randf_range(1.4, 3.2), 0.03,
+				seeded.randf_range(1.0, 2.6)), Vector3(x, 0.055, z))
+
+
+## True where a plot's own pad already covers the ground, so the weathering does
+## not print over the top of it.
+func _on_a_plot(x: float, z: float) -> bool:
+	var plots: Array = Industry.sites() if is_fields() else Industry.works()
+	for plot: Dictionary in plots:
+		var at: Vector2 = plot["at"]
+		if absf(x - at.x) < 9.0 and absf(z - at.y) < 8.0:
+			return true
+	if not is_fields():
+		var bench: Vector2 = Industry.BENCH["at"]
+		if absf(x - bench.x) < 6.0 and absf(z - bench.y) < 5.0:
+			return true
+	return false
 
 
 func _build_plots() -> void:
@@ -317,11 +375,30 @@ func _build_camp(here: Vector3, terrain: String, tier: int) -> void:
 
 	_batch.box(Color(0.56, 0.52, 0.46), Vector3(width + 2.4, 0.08, 4.6), at + Vector3(0, 0.11, 0))
 	_batch.box(wall, Vector3(width, 2.2, 3.0), at + Vector3(0, 1.1, 0))
-	_batch.prism(roof, Vector3(width + 0.5, 0.9, 3.4), at + Vector3(0, 2.65, 0))
+	# A stone plinth, a boarded gable and a tiled roof rather than a bare wedge.
+	_batch.box(Color(0.58, 0.55, 0.50), Vector3(width + 0.24, 0.34, 3.24), at + Vector3(0, 0.32, 0))
+	_batch.roof(roof, Vector2(width + 0.5, 3.4), 2.2, 0.9, at, Basis.IDENTITY, 3)
 	_batch.box(Color(0.34, 0.24, 0.18), Vector3(0.8, 1.5, 0.10), at + Vector3(0, 0.75, 1.55))
+	# A window either side of the door, with a sill under it.
+	for sx in [-1.0, 1.0]:
+		var wx: float = sx * (width * 0.5 - 0.55)
+		_batch.box(Color(0.62, 0.74, 0.80, 0.85), Vector3(0.62, 0.66, 0.08),
+			at + Vector3(wx, 1.35, 1.52), SceneryBatch.Layer.GLASS)
+		_batch.box(Color(0.92, 0.90, 0.86), Vector3(0.78, 0.09, 0.16),
+			at + Vector3(wx, 0.98, 1.54))
 	# A chimney once it is a going concern.
 	if tier >= 2:
 		_batch.box(Color(0.50, 0.44, 0.40), Vector3(0.5, 1.4, 0.5), at + Vector3(width * 0.3, 3.1, -0.6))
+		_batch.box(Color(0.38, 0.33, 0.30), Vector3(0.62, 0.16, 0.62), at + Vector3(width * 0.3, 3.86, -0.6))
+	# A woodpile against the gable, and a water butt on the corner.
+	for i in mini(tier, 3):
+		# Along the gable, not through it: turned about X the log runs on Z,
+		# which is the short way past the hut rather than into it.
+		_batch.cylinder(Color(0.62, 0.46, 0.30), 0.14, 2.4,
+			at + Vector3(-width * 0.5 - 0.45, 0.30 + float(i) * 0.29, -0.2),
+			SceneryBatch.Layer.OPAQUE, 8, Basis(Vector3.RIGHT, deg_to_rad(90)))
+	_batch.cylinder(Color(0.36, 0.40, 0.36), 0.34, 1.0,
+		at + Vector3(width * 0.5 + 0.5, 0.5, 1.2), SceneryBatch.Layer.OPAQUE, 10)
 	# A cart at the gate, and a second one when the place is at full tilt.
 	for i in mini(tier, 2):
 		var cart := here + Vector3(2.0 + float(i) * 3.4, 0, 4.4)
@@ -376,26 +453,67 @@ func _build_works(works: Dictionary) -> void:
 	var depth := 6.0
 	var height := 3.6 + float(tier) * 0.5
 
-	_batch.box(wall, Vector3(width, height, depth), here + Vector3(-1.6, height * 0.5, -1.0))
-	_batch.prism(roof, Vector3(width + 0.6, 1.5, depth + 0.6), here + Vector3(-1.6, height + 0.75, -1.0))
+	var shed := here + Vector3(-1.6, 0, -1.0)
+	var front: float = depth * 0.5 + 0.08
+	_batch.box(wall, Vector3(width, height, depth), shed + Vector3(0, height * 0.5, 0))
+	# A brick plinth the shed stands on, and a sheeted roof over it.
+	_batch.box(Color(0.46, 0.36, 0.32) if owned else Color(0.52, 0.50, 0.48),
+		Vector3(width + 0.3, 0.6, depth + 0.3), shed + Vector3(0, 0.30, 0))
+	_batch.roof(roof, Vector2(width + 0.6, depth + 0.6), height, 1.5, shed, Basis.IDENTITY, 5)
 	# A lantern along the ridge, which is what a works has instead of windows.
 	_batch.box(Color(0.86, 0.90, 0.92), Vector3(width * 0.5, 0.5, 1.2),
-		here + Vector3(-1.6, height + 1.55, -1.0), SceneryBatch.Layer.GLASS)
-	# Doors and a colour band in whatever it makes.
-	_batch.box(Color(0.28, 0.26, 0.24), Vector3(2.6, 2.6, 0.16), here + Vector3(-1.6, 1.3, depth * 0.5 - 1.0 + 0.08))
-	_batch.box(accent, Vector3(width, 0.5, 0.10), here + Vector3(-1.6, height - 0.45, depth * 0.5 - 1.0 + 0.06))
+		shed + Vector3(0, height + 1.55, 0), SceneryBatch.Layer.GLASS)
+	# The loading door, its lintel, and a colour band in whatever it makes.
+	_batch.box(Color(0.28, 0.26, 0.24), Vector3(2.6, 2.6, 0.16), shed + Vector3(0, 1.3, front))
+	_batch.box(Color(0.40, 0.38, 0.36), Vector3(3.0, 0.22, 0.24), shed + Vector3(0, 2.72, front))
+	for i in 5:
+		_batch.box(Color(0.42, 0.40, 0.38), Vector3(2.4, 0.06, 0.20),
+			shed + Vector3(0, 0.35 + float(i) * 0.48, front + 0.05))
+	_batch.box(accent, Vector3(width, 0.5, 0.10), shed + Vector3(0, height - 0.45, front - 0.02))
+	# Steel-framed windows down the long side, and a gutter over them.
+	for i in 4:
+		_batch.box(Color(0.66, 0.76, 0.82, 0.8), Vector3(0.10, 1.0, 1.1),
+			shed + Vector3(-width * 0.5 - 0.02, height - 1.3, -depth * 0.5 + 1.2 + float(i) * 1.2),
+			SceneryBatch.Layer.GLASS)
+	_batch.box(Color(0.52, 0.51, 0.49), Vector3(0.18, 0.16, depth + 0.4),
+		shed + Vector3(-width * 0.5 - 0.12, height + 0.02, 0))
+	_batch.cylinder(Color(0.52, 0.51, 0.49), 0.09, height,
+		shed + Vector3(-width * 0.5 - 0.12, height * 0.5, depth * 0.5 - 0.3),
+		SceneryBatch.Layer.OPAQUE, 8)
 
 	if owned:
-		var stack := 3.0 + float(tier) * 1.8
+		# The stack stands on the shed, at the back corner of it, rather than
+		# out in the yard on its own.
+		var stack := 2.0 + float(tier) * 1.1
+		var foot := shed + Vector3(width * 0.5 - 1.0, 0, -depth * 0.5 + 1.0)
+		_batch.box(Color(0.46, 0.38, 0.35), Vector3(1.5, height + 0.6, 1.5),
+			foot + Vector3(0, (height + 0.6) * 0.5, 0))
 		_batch.cylinder(Color(0.50, 0.42, 0.38), 0.62, stack,
-			here + Vector3(3.4, stack * 0.5, -2.6), SceneryBatch.Layer.OPAQUE, 10)
+			foot + Vector3(0, height + 0.6 + stack * 0.5, 0), SceneryBatch.Layer.OPAQUE, 10)
 		_batch.cylinder(Color(0.38, 0.32, 0.30), 0.72, 0.4,
-			here + Vector3(3.4, stack - 0.2, -2.6), SceneryBatch.Layer.OPAQUE, 10)
-		# Finished goods stacked in the yard, one pallet a tier.
+			foot + Vector3(0, height + 0.4 + stack, 0), SceneryBatch.Layer.OPAQUE, 10)
+		# Finished goods stacked in the yard, one pallet a tier, on a pallet.
 		for i in tier:
+			_batch.box(Color(0.56, 0.44, 0.30), Vector3(1.7, 0.12, 1.3),
+				here + Vector3(4.4, 0.19, 2.4 + float(i) * 1.5))
 			for j in 3:
 				_batch.box(accent.darkened(0.05 * float(j)), Vector3(1.5, 0.34, 1.1),
-					here + Vector3(4.4, 0.3 + float(j) * 0.36, 2.4 + float(i) * 1.5))
+					here + Vector3(4.4, 0.42 + float(j) * 0.36, 2.4 + float(i) * 1.5))
+		# A hopper on legs, and a skip by the gate — a yard that works has
+		# something standing about in it.
+		_batch.box(Color(0.46, 0.45, 0.42), Vector3(2.0, 1.5, 2.0),
+			here + Vector3(-6.0, 2.4, 2.6))
+		_batch.prism(Color(0.46, 0.45, 0.42), Vector3(2.0, 1.1, 2.0),
+			here + Vector3(-6.0, 1.10, 2.6), SceneryBatch.Layer.OPAQUE,
+			Basis(Vector3.FORWARD, deg_to_rad(180)))
+		for sx in [-1.0, 1.0]:
+			for sz in [-1.0, 1.0]:
+				_batch.box(Color(0.40, 0.39, 0.37), Vector3(0.14, 1.6, 0.14),
+					here + Vector3(-6.0 + sx * 0.85, 0.8, 2.6 + sz * 0.85))
+		_batch.box(accent.darkened(0.4), Vector3(2.8, 1.0, 1.6),
+			here + Vector3(5.6, 0.55, -3.2))
+		_batch.box(accent.darkened(0.28), Vector3(2.9, 0.14, 1.7),
+			here + Vector3(5.6, 1.08, -3.2))
 	else:
 		_build_forsale(here, works)
 

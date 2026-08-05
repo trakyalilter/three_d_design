@@ -124,6 +124,15 @@ the gable ends. And the field the whole quarter stands on is mown in patches, se
 quarter's own position so it looks the same every time it is built, with bushes and stones
 scattered over the parts nothing else uses.
 
+The two maps out of town got the same going over. A camp on a holding has a stone plinth, a
+tiled roof, windows with sills, a capped chimney, a woodpile along the gable and a water butt
+on the corner. A works has a brick plinth, a sheeted roof, a roller shutter with a lintel,
+steel windows and a gutter down the long side, and its chimney stands on the building rather
+than out in the yard on its own. What it makes is stacked on pallets, with a hopper on legs
+and a skip by the gate. And both fields and yard are weathered the way the quarters are —
+mown patches and bushes on the one, worn concrete, weeds through the cracks and pallets left
+out on the other.
+
 ### Whole floors
 
 Most jobs are one room. Seventeen of them are a whole floor — two to five rooms with walls and
@@ -557,7 +566,8 @@ scripts/
     city_life.gd         The layer that moves: traffic, people on the
                          pavements, blossom over Hanami and birds over Hollow,
                          all of it MultiMeshed
-    scenery_batch.gd     Welds the whole city into three draw calls
+    scenery_batch.gd     Welds the whole city into three draw calls, and
+                         builds the pitched roofs every map is made of
     city_ui.gd           Wallet, XP bar, briefing sheet, shop counters, stock,
                          and the quarter you are thinking about buying
   estate/

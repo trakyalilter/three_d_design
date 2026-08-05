@@ -624,7 +624,8 @@ func _terrace_house(job: Dictionary, style: Dictionary, world: Transform3D) -> v
 	# Walls, floor band and roof.
 	_batch.box(body_color, size, world * Vector3(0, size.y * 0.5 + 0.1, 0), SceneryBatch.Layer.OPAQUE, b)
 	_batch.box(trim, Vector3(size.x + 0.3, 0.3, size.z + 0.3), world * Vector3(0, 0.25, 0), SceneryBatch.Layer.OPAQUE, b)
-	_pitched_roof(world, roof_color, Vector2(size.x + 0.7, size.z + 0.7), size.y + 0.1, 1.9)
+	_batch.roof(roof_color, Vector2(size.x + 0.7, size.z + 0.7), size.y + 0.1, 1.9,
+		world.origin, b)
 	_batch.box(roof_color.darkened(0.35), Vector3(0.7, 1.5, 0.7), world * Vector3(size.x * 0.28, size.y + 1.4, -size.z * 0.22), SceneryBatch.Layer.OPAQUE, b)
 	_batch.box(trim.darkened(0.10), Vector3(0.78, 0.22, 0.78), world * Vector3(size.x * 0.28, size.y + 2.2, -size.z * 0.22), SceneryBatch.Layer.OPAQUE, b)
 
@@ -647,44 +648,6 @@ func _terrace_house(job: Dictionary, style: Dictionary, world: Transform3D) -> v
 	var hedge_side: float = -1.0 if int(str(job["id"]).hash()) % 2 == 0 else 1.0
 	_batch.box(_tone(Color(0.26, 0.46, 0.26)), Vector3(0.6, 0.9, size.z + 2.0), world * Vector3(hedge_side * (size.x * 0.5 + 1.4), 0.5, 0), SceneryBatch.Layer.OPAQUE, b)
 	_batch.cylinder(_tone(Color(0.30, 0.34, 0.38)), 0.34, 0.9, world * Vector3(-hedge_side * (size.x * 0.5 + 1.0), 0.5, size.z * 0.4), SceneryBatch.Layer.OPAQUE, 10, b)
-
-
-## A pitched roof, which from map height is most of what a house is. A bare
-## prism reads as a coloured wedge, so this one gets the things that say tile:
-## courses running up each slope, a ridge cap along the top and barge boards
-## down the ends.
-## `plan` is the roof's footprint and `base` the height it springs from. A
-## PrismMesh runs its ridge along Z and slopes away to ±X, so that is the axis
-## everything here is laid out on.
-func _pitched_roof(world: Transform3D, roof_color: Color, plan: Vector2,
-		base: float, rise: float, courses: int = 4, verge: bool = true) -> void:
-	var b := world.basis
-	_batch.prism(roof_color, Vector3(plan.x, rise, plan.y),
-		world * Vector3(0, base + rise * 0.5, 0), SceneryBatch.Layer.OPAQUE, b)
-
-	# Courses up each slope, each one sitting proud of the one below it. The
-	# bar runs the length of the ridge and is laid over on the pitch.
-	var pitch := atan2(rise, plan.x * 0.5)
-	var out := Vector2(sin(pitch), cos(pitch)) * 0.035
-	for sx in [-1.0, 1.0]:
-		for i in courses:
-			var along: float = (float(i) + 0.5) / float(courses)
-			var x: float = sx * plan.x * 0.5 * (1.0 - along)
-			var y: float = base + rise * along
-			_batch.box(roof_color.darkened(0.13 if i % 2 == 0 else 0.04),
-				Vector3(0.18, 0.07, plan.y + 0.04),
-				world * Vector3(x + sx * out.x, y + out.y, 0),
-				SceneryBatch.Layer.OPAQUE,
-				b * Basis(Vector3.BACK, -sx * pitch))
-	# The ridge along the top, and a board down each gable end.
-	_batch.box(roof_color.darkened(0.22), Vector3(0.26, 0.16, plan.y + 0.18),
-		world * Vector3(0, base + rise, 0), SceneryBatch.Layer.OPAQUE, b)
-	if not verge:
-		return
-	for sz in [-1.0, 1.0]:
-		_batch.prism(roof_color.darkened(0.28), Vector3(plan.x + 0.12, rise, 0.16),
-			world * Vector3(0, base + rise * 0.5, sz * plan.y * 0.5),
-			SceneryBatch.Layer.OPAQUE, b)
 
 
 ## Hanami Ward. A townhouse under a broad tiled roof: shallow pitch, eaves that
@@ -731,8 +694,8 @@ func _machiya(job: Dictionary, style: Dictionary, world: Transform3D) -> void:
 	var ridge: float = 0.9 + size.y * 0.10
 	_batch.box(roof_color.darkened(0.25), Vector3(size.x + eave * 2.0, 0.22, size.z + eave * 2.0),
 		world * Vector3(0, size.y + 0.52, 0), SceneryBatch.Layer.OPAQUE, b)
-	_pitched_roof(world, roof_color,
-		Vector2(size.x + eave * 2.0, size.z + eave * 2.0), size.y + 0.63, ridge, 6, false)
+	_batch.roof(roof_color, Vector2(size.x + eave * 2.0, size.z + eave * 2.0),
+		size.y + 0.63, ridge, world.origin, b, 6, false)
 	# Two more storeys get a second, smaller roof over them.
 	if size.y > 4.6:
 		_batch.box(roof_color.darkened(0.25), Vector3(size.x + eave, 0.20, size.z + eave),
@@ -774,8 +737,8 @@ func _manor(job: Dictionary, style: Dictionary, world: Transform3D) -> void:
 	_batch.box(body_color.darkened(0.22), Vector3(size.x + 0.26, 0.26, size.z + 0.26), world * Vector3(0, size.y - 0.2, 0), SceneryBatch.Layer.OPAQUE, b)
 
 	# A steep roof, and a chimney stack at each end.
-	_pitched_roof(world, roof_color, Vector2(size.x + 0.6, size.z + 0.6),
-		size.y, size.y * 0.62 + 1.4, 7)
+	_batch.roof(roof_color, Vector2(size.x + 0.6, size.z + 0.6),
+		size.y, size.y * 0.62 + 1.4, world.origin, b, 7)
 	for sx in [-1.0, 1.0]:
 		_batch.box(body_color.darkened(0.42), Vector3(0.8, 2.3, 0.8), world * Vector3(sx * size.x * 0.34, size.y + 1.5, -size.z * 0.18), SceneryBatch.Layer.OPAQUE, b)
 

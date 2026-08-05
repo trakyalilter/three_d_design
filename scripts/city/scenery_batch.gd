@@ -66,6 +66,42 @@ func prism(color: Color, size: Vector3, position: Vector3, layer: Layer = Layer.
 	_append(mesh, color, Transform3D(basis, position), layer)
 
 
+## A pitched roof, which from map height is most of what a building is. A bare
+## prism reads as a coloured wedge, so this adds what says tile: courses running
+## up each slope, a ridge cap along the top and boards down the gable ends.
+##
+## `plan` is the roof's footprint and `base` the height it springs from. A prism
+## runs its ridge along Z and slopes away to ±X, so that is the axis everything
+## here is laid out on.
+func roof(color: Color, plan: Vector2, base: float, rise: float, at: Vector3,
+		basis: Basis = Basis.IDENTITY, courses: int = 4, verge: bool = true) -> void:
+	var frame := Transform3D(basis, at)
+	prism(color, Vector3(plan.x, rise, plan.y),
+		frame * Vector3(0, base + rise * 0.5, 0), Layer.OPAQUE, basis)
+
+	# Courses up each slope, each one sitting proud of the one below it. The
+	# bar runs the length of the ridge and is laid over on the pitch.
+	var pitch := atan2(rise, plan.x * 0.5)
+	var out := Vector2(sin(pitch), cos(pitch)) * 0.035
+	for sx in [-1.0, 1.0]:
+		for i in courses:
+			var along: float = (float(i) + 0.5) / float(courses)
+			var x: float = sx * plan.x * 0.5 * (1.0 - along)
+			var y: float = base + rise * along
+			box(color.darkened(0.13 if i % 2 == 0 else 0.04),
+				Vector3(0.18, 0.07, plan.y + 0.04),
+				frame * Vector3(x + sx * out.x, y + out.y, 0),
+				Layer.OPAQUE, basis * Basis(Vector3.BACK, -sx * pitch))
+	# The ridge along the top, and a board down each gable end.
+	box(color.darkened(0.22), Vector3(0.26, 0.16, plan.y + 0.18),
+		frame * Vector3(0, base + rise, 0), Layer.OPAQUE, basis)
+	if not verge:
+		return
+	for sz in [-1.0, 1.0]:
+		prism(color.darkened(0.28), Vector3(plan.x + 0.12, rise, 0.16),
+			frame * Vector3(0, base + rise * 0.5, sz * plan.y * 0.5), Layer.OPAQUE, basis)
+
+
 ## Copies a primitive's triangles into the batch, transformed into world space
 ## with the colour written onto every vertex.
 func _append(mesh: Mesh, color: Color, transform: Transform3D, layer: Layer) -> void:
