@@ -1288,10 +1288,62 @@ func _check_three_stars() -> void:
 			% [review["stars"], _failed_notes(review)])
 	print("review          a properly arranged room scores %s"
 		% RoomReview.stars_text(int(review["stars"])))
+	_check_style()
 
 	designer._on_new_requested()
 	main.enter_city()
 	await _settle()
+
+
+## The one line of the review that is about taste rather than tidiness: a room
+## can be faultless in every other way and still be six schools of furniture
+## shouting at each other.
+func _check_style() -> void:
+	# Every piece has to belong to a school somebody has heard of, or the
+	# review would be judging a room against a style that does not exist.
+	for id in Catalog.ids():
+		_expect(Catalog.STYLES.has(Catalog.style_of(id)),
+			"%s is of no known style" % id)
+	var schools: Dictionary = {}
+	for id in Catalog.ids():
+		schools[Catalog.style_of(id)] = int(schools.get(Catalog.style_of(id), 0)) + 1
+	for style: String in Catalog.STYLES:
+		_expect(schools.has(style), "nothing in the city is %s" % style)
+
+	# A room of plain stock has no opinion, so it cannot fail the line.
+	var plain := RoomReview.score([
+		{"id": "sofa", "tint": Color.WHITE, "blocked": false, "wall_gap": 0.0, "area": 1.0},
+		{"id": "coffee_table", "tint": Color.WHITE, "blocked": false, "wall_gap": 0.0, "area": 1.0},
+	], 20.0, 100, 1000)
+	_expect(str(plain["voice"]) == Catalog.PLAIN, "a room of plain stock claimed a style")
+	_expect(bool((plain["notes"] as Array)[4]["good"]),
+		"a room of plain stock was told off for having no point of view")
+
+	# One school, with plain stock alongside it, still hangs together.
+	var one := RoomReview.score([
+		{"id": "tatami_mat", "tint": Color.WHITE, "blocked": false, "wall_gap": 0.0, "area": 1.0},
+		{"id": "sofa", "tint": Color.WHITE, "blocked": false, "wall_gap": 0.0, "area": 1.0},
+	], 20.0, 100, 1000)
+	_expect(bool((one["notes"] as Array)[4]["good"]),
+		"one school plus plain stock was called a jumble")
+
+	# Two schools in equal measure is exactly what the line is there to catch.
+	var mixed := RoomReview.score([
+		{"id": "tatami_mat", "tint": Color.WHITE, "blocked": false, "wall_gap": 0.0, "area": 1.0},
+		{"id": "coffin_bed", "tint": Color.WHITE, "blocked": false, "wall_gap": 0.0, "area": 1.0},
+	], 20.0, 100, 1000)
+	_expect(not bool((mixed["notes"] as Array)[4]["good"]),
+		"japandi and gothic in one room passed as a point of view")
+
+	# And a client wants the look of the street they live on.
+	for house: Dictionary in Jobs.all():
+		var house_id := str(house["id"])
+		_expect(Catalog.STYLES.has(Jobs.taste_of(house_id)),
+			"%s likes a style that does not exist" % house_id)
+	_expect(Jobs.taste_of("sakura_tearoom") == "japandi",
+		"a client in Hanami Ward does not want a Hanami room")
+	print("style           %d schools across the city; a mixed room is marked down"
+		% Catalog.STYLES.size())
 
 
 func _failed_notes(review: Dictionary) -> String:

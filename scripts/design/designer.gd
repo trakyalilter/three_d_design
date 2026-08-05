@@ -779,7 +779,13 @@ func _on_finish() -> void:
 		tiers.append(Game.quality_of(item.item_id))
 	var craft := Industry.quality_bonus(tiers)
 
-	var bonus := int(round(float(payout) * (float(review["bonus_rate"]) + craft)))
+	# And a room furnished in the school the client actually likes is worth
+	# more to them than the same room done correctly in somebody else's taste.
+	var taste := 0.0
+	if str(review["voice"]) == Jobs.taste_of(house_id) and str(review["voice"]) != Catalog.PLAIN:
+		taste = RoomReview.TASTE_BONUS
+
+	var bonus := int(round(float(payout) * (float(review["bonus_rate"]) + craft + taste)))
 	# A well-judged room is worth more experience too.
 	var xp_reward := int(round(
 		float(job["xp"]) * (0.8 + 0.2 * float(review["stars"])) * (1.0 + craft)))

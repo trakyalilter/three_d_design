@@ -1764,6 +1764,25 @@ func district_of(house_id: String) -> String:
 	return str(house.get("district", DISTRICTS[0]["id"]))
 
 
+## What this client actually likes, which is the look of the street they live
+## on. Somebody in Hanami Ward wants a Hanami room; somebody in Maple wants
+## nothing in particular and will not mind what you bring, as long as it agrees
+## with itself.
+func taste_of(house_id: String) -> String:
+	return str(Catalog.STYLE_BY_DISTRICT.get(district_of(house_id), Catalog.PLAIN))
+
+
+## And how to say it in a sentence, for the brief.
+func taste_line(house_id: String) -> String:
+	var style := taste_of(house_id)
+	if style == Catalog.PLAIN:
+		return "No strong feelings about the look, as long as the room agrees with itself."
+	return "%s has a soft spot for %s: %s" % [
+		str(_by_id.get(house_id, {}).get("client", "The client")),
+		Catalog.style_name(style).to_lower(),
+		str(Catalog.STYLES[style]["blurb"]).to_lower()]
+
+
 func houses_in(district_id: String) -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	for house in HOUSES:

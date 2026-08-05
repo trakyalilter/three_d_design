@@ -274,7 +274,7 @@ twenty renders at once.
 ### The verdict
 
 The brief only says what has to be *in* the room. The stars say whether it is any good.
-Five things a person notices walking in, each either satisfied or not:
+Six things a person notices walking in, each either satisfied or not:
 
 | | |
 |---|---|
@@ -282,11 +282,40 @@ Five things a person notices walking in, each either satisfied or not:
 | The big pieces sit against the walls | Sofas, beds, wardrobes and the like belong at the edges — at least 70 % of them |
 | The colours hang together | Four distinct tints across the room, at most |
 | There is room to move | Furniture covers between 12 % and 55 % of the floor |
+| The room has a point of view | One school of furniture rather than six — see below |
 | Came in on budget | What you left behind cost no more than the client allowed |
 
-Five out of five is three stars and a 30 % bonus on the fee; three or four is two stars and
+Five out of six is three stars and a 30 % bonus on the fee; three or four is two stars and
 15 %; below that, one star and no bonus. Stars scale the experience too. Following the
 checklist gets you paid — arranging the room properly is what earns the third star.
+
+### What the furniture says
+
+Five of those six lines are about whether the room *works*. The sixth is the only one about
+taste, and it is the one that turns a job from a shopping run into a design.
+
+Every piece belongs to a school, and nothing new had to be invented to decide which: each
+quarter of the city already trades in its own kind of furniture, so a piece is of the school
+of the quarter that sells it.
+
+| School | Where it comes from | |
+|---|---|---|
+| Plain | Maple Quarter | Everyday stock. It sits happily next to anything |
+| Salvage | Riverside Wharf | Off the dock. Iron, rope and things that were something else |
+| Cottage | Hillside Terrace, and Attic & Loft | Worn wood, soft edges, something growing in the corner |
+| Gallery | Skyline Heights | Stone, glass and a lot of nothing between the pieces |
+| Japandi | Hanami Ward | Low, light and pared back to what the room actually needs |
+| Gothic | Hollow Row | Dark timber, tall backs and candlelight |
+
+**Plain has no opinion** and is left out of the sum entirely — that is the point of it. Of
+the pieces that do have one, seven in ten have to agree with each other, or the client walks
+in and sees a jumble. Attic & Loft stands on Maple's avenue but sells nothing made this
+century, which gives the first quarter one place to buy furniture with a view.
+
+And every client wants the look of the street they live on, said out loud on the brief:
+*"Nozomi has a soft spot for japandi."* Furnish the room in the school they actually like and
+it pays **5 % over the fee**, on top of whatever the stars earned. Somebody in Maple has no
+strong feelings and will take anything, as long as it agrees with itself.
 
 | Gesture | Result |
 |---|---|

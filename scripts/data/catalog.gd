@@ -1385,6 +1385,76 @@ func district_of(id: String) -> String:
 	return shop_district(shop_of(id))
 
 
+# ------------------------------------------------------------------- the look
+
+## What a piece says about the room it is standing in.
+##
+## Nothing new had to be invented for this: each quarter of the city already
+## trades in its own kind of furniture, so a piece's style is the style of the
+## quarter that sells it. Maple's everyday stock is `plain`, which is the point
+## of it — plain goes with anything and never argues with a room.
+const STYLES := {
+	"plain": {
+		"name": "Plain", "color": Color(0.72, 0.73, 0.76),
+		"blurb": "Everyday stock. It sits happily next to anything.",
+	},
+	"cottage": {
+		"name": "Cottage", "color": Color(0.82, 0.66, 0.42),
+		"blurb": "Worn wood, soft edges and something growing in the corner.",
+	},
+	"salvage": {
+		"name": "Salvage", "color": Color(0.55, 0.62, 0.66),
+		"blurb": "Off the dock. Iron, rope and things that were something else.",
+	},
+	"gallery": {
+		"name": "Gallery", "color": Color(0.86, 0.84, 0.90),
+		"blurb": "Stone, glass and a lot of nothing between the pieces.",
+	},
+	"japandi": {
+		"name": "Japandi", "color": Color(0.84, 0.78, 0.62),
+		"blurb": "Low, light and pared back to what the room actually needs.",
+	},
+	"gothic": {
+		"name": "Gothic", "color": Color(0.52, 0.44, 0.62),
+		"blurb": "Dark timber, tall backs and candlelight.",
+	},
+}
+
+const PLAIN := "plain"
+
+## A quarter's own look. Anything sold there is of that school.
+const STYLE_BY_DISTRICT := {
+	"maple": PLAIN,
+	"riverside": "salvage",
+	"hillside": "cottage",
+	"skyline": "gallery",
+	"hanami": "japandi",
+	"hollow": "gothic",
+}
+
+## And the shops that do not follow their quarter. Attic & Loft stands on
+## Maple's avenue but sells nothing that was made this century, so it gives the
+## first quarter one place to buy furniture with an opinion in it.
+const STYLE_BY_SHOP := {
+	"attic": "cottage",
+}
+
+
+func style_of(id: String) -> String:
+	var shop := shop_of(id)
+	if STYLE_BY_SHOP.has(shop):
+		return str(STYLE_BY_SHOP[shop])
+	return str(STYLE_BY_DISTRICT.get(shop_district(shop), PLAIN))
+
+
+func style_name(style: String) -> String:
+	return str(STYLES.get(style, STYLES[PLAIN])["name"])
+
+
+func style_color(style: String) -> Color:
+	return STYLES.get(style, STYLES[PLAIN])["color"]
+
+
 func paint_price(entry: Dictionary) -> int:
 	var tier: int = clampi(int(entry.get("level", 1)), 1, PAINT_PRICE_BY_LEVEL.size() - 1)
 	return PAINT_PRICE_BY_LEVEL[tier]

@@ -3,9 +3,16 @@ extends RefCounted
 ## The client's opinion of a finished room.
 ##
 ## The brief is a checklist: it says what has to be in the room, and nothing
-## about whether the room is any good. This is the other half — five things a
+## about whether the room is any good. This is the other half — six things a
 ## person actually notices walking in, each either satisfied or not, turned
 ## into one to three stars and a bonus on the fee.
+##
+## Five of the six are about whether the room works: nothing jammed into
+## anything, the big pieces where they belong, a palette rather than a paint
+## chart, room to move, and the client's money. The sixth is the only one about
+## taste, and it is the one that turns the job from a shopping run into a
+## design: a room can be correct in every other way and still be a jumble of
+## six different schools of furniture.
 
 ## Bonus on the fee, by star count.
 const BONUS := {1: 0.0, 2: 0.15, 3: 0.30}
@@ -19,6 +26,12 @@ const PALETTE_LIMIT := 4
 ## Comfortable share of the floor taken up by furniture.
 const CROWD_MIN := 0.12
 const CROWD_MAX := 0.55
+## Share of the pieces with an opinion that have to agree with each other.
+## Plain stock has no opinion and is left out of the sum entirely.
+const STYLE_SHARE := 0.7
+## What furnishing a room in the style the client actually likes is worth, on
+## top of whatever the stars earned.
+const TASTE_BONUS := 0.05
 
 
 ## `entries` is one dictionary per placed piece:
@@ -81,7 +94,37 @@ static func score(entries: Array, floor_area: float, installed: int, budget: int
 			else ("It feels bare" if density < CROWD_MIN else "It is packed tight"),
 	})
 
-	# 5. The client's money.
+	# 5. One school of furniture rather than six. The only line here that is
+	# about taste, and the only one a room can fail while being otherwise
+	# faultless.
+	var voices: Dictionary = {}
+	var opinionated := 0
+	for entry: Dictionary in entries:
+		var style := Catalog.style_of(str(entry["id"]))
+		if style == Catalog.PLAIN:
+			continue
+		voices[style] = int(voices.get(style, 0)) + 1
+		opinionated += 1
+	var loudest := ""
+	var second := ""
+	var most := 0
+	for style: String in voices:
+		if int(voices[style]) > most:
+			most = int(voices[style])
+			second = loudest
+			loudest = style
+		elif second == "":
+			second = style
+	var style_ok: bool = opinionated == 0 \
+		or float(most) / float(opinionated) >= STYLE_SHARE
+	notes.append({
+		"good": style_ok,
+		"label": "The room has a point of view" if style_ok
+			else "%s and %s are pulling against each other" % [
+				Catalog.style_name(loudest), Catalog.style_name(second)],
+	})
+
+	# 6. The client's money.
 	var budget_ok: bool = budget <= 0 or installed <= budget
 	notes.append({
 		"good": budget_ok,
@@ -100,7 +143,14 @@ static func score(entries: Array, floor_area: float, installed: int, budget: int
 	elif passed >= 3:
 		stars = 2
 
-	return {"stars": stars, "bonus_rate": float(BONUS[stars]), "notes": notes, "passed": passed}
+	return {
+		"stars": stars,
+		"bonus_rate": float(BONUS[stars]),
+		"notes": notes,
+		"passed": passed,
+		# Which school the room speaks in, for whoever is paying for it.
+		"voice": loudest if opinionated > 0 else Catalog.PLAIN,
+	}
 
 
 static func stars_text(stars: int) -> String:

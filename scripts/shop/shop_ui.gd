@@ -181,6 +181,11 @@ func show_item(item_id: String) -> void:
 	titles.add_child(name_label)
 	titles.add_child(UIKit.label(Catalog.category_of(item_id), 16, UIKit.MUTED))
 
+	# What this piece says about a room. Plain stock says nothing, which is
+	# worth knowing too — it is the only thing that never argues.
+	var style := Catalog.style_of(item_id)
+	_row("Style", Catalog.style_name(style), Catalog.style_color(style))
+
 	_row("Price", UIKit.money(price), UIKit.GOLD if Game.can_afford(price) else UIKit.BAD)
 	_row("You own", "%d" % held, UIKit.GOOD if held > 0 else UIKit.MUTED)
 

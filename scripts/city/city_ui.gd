@@ -313,6 +313,9 @@ func show_house(house_id: String) -> void:
 	_sheet_body.add_child(UIKit.label(status, 18, status_color))
 
 	_sheet_body.add_child(UIKit.wrapped_label("“%s”" % job["brief"], 460, UIKit.TEXT))
+	# What they like, which is worth a little on top of whatever the stars earn.
+	_sheet_body.add_child(UIKit.wrapped_label(Jobs.taste_line(house_id), 460,
+		Catalog.style_color(Jobs.taste_of(house_id))))
 	_divider()
 
 	_sheet_row("Room" if not job.has("rooms") else "Floor", Jobs.room_line(house_id))
