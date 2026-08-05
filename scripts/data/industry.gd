@@ -150,6 +150,55 @@ const BENCH := {
 	"blurb": "Where a piece off the shop floor becomes something better.",
 }
 
+# ------------------------------------------------------------------ the clock
+
+## The estate runs on a clock. A holding fills up whether the app is open or
+## not, stops when it is full and waits to be collected; a works takes real
+## time to put a batch through. Both are worked out from the wall clock at the
+## moment they are looked at, so nothing has to tick in the background and a
+## week away is worth exactly as much as a week watching it.
+
+const HOUR := 3600.0
+
+## How many hours a holding will hold before it fills up and stops. Look in
+## twice a day and nothing is ever wasted.
+const HOLD_HOURS := 8.0
+
+## What the yard will take of one material, and what each tier of a holding
+## that yields it adds. Storage is something you build, not a number handed to
+## you — and it is why a second holding is worth having.
+const YARD_BASE := 30
+const YARD_PER_TIER := 15
+
+## The same for finished goods, which are bulkier and stack worse.
+const STORE_BASE := 8
+const STORE_PER_TIER := 6
+
+## How long one run takes at each works. A tier puts one more through the same
+## run rather than making the run quicker, so building up is throughput.
+const BATCH_MINUTES := {
+	"sawmill": 15.0,
+	"weaving_shed": 20.0,
+	"foundry": 30.0,
+	"glasshouse": 40.0,
+}
+
+
+## What a holding yields an hour once it has been worked up this far.
+static func yield_per_hour(site: Dictionary, tier: int) -> float:
+	return float(site.get("per_job", 0)) * float(tier)
+
+
+## How much a holding will hold before it stops.
+static func hold_cap(site: Dictionary, tier: int) -> int:
+	return int(ceil(yield_per_hour(site, tier) * HOLD_HOURS))
+
+
+## How long a run takes at a works, in seconds.
+func batch_seconds(works_id: String) -> float:
+	return float(BATCH_MINUTES.get(works_id, 20.0)) * 60.0
+
+
 ## What each tier of improvement asks for, and what it is worth. The goods are
 ## the real cost; the money is what the bench charges to fit them.
 const TIERS: Array[Dictionary] = [

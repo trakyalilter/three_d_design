@@ -633,22 +633,41 @@ func _check_estate() -> void:
 	_expect(Game.site_tier(site_id) == 2, "%s did not work up a level" % site_id)
 	_expect(Game.money == money - step_up, "working %s up did not cost the stepped price" % site_id)
 
+	# The holding fills on the wall clock. Nothing ticks in the background, so
+	# pushing the clock forward is exactly what a night away looks like.
+	var material := str(site["yields"])
+	_expect(Game.waiting_at(site_id) == 0, "%s had a crop before any time passed" % site_id)
+	Game.clock_offset += Industry.HOUR * 2.0
+	Game.settle_estate()
+	var two_hours := int(Industry.yield_per_hour(site, 2) * 2.0)
+	_expect(Game.waiting_at(site_id) == two_hours,
+		"two hours on %s grew %d, not %d" % [site_id, Game.waiting_at(site_id), two_hours])
+
+	# And it stops when it is full, rather than filling for ever.
+	Game.clock_offset += Industry.HOUR * 24.0 * 7.0
+	Game.settle_estate()
+	var hold := Industry.hold_cap(site, 2)
+	_expect(Game.waiting_at(site_id) == hold,
+		"a week on %s stood at %d, not the %d it holds"
+			% [site_id, Game.waiting_at(site_id), hold])
+
+	# Carting it off puts it in the yard, and the yard has a cap of its own.
+	var in_yard := Game.material_count(material)
+	main.estate_ui.collect_site.emit(site_id)
+	await get_tree().process_frame
+	var room: int = mini(hold, Game.material_cap(material) - in_yard)
+	_expect(Game.material_count(material) == in_yard + room,
+		"carting %s off moved %d, not the %d there was room for"
+			% [site_id, Game.material_count(material) - in_yard, room])
+	_expect(Game.waiting_at(site_id) == hold - room,
+		"what the yard could not take should have stayed in the ground")
+	_expect(Game.material_count(material) <= Game.material_cap(material),
+		"the yard took more %s than it holds" % material)
+
 	main.enter_city()
 	await _settle()
 
-	# A job handed over is what pays the yard. Nothing else in the game moves it.
-	var material := str(site["yields"])
-	var in_yard := Game.material_count(material)
-	var worked := await _take_repeat()
-	_expect(worked, "the estate check needs one repeat job to hand over")
-	if not worked:
-		return
-	var expected: int = int(site["per_job"]) * 2
-	_expect(Game.material_count(material) == in_yard + expected,
-		"handing a job over brought in %d %s, not the %d two tiers of %s should yield"
-			% [Game.material_count(material) - in_yard, material, expected, site_id])
-
-	# The works: material in, goods out.
+	# The works: material in, a run that takes time, goods out.
 	main.enter_estate(false)
 	await _settle()
 	_expect(main.estate != null and not main.estate.is_fields(), "the works did not open")
@@ -676,10 +695,36 @@ func _check_estate() -> void:
 	var made := Game.good_count(str(good["id"]))
 	main.estate_ui.run_works.emit(works_id)
 	await get_tree().process_frame
-	_expect(Game.good_count(str(good["id"])) == made + 1,
-		"a batch at %s made nothing" % works_id)
 	_expect(Game.material_count(feed) == stock - int(good["takes"]),
-		"a batch at %s did not eat its material" % works_id)
+		"putting a run on at %s did not take its material" % works_id)
+	_expect(Game.good_count(str(good["id"])) == made,
+		"a run at %s made its goods before it had run" % works_id)
+	_expect(Game.batch_left(works_id) > 0.0, "the run at %s started finished" % works_id)
+	_expect(not Game.batch_ready(works_id), "the run at %s was ready at once" % works_id)
+
+	# Nothing comes off before the time is up, and nothing else can go on.
+	main.estate_ui.collect_batch.emit(works_id)
+	await get_tree().process_frame
+	_expect(Game.good_count(str(good["id"])) == made,
+		"a run at %s could be taken off early" % works_id)
+	_expect(Game.batches_available(works_id) == 0,
+		"%s took a second run while the first was still on" % works_id)
+
+	Game.clock_offset += Industry.batch_seconds(works_id) + 1.0
+	_expect(Game.batch_ready(works_id), "the run at %s never came off" % works_id)
+	main.estate_ui.collect_batch.emit(works_id)
+	await get_tree().process_frame
+	_expect(Game.good_count(str(good["id"])) == made + 1,
+		"taking the run off %s left nothing behind" % works_id)
+	_expect(Game.batch_left(works_id) < 0.0, "the finished run stayed on the line")
+
+	# The store fills up too, and a full store will not take a run.
+	var full: int = Game.good_cap(str(good["id"]))
+	Game.goods[str(good["id"])] = full
+	Game.materials[feed] = Game.material_count(feed) + int(good["takes"]) * 4
+	_expect(Game.batches_available(works_id) == 0,
+		"%s would run into a store that is already full" % works_id)
+	Game.goods[str(good["id"])] = made
 
 	# The bench: goods into furniture the player owns.
 	Game.buy_item("sofa", 1)
@@ -696,8 +741,9 @@ func _check_estate() -> void:
 	main.enter_city()
 	await _settle()
 
-	print("estate          %s worked to tier 2, %s built, sofa off the bench %s"
-		% [site_id, works_id, Industry.tier_name(Game.quality_of("sofa"))])
+	print("estate          %s fills at %d an hour and holds %d; %s runs %s a batch"
+		% [site_id, int(Industry.yield_per_hour(site, 2)), Industry.hold_cap(site, 2),
+		works_id, Game.spell_out(Industry.batch_seconds(works_id))])
 	await _check_craft_pays()
 
 

@@ -11,6 +11,8 @@ signal leave_requested()
 signal buy_site(site_id: String)
 signal buy_works(works_id: String)
 signal run_works(works_id: String)
+signal collect_site(site_id: String)
+signal collect_batch(works_id: String)
 signal improve_item(item_id: String)
 
 var _root: Control
@@ -27,6 +29,7 @@ var _toast: Label
 var _toast_timer: Timer
 
 var _fields := true
+var _tick := 0.0
 ## What the sheet is showing, so a purchase can redraw it in place.
 var _showing: Dictionary = {}
 
@@ -44,6 +47,7 @@ func _ready() -> void:
 	_build_sheet()
 	_build_hint()
 
+	set_process(true)
 	Game.money_changed.connect(func(_amount: int) -> void: refresh())
 	Game.estate_changed.connect(func() -> void:
 		refresh()
@@ -51,11 +55,34 @@ func _ready() -> void:
 	refresh()
 
 
+## The estate runs on the wall clock, so the screen has to keep asking it what
+## time it is: holdings fill while you are stood there and runs come off the
+## line. Twice a second is plenty and costs nothing.
+func _process(delta: float) -> void:
+	_tick -= delta
+	if _tick > 0.0:
+		return
+	_tick = 0.5
+	var moved := Game.settle_estate()
+	if moved or _watching_a_clock():
+		refresh()
+		_redraw()
+
+
+## True when what is on the sheet is counting down and has to be redrawn.
+func _watching_a_clock() -> bool:
+	if _showing.is_empty() or not _sheet.visible:
+		return false
+	if str(_showing.get("kind", "")) == "works":
+		return Game.batch_left(str(_showing["id"])) >= 0.0
+	return str(_showing.get("kind", "")) == "site"
+
+
 func configure(fields: bool) -> void:
 	_fields = fields
-	_hint.text = "Tap a holding to buy it or work it up. Everything you own yields when a job is handed over." \
+	_hint.text = "Every holding you own fills on its own clock, whether the app is open or not. Tap one to cart off what is standing on it." \
 		if fields \
-		else "Tap a works to build it or run a batch, or the bench to improve what you own."
+		else "Put a run on and it takes real time to come off the line. The bench improves what you own with what it makes."
 	# The tally is materials on the fields and finished goods at the works, so it
 	# has to be redrawn whenever the map changes under it.
 	refresh()
@@ -179,6 +206,7 @@ func refresh() -> void:
 	for entry: Dictionary in entries:
 		var id := str(entry["id"])
 		var held: int = Game.material_count(id) if _fields else Game.good_count(id)
+		var cap: int = Game.material_cap(id) if _fields else Game.good_cap(id)
 		var cell := HBoxContainer.new()
 		cell.add_theme_constant_override("separation", 5)
 		var chip := ColorRect.new()
@@ -186,7 +214,14 @@ func refresh() -> void:
 		chip.custom_minimum_size = Vector2(12, 22)
 		chip.tooltip_text = str(entry["name"])
 		cell.add_child(chip)
-		var count := UIKit.label(str(held), 18, UIKit.TEXT if held > 0 else UIKit.MUTED)
+		# The cap is the whole point of a store, so it is on the tally: a yard
+		# that is full stops taking anything in.
+		var tone: Color = UIKit.TEXT
+		if held >= cap:
+			tone = UIKit.BAD
+		elif held <= 0:
+			tone = UIKit.MUTED
+		var count := UIKit.label("%d/%d" % [held, cap], 17, tone)
 		count.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		cell.add_child(count)
 		_yard.add_child(cell)
@@ -256,13 +291,31 @@ func _show_site(id: String) -> void:
 
 	_begin(str(site["name"]), str(site["blurb"]))
 	_row("Yields", Industry.material_name(material))
+	var unit := str(Industry.get_material(material)["unit"])
 	if tier > 0:
-		_row("Every job hands you", "%d %s" % [
-			int(site["per_job"]) * tier, Industry.get_material(material)["unit"]], UIKit.GOOD)
+		_row("Comes up at", "%d %s an hour" % [
+			int(Industry.yield_per_hour(site, tier)), unit], UIKit.GOOD)
+		var waiting := Game.waiting_at(id)
+		var hold := Industry.hold_cap(site, tier)
+		_row("Standing on the ground", "%d of %d" % [waiting, hold],
+			UIKit.GOLD if waiting >= hold else UIKit.TEXT)
+		_bar(Game.fullness_at(id), Industry.get_material(material)["color"])
+		if waiting >= hold:
+			_sheet_body.add_child(UIKit.wrapped_label(
+				"Full, and nothing more will come up until it is carted off.",
+				420, UIKit.BAD))
 		_row("Worked up to", "%d of %d" % [tier, Industry.MAX_TIER])
+
+		var room: int = maxi(Game.material_cap(material) - Game.material_count(material), 0)
+		var cart := UIKit.make_primary_button(
+			"Cart it off  (%d)" % mini(waiting, room) if waiting > 0 and room > 0
+			else ("The yard is full" if waiting > 0 else "Nothing to cart yet"))
+		cart.disabled = waiting <= 0 or room <= 0
+		cart.pressed.connect(func() -> void: collect_site.emit(id))
+		_sheet_actions.add_child(cart)
 	else:
-		_row("Would hand you", "%d %s a job" % [
-			int(site["per_job"]), Industry.get_material(material)["unit"]])
+		_row("Would come up at", "%d %s an hour" % [int(site["per_job"]), unit])
+		_row("And hold", "%d before it stops" % Industry.hold_cap(site, 1))
 
 	if tier >= Industry.MAX_TIER:
 		_sheet_body.add_child(UIKit.wrapped_label(
@@ -295,21 +348,41 @@ func _show_works(id: String) -> void:
 	var material := str(good["from"])
 	var takes := int(good["takes"])
 
+	var made := str(good["id"])
 	_begin(str(works["name"]), str(works["blurb"]))
 	_row("Makes", str(good["name"]))
 	_row("Out of", "%d %s a piece" % [takes, Industry.material_name(material)])
 	_row("In the yard", "%d %s" % [Game.material_count(material), Industry.material_name(material)],
 		UIKit.GOOD if Game.material_count(material) >= takes else UIKit.MUTED)
-	_row("Made and waiting", str(Game.good_count(str(good["id"]))), UIKit.GOOD)
+	_row("In the store", "%d of %d" % [Game.good_count(made), Game.good_cap(made)],
+		UIKit.BAD if Game.good_count(made) >= Game.good_cap(made) else UIKit.GOOD)
 
 	if tier > 0:
-		_row("Batch", "%d a run" % tier)
-		var possible: int = mini(tier, Game.material_count(material) / maxi(takes, 1))
-		var run := UIKit.make_primary_button(
-			"Run a batch  (+%d)" % possible if possible > 0 else "Nothing to run")
-		run.disabled = possible <= 0
-		run.pressed.connect(func() -> void: run_works.emit(id))
-		_sheet_actions.add_child(run)
+		_row("A run", "%d at a time, %s" % [tier,
+			Game.spell_out(Industry.batch_seconds(id))])
+		if Game.batch_ready(id):
+			_row("Off the line", "%d waiting" % Game.batch_size(id), UIKit.GOLD)
+			var take := UIKit.make_primary_button("Take it off  (%d)" % Game.batch_size(id))
+			take.pressed.connect(func() -> void: collect_batch.emit(id))
+			_sheet_actions.add_child(take)
+		elif Game.batch_left(id) > 0.0:
+			_row("Running", "%d, ready in %s" % [
+				Game.batch_size(id), Game.spell_out(Game.batch_left(id))], UIKit.TEXT)
+			_bar(1.0 - Game.batch_left(id) / maxf(Industry.batch_seconds(id), 1.0),
+				good.get("color", UIKit.ACCENT))
+			var waiting := UIKit.make_button("On the line")
+			waiting.disabled = true
+			_sheet_actions.add_child(waiting)
+		else:
+			var possible := Game.batches_available(id)
+			var why := "Nothing to run"
+			if Game.good_count(made) >= Game.good_cap(made):
+				why = "The store is full"
+			var run := UIKit.make_primary_button(
+				"Put a run on  (%d)" % possible if possible > 0 else why)
+			run.disabled = possible <= 0
+			run.pressed.connect(func() -> void: run_works.emit(id))
+			_sheet_actions.add_child(run)
 
 	if tier >= Industry.MAX_TIER:
 		_sheet_body.add_child(UIKit.wrapped_label(
@@ -411,6 +484,26 @@ func _bench_row(item_id: String) -> Control:
 	foot.add_child(button)
 	block.add_child(foot)
 	return block
+
+
+## A filling bar, for a holding that is filling and a run that is running.
+func _bar(fraction: float, tone: Color) -> void:
+	var track := PanelContainer.new()
+	track.custom_minimum_size = Vector2(0, 10)
+	track.add_theme_stylebox_override("panel", UIKit.panel_box(Color(1, 1, 1, 0.10), 5))
+	var fill := ColorRect.new()
+	fill.color = tone
+	fill.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	fill.custom_minimum_size = Vector2(0, 6)
+	var row := HBoxContainer.new()
+	row.add_child(fill)
+	var rest := Control.new()
+	rest.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(rest)
+	fill.size_flags_stretch_ratio = maxf(clampf(fraction, 0.0, 1.0), 0.001)
+	rest.size_flags_stretch_ratio = maxf(1.0 - clampf(fraction, 0.0, 1.0), 0.001)
+	track.add_child(row)
+	_sheet_body.add_child(track)
 
 
 func _divider() -> void:

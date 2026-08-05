@@ -320,18 +320,30 @@ level 3 and **Works** at level 5.
 hills and two dunes — and each of them yields one of the four raw materials: timber, cotton,
 iron ore and silica sand. Tap unworked ground to see what it would hand you and what the
 agent wants for it. Buy it and a camp goes up: a hut, a yard, a cart, logs stacked by the
-track. Buy it again to work it up, twice more, and the camp grows each time while the yield
-per job rises with it.
+track. Buy it again to work it up, twice more, and the camp grows each time while the rate
+rises with it.
 
-Nothing on the estate runs on a clock. **Every holding you own yields when a job is handed
-over**, so the ground pays out of the same loop the rest of the game runs on, and putting the
-phone down for a week does not leave a queue waiting for you.
+**The estate runs on a clock.** A holding you own fills whether the app is open or not — a
+tier-1 elm stand at four logs an hour, the same stand worked up twice at eight — and the map
+shows how much is standing on each one. Nothing ticks in the background: the game asks the
+wall clock what time it is when you look, so a night away and a night watching it come to the
+same thing.
+
+Two caps keep it honest. **A holding only holds eight hours' worth** and then stops, so
+there is a reason to look in twice a day rather than once a fortnight. And **the yard only
+holds so much of a material** — thirty to begin with, and fifteen more for every tier of
+every holding that yields it, so storage is something you build rather than a number you are
+handed. Cart a holding off into a full yard and it takes what it can; the rest stays in the
+ground until there is room.
 
 **The works** is the second road: a sawmill, a weaving shed, a foundry and a glasshouse
 standing along a road, plus the finishing bench in the middle. Each plant takes three of one
-material and turns it into one finished good — hardwood board, a bolt of cloth, a steel
-fitting, a glass pane. Build a plant up and it puts more through in a batch. Tap it and
-**Run a batch** whenever the yard has enough in it.
+material and turns it into one finished good — hardwood board, a bolt of cloth, a steel fitting,
+a glass pane. **A run takes real time**: fifteen minutes at the sawmill up to forty at the
+glasshouse. The material goes in when you put the run on — it is in the machine, not in the
+yard — and the goods come off when it is done. Building a plant up puts one more through the
+same run rather than making the run quicker, so a tier-3 sawmill makes three boards in the
+same fifteen minutes. Each works has a store of its own, and a full store will not take a run.
 
 **The finishing bench** is where the goods go into the furniture. It lists everything in your
 warehouse with what the next step up would take, and improving a piece lifts **every one of
@@ -346,6 +358,9 @@ that kind you own** — and everything of that kind you buy afterwards. There ar
 Which good a piece wants is decided by what it is actually built from, weighed by area: a
 sofa with four small wooden feet still wants cloth, a bookshelf wants board, a floor lamp
 wants fittings, a mirror-fronted cabinet wants panes.
+
+No part of it costs money to run: the land and the plant are bought once each, and after that
+a run costs material and a wait, never cash. The only repeating charge is the bench fee.
 
 The point of all of it is the hand-over. Every improved piece standing in a finished room
 adds 6 % per step to the fee **and** to the experience, averaged across everything in the

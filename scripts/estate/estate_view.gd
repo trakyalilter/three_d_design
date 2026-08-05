@@ -28,6 +28,9 @@ var _batch: SceneryBatch
 var _scenery: Node3D
 var _pickables: Node3D
 var _labels: Array[Label3D] = []
+## The "come and get it" bubbles over the plots that have something waiting.
+var _pips: Array[Label3D] = []
+var _pip_tick := 0.0
 
 var _touches: Dictionary = {}
 var _touch_origins: Dictionary = {}
@@ -573,6 +576,29 @@ func _plot_body(here: Vector3, plot_kind: String, id: String,
 	holder.add_child(plate)
 	_labels.append(plate)
 
+	# The bubble that says there is something here to come and get. Hidden
+	# until there is, and checked once a second rather than every frame.
+	if plot_kind != "bench":
+		var pip := Label3D.new()
+		pip.name = "Ready"
+		pip.font_size = 72
+		pip.pixel_size = 0.00060
+		pip.fixed_size = true
+		# Over the name plate, not under it, and carrying the number so the map
+		# says how much is waiting without anything being tapped.
+		pip.position = Vector3(0, 7.9, 0)
+		pip.modulate = Color(0.99, 0.83, 0.35)
+		pip.outline_size = 26
+		pip.outline_modulate = Color(0.05, 0.06, 0.09, 0.95)
+		pip.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		pip.no_depth_test = true
+		pip.render_priority = 3
+		pip.visible = false
+		pip.set_meta("plot_kind", plot_kind)
+		pip.set_meta("plot_id", id)
+		holder.add_child(pip)
+		_pips.append(pip)
+
 	var body := StaticBody3D.new()
 	body.collision_layer = PICK_LAYER
 	body.collision_mask = 0
@@ -587,9 +613,31 @@ func _plot_body(here: Vector3, plot_kind: String, id: String,
 	holder.add_child(body)
 
 
+## Whether each plot has something standing on it worth coming for. Once a
+## second is plenty: nothing here changes faster than that.
+func _process(delta: float) -> void:
+	_pip_tick -= delta
+	if _pip_tick > 0.0:
+		return
+	_pip_tick = 1.0
+	for pip in _pips:
+		if not is_instance_valid(pip):
+			continue
+		var id := str(pip.get_meta("plot_id"))
+		var waiting := 0
+		if str(pip.get_meta("plot_kind")) == "site":
+			waiting = Game.waiting_at(id)
+		elif Game.batch_ready(id):
+			waiting = Game.batch_size(id)
+		pip.visible = waiting > 0
+		if waiting > 0:
+			pip.text = "▼ %d" % waiting
+
+
 ## Rebuilds everything after a purchase, since the camps and chimneys grow.
 func rebuild() -> void:
 	_labels.clear()
+	_pips.clear()
 	for holder in [_scenery, _pickables]:
 		for child in holder.get_children():
 			holder.remove_child(child)

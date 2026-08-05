@@ -54,6 +54,16 @@ var sites: Dictionary = {}
 var plants: Dictionary = {}
 ## item id -> how far that piece has been improved at the bench, 1 to 3.
 var quality: Dictionary = {}
+## site id -> how much has come up out of the ground and not been collected.
+## Kept as a float so a part hour is not thrown away every time it is settled.
+var site_stock: Dictionary = {}
+## site id -> the wall clock when that holding was last settled.
+var site_since: Dictionary = {}
+## works id -> {"made": how many are in the run, "ready_at": when it comes off}.
+var batches: Dictionary = {}
+## Pushed forward by the test harness so a week can pass in a frame. Zero in
+## anything a player runs.
+var clock_offset: float = 0.0
 
 
 func _ready() -> void:
@@ -343,9 +353,6 @@ func take_repeat_contract(house_id: String, contract: Dictionary) -> void:
 func record_completion(house_id: String, payout: int, bonus: int, xp_reward: int, installed: int, stars: int = 1) -> Dictionary:
 	var levels_gained := add_xp(xp_reward)
 	earn(payout + bonus)
-	# Every holding yields when a job is handed over, which is what keeps the
-	# estate inside the loop the game already has rather than on a clock.
-	var yielded := work_the_land()
 	var result := {
 		"payout": payout,
 		"bonus": bonus,
@@ -353,7 +360,6 @@ func record_completion(house_id: String, payout: int, bonus: int, xp_reward: int
 		"installed": installed,
 		"levels": levels_gained,
 		"stars": stars,
-		"yielded": yielded,
 	}
 	finished_jobs[house_id] = result
 	repeats[house_id] = repeat_count(house_id) + 1
@@ -410,7 +416,11 @@ func take_site(id: String) -> bool:
 	var tier := site_tier(id)
 	if not spend(step_price(int(site["cost"]), tier)):
 		return false
+	# Settle first, so working a holding up does not pay the old rate for the
+	# hours since it was last looked at, and start the new rate from now.
+	settle_estate()
 	sites[id] = tier + 1
+	site_since[id] = now()
 	save_profile()
 	estate_changed.emit()
 	return true
@@ -439,58 +449,191 @@ func take_works(id: String) -> bool:
 	return true
 
 
-## What the yard takes in when a job is handed over. Every holding you own
-## yields its material, more of it the further it has been worked up.
-func work_the_land() -> Dictionary:
-	var taken: Dictionary = {}
+# ------------------------------------------------------------ ground and time
+
+## The wall clock the estate runs on. The offset is a seam for the tests, which
+## have to be able to let a week pass without waiting a week.
+func now() -> float:
+	return Time.get_unix_time_from_system() + clock_offset
+
+
+## Brings every holding up to date with the clock. Cheap enough to call
+## whenever anything is about to be looked at, and the only thing that ever
+## moves material: nothing ticks in the background, and the app being shut
+## makes no difference to what is waiting when it opens.
+func settle_estate() -> bool:
+	var moved := false
+	var when := now()
 	for site: Dictionary in Industry.sites():
 		var id := str(site["id"])
 		var tier := site_tier(id)
 		if tier <= 0:
 			continue
-		var amount: int = int(site["per_job"]) * tier
-		var material := str(site["yields"])
-		materials[material] = material_count(material) + amount
-		taken[material] = int(taken.get(material, 0)) + amount
-	if not taken.is_empty():
+		var since := float(site_since.get(id, when))
+		# A clock that has gone backwards — a device set by hand, a timezone —
+		# is treated as no time at all rather than as a windfall or a debt.
+		var elapsed: float = clampf(when - since, 0.0, 60.0 * 60.0 * 24.0 * 30.0)
+		site_since[id] = when
+		if elapsed <= 0.0:
+			continue
+		var cap := float(Industry.hold_cap(site, tier))
+		var held := float(site_stock.get(id, 0.0))
+		if held >= cap:
+			continue
+		var grown: float = minf(cap, held + elapsed / Industry.HOUR
+			* Industry.yield_per_hour(site, tier))
+		if grown > held:
+			site_stock[id] = grown
+			moved = true
+	if moved:
 		estate_changed.emit()
+	return moved
+
+
+## What is standing at a holding, ready to be carted off.
+func waiting_at(site_id: String) -> int:
+	return int(floor(float(site_stock.get(site_id, 0.0))))
+
+
+## And how full it is, nought to one, for a bar.
+func fullness_at(site_id: String) -> float:
+	var site: Dictionary = Industry.get_site(site_id)
+	var tier := site_tier(site_id)
+	if site.is_empty() or tier <= 0:
+		return 0.0
+	var cap := float(Industry.hold_cap(site, tier))
+	if cap <= 0.0:
+		return 0.0
+	return clampf(float(site_stock.get(site_id, 0.0)) / cap, 0.0, 1.0)
+
+
+## What the yard will take of one material. Every tier of every holding that
+## yields it adds to the pile it can stand on.
+func material_cap(id: String) -> int:
+	var tiers := 0
+	for site: Dictionary in Industry.sites():
+		if str(site["yields"]) == id:
+			tiers += site_tier(str(site["id"]))
+	return Industry.YARD_BASE + Industry.YARD_PER_TIER * tiers
+
+
+## And of one finished good, which is what the works it comes from will hold.
+func good_cap(id: String) -> int:
+	var plant: Dictionary = Industry.works_for(id)
+	if plant.is_empty():
+		return Industry.STORE_BASE
+	return Industry.STORE_BASE + Industry.STORE_PER_TIER * works_tier(str(plant["id"]))
+
+
+## Carts what is waiting at a holding into the yard. A full yard takes what it
+## can and the rest stays in the ground — which is the point of the cap, and of
+## working a second holding up so the yard will hold more.
+func collect_site(site_id: String) -> int:
+	settle_estate()
+	var site: Dictionary = Industry.get_site(site_id)
+	if site.is_empty() or site_tier(site_id) <= 0:
+		return 0
+	var waiting := waiting_at(site_id)
+	if waiting <= 0:
+		return 0
+	var material := str(site["yields"])
+	var room: int = maxi(material_cap(material) - material_count(material), 0)
+	var taken: int = mini(waiting, room)
+	if taken <= 0:
+		return 0
+	site_stock[site_id] = float(site_stock.get(site_id, 0.0)) - float(taken)
+	materials[material] = material_count(material) + taken
+	save_profile()
+	estate_changed.emit()
 	return taken
 
 
-## How many batches a works could put through right now, given what is in the
-## yard. A plant makes one good a batch per level it has been built up to.
+# --------------------------------------------------------------- the works
+
+## How many a works could put through in one run right now: one per tier, and
+## no more than the yard can feed it.
 func batches_available(works_id: String) -> int:
 	var plant: Dictionary = Industry.get_works(works_id)
 	if plant.is_empty() or works_tier(works_id) <= 0:
+		return 0
+	if batches.has(works_id):
 		return 0
 	var good: Dictionary = Industry.get_good(str(plant["makes"]))
 	var takes := int(good["takes"])
 	if takes <= 0:
 		return 0
-	return material_count(str(good["from"])) / takes
+	var room: int = maxi(good_cap(str(good["id"])) - good_count(str(good["id"])), 0)
+	return mini(mini(works_tier(works_id), material_count(str(good["from"])) / takes), room)
 
 
-## Runs a works once: it eats its material and leaves finished goods.
+## Puts a run on. The material goes in now — it is in the machine, not in the
+## yard — and the goods come off when the run is done.
 func run_works(works_id: String) -> int:
 	var plant: Dictionary = Industry.get_works(works_id)
 	if plant.is_empty():
 		return 0
-	var tier := works_tier(works_id)
-	if tier <= 0:
+	var count := batches_available(works_id)
+	if count <= 0:
 		return 0
 	var good: Dictionary = Industry.get_good(str(plant["makes"]))
 	var material := str(good["from"])
-	var takes := int(good["takes"])
-	var batches: int = mini(tier, material_count(material) / takes)
-	if batches <= 0:
-		return 0
-
-	materials[material] = material_count(material) - batches * takes
-	var made := str(good["id"])
-	goods[made] = good_count(made) + batches
+	materials[material] = material_count(material) - count * int(good["takes"])
+	batches[works_id] = {
+		"made": count,
+		"ready_at": now() + Industry.batch_seconds(works_id),
+	}
 	save_profile()
 	estate_changed.emit()
-	return batches
+	return count
+
+
+## Seconds left on the run, or -1.0 when there is nothing on.
+func batch_left(works_id: String) -> float:
+	if not batches.has(works_id):
+		return -1.0
+	return maxf(float((batches[works_id] as Dictionary)["ready_at"]) - now(), 0.0)
+
+
+func batch_ready(works_id: String) -> bool:
+	return batches.has(works_id) and batch_left(works_id) <= 0.0
+
+
+func batch_size(works_id: String) -> int:
+	if not batches.has(works_id):
+		return 0
+	return int((batches[works_id] as Dictionary)["made"])
+
+
+## Takes a finished run off the works. What will not fit in the store stays on
+## the works floor until there is room for it.
+func collect_batch(works_id: String) -> int:
+	if not batch_ready(works_id):
+		return 0
+	var plant: Dictionary = Industry.get_works(works_id)
+	var made := str((Industry.get_good(str(plant["makes"])))["id"])
+	var count := batch_size(works_id)
+	var room: int = maxi(good_cap(made) - good_count(made), 0)
+	var taken: int = mini(count, room)
+	if taken <= 0:
+		return 0
+	goods[made] = good_count(made) + taken
+	if taken >= count:
+		batches.erase(works_id)
+	else:
+		(batches[works_id] as Dictionary)["made"] = count - taken
+	save_profile()
+	estate_changed.emit()
+	return taken
+
+
+## How long is left, as something to put on a button.
+static func spell_out(seconds: float) -> String:
+	var whole: int = int(ceil(maxf(seconds, 0.0)))
+	if whole >= 3600:
+		return "%dh %02dm" % [whole / 3600, (whole % 3600) / 60]
+	if whole >= 60:
+		return "%dm %02ds" % [whole / 60, whole % 60]
+	return "%ds" % whole
 
 
 ## True when the bench could improve this piece a step further right now.
@@ -546,6 +689,9 @@ func reset() -> void:
 	sites.clear()
 	plants.clear()
 	quality.clear()
+	site_stock.clear()
+	site_since.clear()
+	batches.clear()
 	_grant_starter_paints()
 	_grant_free_districts()
 	save_profile()
@@ -560,7 +706,7 @@ func save_profile() -> void:
 		push_warning("Could not save the profile (%d)" % FileAccess.get_open_error())
 		return
 	file.store_string(JSON.stringify({
-		"version": 4,
+		"version": 5,
 		"money": money,
 		"xp": xp,
 		"level": level,
@@ -576,6 +722,9 @@ func save_profile() -> void:
 		"sites": sites,
 		"plants": plants,
 		"quality": quality,
+		"site_stock": site_stock,
+		"site_since": site_since,
+		"batches": batches,
 	}, "\t"))
 	file.close()
 
@@ -609,6 +758,17 @@ func load_profile() -> void:
 	sites = data.get("sites", {})
 	plants = data.get("plants", {})
 	quality = data.get("quality", {})
+	# Profiles written before the estate ran on a clock have no timestamps, so
+	# every holding they own starts filling from the moment they are opened
+	# rather than being paid for the time the feature did not exist.
+	site_stock = data.get("site_stock", {})
+	site_since = data.get("site_since", {})
+	batches = data.get("batches", {})
+	var opened := now()
+	for site: Dictionary in Industry.sites():
+		var site_id := str(site["id"])
+		if site_tier(site_id) > 0 and not site_since.has(site_id):
+			site_since[site_id] = opened
 	# Counts come back from JSON as floats.
 	inventory = {}
 	for item_id: String in data.get("inventory", {}):

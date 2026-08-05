@@ -252,6 +252,8 @@ func enter_estate(fields: bool) -> void:
 	estate_ui.buy_site.connect(_take_site)
 	estate_ui.buy_works.connect(_take_works)
 	estate_ui.run_works.connect(_run_works)
+	estate_ui.collect_site.connect(_collect_site)
+	estate_ui.collect_batch.connect(_collect_batch)
 	estate_ui.improve_item.connect(_improve_item)
 
 	await _uncover(screen)
@@ -282,15 +284,40 @@ func _take_works(works_id: String) -> void:
 
 
 func _run_works(works_id: String) -> void:
-	var made := Game.run_works(works_id)
-	if made <= 0:
+	var started := Game.run_works(works_id)
+	if started <= 0:
 		Audio.play("deny")
-		estate_ui.toast("Nothing in the yard to put through")
+		estate_ui.toast("Nothing to put through")
 		return
 	Audio.play("buy")
 	var works: Dictionary = Industry.get_works(works_id)
 	var good: Dictionary = Industry.get_good(str(works["makes"]))
-	estate_ui.toast("%d × %s off the line" % [made, good["name"]], 2.0)
+	estate_ui.toast("%d × %s on the line, ready in %s" % [
+		started, good["name"], Game.spell_out(Industry.batch_seconds(works_id))], 2.4)
+
+
+func _collect_site(site_id: String) -> void:
+	var taken := Game.collect_site(site_id)
+	if taken <= 0:
+		Audio.play("deny")
+		estate_ui.toast("The yard will not hold any more")
+		return
+	Audio.play("buy")
+	var site: Dictionary = Industry.get_site(site_id)
+	estate_ui.toast("%d %s carted off %s" % [
+		taken, Industry.get_material(str(site["yields"]))["unit"], site["name"]], 2.0)
+
+
+func _collect_batch(works_id: String) -> void:
+	var taken := Game.collect_batch(works_id)
+	if taken <= 0:
+		Audio.play("deny")
+		estate_ui.toast("The store will not hold any more")
+		return
+	Audio.play("buy")
+	var works: Dictionary = Industry.get_works(works_id)
+	var good: Dictionary = Industry.get_good(str(works["makes"]))
+	estate_ui.toast("%d × %s off the line" % [taken, good["name"]], 2.0)
 
 
 func _improve_item(item_id: String) -> void:
