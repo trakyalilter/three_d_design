@@ -57,6 +57,9 @@ func _ready() -> void:
 		"the level cap was already reached before the last quarter opened, so "
 		+ "the whole of it is played with nothing left to earn")
 
+	print("=== the estate ===")
+	await _check_estate()
+
 	print("=== catalogue ===")
 	_check_catalogue()
 
@@ -494,6 +497,193 @@ func _city_price() -> int:
 	return total
 
 
+# --------------------------------------------------------------- the estate
+
+## The crafting loop, end to end and through the screens the player uses: buy
+## ground and work it, hand a job over and watch the yard fill, put the material
+## through a works, and fit the goods into furniture already in stock. Then hand
+## a room of improved pieces over and check the improvement actually paid.
+func _check_estate() -> void:
+	var main = get_tree().current_scene
+
+	# Nothing out of town may be gated above the cap, or it could never be had.
+	for entry: Dictionary in Industry.sites():
+		_expect(int(entry["level"]) <= Game.MAX_LEVEL,
+			"%s is gated at level %d, above the cap" % [entry["id"], entry["level"]])
+	for entry: Dictionary in Industry.works():
+		_expect(int(entry["level"]) <= Game.MAX_LEVEL,
+			"%s is gated at level %d, above the cap" % [entry["id"], entry["level"]])
+		_expect(not Industry.get_good(str(entry["makes"])).is_empty(),
+			"%s makes '%s', which is not a good" % [entry["id"], entry["makes"]])
+	for good: Dictionary in Industry.goods():
+		_expect(not Industry.works_for(str(good["id"])).is_empty(),
+			"nothing makes %s" % good["id"])
+		_expect(not Industry.get_material(str(good["from"])).is_empty(),
+			"%s is made from '%s', which is not a material" % [good["id"], good["from"]])
+
+	main.enter_estate(true)
+	await _settle()
+	_expect(main.estate != null, "the estate did not open")
+	_expect(main.city == null, "the map was left running under the estate")
+	if main.estate == null:
+		return
+	_expect(main.estate.get_node("Plots").get_child_count() == Industry.sites().size(),
+		"the fields put out %d holdings for %d in the table"
+			% [main.estate.get_node("Plots").get_child_count(), Industry.sites().size()])
+
+	# Buying ground, through the sheet's own button.
+	var site: Dictionary = Industry.sites()[0]
+	var site_id := str(site["id"])
+	var price := Game.step_price(int(site["cost"]), 0)
+	var money := Game.money
+	main.estate_ui.buy_site.emit(site_id)
+	await get_tree().process_frame
+	_expect(Game.site_tier(site_id) == 1, "buying %s did not put it in hand" % site_id)
+	_expect(Game.money == money - price, "%s did not cost its asking price" % site_id)
+
+	# Working it up again costs more than the first step did.
+	money = Game.money
+	var step_up := Game.step_price(int(site["cost"]), 1)
+	_expect(step_up > price, "working a holding up costs no more than buying it")
+	main.estate_ui.buy_site.emit(site_id)
+	await get_tree().process_frame
+	_expect(Game.site_tier(site_id) == 2, "%s did not work up a level" % site_id)
+	_expect(Game.money == money - step_up, "working %s up did not cost the stepped price" % site_id)
+
+	main.enter_city()
+	await _settle()
+
+	# A job handed over is what pays the yard. Nothing else in the game moves it.
+	var material := str(site["yields"])
+	var in_yard := Game.material_count(material)
+	var worked := await _take_repeat()
+	_expect(worked, "the estate check needs one repeat job to hand over")
+	if not worked:
+		return
+	var expected: int = int(site["per_job"]) * 2
+	_expect(Game.material_count(material) == in_yard + expected,
+		"handing a job over brought in %d %s, not the %d two tiers of %s should yield"
+			% [Game.material_count(material) - in_yard, material, expected, site_id])
+
+	# The works: material in, goods out.
+	main.enter_estate(false)
+	await _settle()
+	_expect(main.estate != null and not main.estate.is_fields(), "the works did not open")
+	if main.estate == null:
+		return
+	_expect(main.estate.get_node("Plots").get_child_count() == Industry.works().size() + 1,
+		"the works ground is missing a plant or the bench")
+
+	# Whichever works serves the sofa, since the sofa is what goes on the bench.
+	var plant: Dictionary = Industry.works_for(Industry.grain_of("sofa"))
+	_expect(not plant.is_empty(), "nothing makes what a sofa wants")
+	if plant.is_empty():
+		return
+	var works_id := str(plant["id"])
+	var good: Dictionary = Industry.get_good(str(plant["makes"]))
+	var feed := str(good["from"])
+	# Make sure there is something to put through, whichever works this turned
+	# out to be — the sofa decides it, and the sofa may change.
+	Game.materials[feed] = Game.material_count(feed) + int(good["takes"]) * 4
+	main.estate_ui.buy_works.emit(works_id)
+	await get_tree().process_frame
+	_expect(Game.works_tier(works_id) == 1, "%s was not built" % works_id)
+
+	var stock := Game.material_count(feed)
+	var made := Game.good_count(str(good["id"]))
+	main.estate_ui.run_works.emit(works_id)
+	await get_tree().process_frame
+	_expect(Game.good_count(str(good["id"])) == made + 1,
+		"a batch at %s made nothing" % works_id)
+	_expect(Game.material_count(feed) == stock - int(good["takes"]),
+		"a batch at %s did not eat its material" % works_id)
+
+	# The bench: goods into furniture the player owns.
+	Game.buy_item("sofa", 1)
+	var cost: Dictionary = Industry.upgrade_cost("sofa")
+	Game.goods[str(cost["good"])] = int(cost["goods"])
+	money = Game.money
+	main.estate_ui.improve_item.emit("sofa")
+	await get_tree().process_frame
+	_expect(Game.quality_of("sofa") == 1, "the bench did not improve the sofa")
+	_expect(Game.good_count(str(cost["good"])) == 0, "the bench did not use up its goods")
+	_expect(Game.money == money - int(cost["money"]), "the bench did not charge its fee")
+	_expect(not Game.can_improve("sofa"), "the sofa can be improved again with an empty yard")
+
+	main.enter_city()
+	await _settle()
+
+	print("estate          %s worked to tier 2, %s built, sofa off the bench %s"
+		% [site_id, works_id, Industry.tier_name(Game.quality_of("sofa"))])
+	await _check_craft_pays()
+
+
+## Improving furniture is meant to lift the fee and the experience of the room
+## it stands in. Furnishes a repeat job entirely out of improved stock and
+## checks the money that came back carries the craft bonus.
+func _check_craft_pays() -> void:
+	var main = get_tree().current_scene
+	var house_id := _biggest_finished_house()
+	if house_id == "":
+		_failures.append("the craft check needs a finished house to work again")
+		return
+	var contract := Jobs.generate_contract(house_id, Game.level)
+	if contract.is_empty():
+		return
+	Game.take_repeat_contract(house_id, contract)
+
+	var job: Dictionary = Jobs.get_job(house_id)
+	var basket := Jobs.shopping_list(house_id)
+	for item_id: String in basket:
+		if not Game.buy_item(item_id, int(basket[item_id])):
+			_failures.append("the craft check could not stock %s" % item_id)
+			return
+	for paint: Dictionary in Jobs.missing_paints(house_id):
+		Game.buy_paint(str(paint["surface"]), paint["entry"])
+
+	# Everything that will stand in the room, straight to the top of the bench.
+	for item_id: String in basket:
+		Game.quality[item_id] = Industry.MAX_TIER
+
+	main.enter_designer(house_id)
+	await _settle()
+	var designer = main.designer
+	_furnish(designer, job)
+	if not Jobs.all_met(Jobs.evaluate(house_id, designer._context())):
+		_failures.append("the craft check could not finish %s" % house_id)
+		main.enter_city()
+		await _settle()
+		return
+
+	var tiers: Array = []
+	for item in designer._items():
+		tiers.append(Game.quality_of(item.item_id))
+	var craft := Industry.quality_bonus(tiers)
+	_expect(craft > 0.0, "a room of Master furniture earned no craft bonus")
+
+	var review := RoomReview.score(designer._review_entries(), designer.room.area(),
+		designer.installed_value(), int(job["budget"]))
+	var payout := int(job["payout"])
+	var money := Game.money
+	designer._on_finish()
+	main.enter_city()
+	await _settle()
+
+	var plain := payout + int(round(float(payout) * float(review["bonus_rate"])))
+	var withcraft := payout + int(round(float(payout) * (float(review["bonus_rate"]) + craft)))
+	_expect(Game.money - money == withcraft,
+		"%s paid %d, not the %d a room of improved furniture is worth"
+			% [house_id, Game.money - money, withcraft])
+	_expect(withcraft > plain, "the craft bonus added nothing to the fee")
+	# The same bonus rides the experience. The career ends pinned at the cap, so
+	# the reward itself is what has to be checked rather than the bar.
+	var taught := float(job["xp"]) * (0.8 + 0.2 * float(review["stars"]))
+	_expect(int(round(taught * (1.0 + craft))) > int(round(taught)),
+		"the craft bonus added nothing to what the job teaches")
+	print("craft           %s paid %s over the plain fee at %.0f%% craft"
+		% [house_id, UIKit.money(withcraft - plain), craft * 100.0])
+
+
 ## Buys a quarter, grinding repeat work at the houses already finished until the
 ## money and the level are there. Returns false if it could not be reached.
 func _acquire(district: Dictionary) -> bool:
@@ -629,6 +819,13 @@ func _check_catalogue() -> void:
 		if Catalog.surface_height(id) > 0.0:
 			_expect(Catalog.surface_height(id) < Catalog.height(id) + 0.05,
 				"%s has a surface above its own top" % id)
+		# Every piece has to want a good that some works actually makes, or it
+		# could never come off the bench.
+		var grain := Industry.grain_of(id)
+		_expect(not Industry.get_good(grain).is_empty(),
+			"%s wants '%s', which is not a good" % [id, grain])
+		_expect(not Industry.works_for(grain).is_empty(),
+			"%s wants %s, which nothing makes" % [id, grain])
 	# Shops belong to a quarter, and their stock is that quarter's alone.
 	var exclusive := 0
 	for shop: Dictionary in Catalog.SHOPS:

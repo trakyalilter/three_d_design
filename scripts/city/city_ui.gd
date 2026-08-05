@@ -10,6 +10,7 @@ signal repeat_taken(house_id: String)
 signal district_bought(district_id: String)
 signal district_focused(district_id: String)
 signal shop_entered(shop_id: String)
+signal estate_entered(fields: bool)
 
 var _root: Control
 var _blockers: Array[Control] = []
@@ -127,6 +128,16 @@ func _build_top_bar() -> void:
 	var sandbox := UIKit.make_button("Free Build", "Design a room with no client and no stock to worry about")
 	sandbox.pressed.connect(func() -> void: free_build.emit())
 	row.add_child(sandbox)
+
+	# The supply side opens once there is a reason to go out there.
+	if Game.level >= Industry.SITES[0]["level"]:
+		var land := UIKit.make_button("Estate", "The ground you own, and what it yields")
+		land.pressed.connect(func() -> void: estate_entered.emit(true))
+		row.add_child(land)
+	if Game.level >= Industry.WORKS[0]["level"]:
+		var works := UIKit.make_button("Works", "Turn what the land yields into something better")
+		works.pressed.connect(func() -> void: estate_entered.emit(false))
+		row.add_child(works)
 
 	var guide := UIKit.make_button("Guide")
 	guide.pressed.connect(_open_guide)

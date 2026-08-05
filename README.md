@@ -284,6 +284,47 @@ scales between 50 % and 200 %, recolours, duplicates and puts back. **Top View**
 a plan view and drops the walls; **Snap** toggles the 25 cm grid. Walls between you and the
 room hide themselves as you orbit, and a piece that overlaps another glows red.
 
+### Out of town
+
+Two roads lead out of the city, and the top bar opens them when you are ready: **Estate** at
+level 3 and **Works** at level 5.
+
+**The estate** is eight holdings either side of a dirt track — two woods, two fields, two
+hills and two dunes — and each of them yields one of the four raw materials: timber, cotton,
+iron ore and silica sand. Tap unworked ground to see what it would hand you and what the
+agent wants for it. Buy it and a camp goes up: a hut, a yard, a cart, logs stacked by the
+track. Buy it again to work it up, twice more, and the camp grows each time while the yield
+per job rises with it.
+
+Nothing on the estate runs on a clock. **Every holding you own yields when a job is handed
+over**, so the ground pays out of the same loop the rest of the game runs on, and putting the
+phone down for a week does not leave a queue waiting for you.
+
+**The works** is the second road: a sawmill, a weaving shed, a foundry and a glasshouse
+standing along a road, plus the finishing bench in the middle. Each plant takes three of one
+material and turns it into one finished good — hardwood board, a bolt of cloth, a steel
+fitting, a glass pane. Build a plant up and it puts more through in a batch. Tap it and
+**Run a batch** whenever the yard has enough in it.
+
+**The finishing bench** is where the goods go into the furniture. It lists everything in your
+warehouse with what the next step up would take, and improving a piece lifts **every one of
+that kind you own** — and everything of that kind you buy afterwards. There are three steps:
+
+| Step | Goods | Bench fee |
+|---|---|---|
+| Improved | 2 | a quarter of the piece's price |
+| Fine | 4 | half of it |
+| Master | 7 | the price again |
+
+Which good a piece wants is decided by what it is actually built from, weighed by area: a
+sofa with four small wooden feet still wants cloth, a bookshelf wants board, a floor lamp
+wants fittings, a mirror-fronted cabinet wants panes.
+
+The point of all of it is the hand-over. Every improved piece standing in a finished room
+adds 6 % per step to the fee **and** to the experience, averaged across everything in the
+room — so a room furnished entirely with Master work pays 18 % over the asking fee and
+teaches you 18 % more. That is on top of whatever the client's review earned you.
+
 ### Changing screens
 
 Nothing in the game is a saved scene, so every screen is built the moment you ask for it —
@@ -460,7 +501,11 @@ scripts/
                          the requirement evaluator, the shopping list a brief
                          needs, and the generator for repeat contracts
     game_state.gd        Autoload. Money, XP, levels, the warehouse, the
-                         quarters bought and the saved profile
+                         quarters bought, the estate, the yard and the saved
+                         profile
+    industry.gd          Autoload. The eight holdings, the four works and the
+                         bench: what everything yields, what it costs, and
+                         which good a piece of furniture wants
     room_review.gd       The five things a client notices, scored out of three
     layout_store.gd      Free-build save files under user://
   audio/
@@ -484,6 +529,12 @@ scripts/
     scenery_batch.gd     Welds the whole city into three draw calls
     city_ui.gd           Wallet, XP bar, briefing sheet, shop counters, stock,
                          and the quarter you are thinking about buying
+  estate/
+    estate_view.gd       Both maps out of town: the holdings and what grows or
+                         is dug on them, the works and their chimneys, and the
+                         bench
+    estate_ui.gd         The yard tally, and the sheet for whichever plot was
+                         tapped
   design/
     designer.gd          The room: gestures, stock, wall snap, stacking,
                          overlap tests, hand-over

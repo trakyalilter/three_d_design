@@ -16,6 +16,7 @@ signal stock_changed()
 signal progress_changed(level: int, xp: int, xp_needed: int)
 signal levelled_up(level: int)
 signal district_unlocked(district_id: String)
+signal estate_changed()
 
 const PROFILE_PATH := "user://profile.json"
 const STARTING_MONEY := 3000
@@ -40,6 +41,19 @@ var active_contracts: Dictionary = {}
 var repeats: Dictionary = {}
 ## district id -> true for every quarter of the city the player has bought.
 var owned_districts: Dictionary = {}
+
+# ----------------------------------------------------------------- the estate
+
+## material id -> how much is sitting at the yard, uncut.
+var materials: Dictionary = {}
+## good id -> how many finished pieces are waiting at the works.
+var goods: Dictionary = {}
+## site id -> how far it has been worked up, 1 to 3. Missing means not bought.
+var sites: Dictionary = {}
+## works id -> the same, for the plants that make goods.
+var plants: Dictionary = {}
+## item id -> how far that piece has been improved at the bench, 1 to 3.
+var quality: Dictionary = {}
 
 
 func _ready() -> void:
@@ -329,6 +343,9 @@ func take_repeat_contract(house_id: String, contract: Dictionary) -> void:
 func record_completion(house_id: String, payout: int, bonus: int, xp_reward: int, installed: int, stars: int = 1) -> Dictionary:
 	var levels_gained := add_xp(xp_reward)
 	earn(payout + bonus)
+	# Every holding yields when a job is handed over, which is what keeps the
+	# estate inside the loop the game already has rather than on a clock.
+	var yielded := work_the_land()
 	var result := {
 		"payout": payout,
 		"bonus": bonus,
@@ -336,12 +353,170 @@ func record_completion(house_id: String, payout: int, bonus: int, xp_reward: int
 		"installed": installed,
 		"levels": levels_gained,
 		"stars": stars,
+		"yielded": yielded,
 	}
 	finished_jobs[house_id] = result
 	repeats[house_id] = repeat_count(house_id) + 1
 	active_contracts.erase(house_id)
 	save_profile()
 	return result
+
+
+# ----------------------------------------------------------------- the estate
+
+func material_count(id: String) -> int:
+	return int(materials.get(id, 0))
+
+
+func good_count(id: String) -> int:
+	return int(goods.get(id, 0))
+
+
+## How far a holding has been worked up. Zero means it is not yours yet.
+func site_tier(id: String) -> int:
+	return int(sites.get(id, 0))
+
+
+func works_tier(id: String) -> int:
+	return int(plants.get(id, 0))
+
+
+## How far a piece of furniture has been improved at the bench.
+func quality_of(item_id: String) -> int:
+	return int(quality.get(item_id, 0))
+
+
+## What the next step on a holding or a works costs. The first is the asking
+## price; working it up again costs more each time.
+static func step_price(base: int, tier: int) -> int:
+	return int(round(float(base) * pow(1.75, float(tier)) / 50.0)) * 50
+
+
+func can_take_site(id: String) -> bool:
+	var site: Dictionary = Industry.get_site(id)
+	if site.is_empty():
+		return false
+	var tier := site_tier(id)
+	if tier >= Industry.MAX_TIER:
+		return false
+	return level >= int(site["level"]) and can_afford(step_price(int(site["cost"]), tier))
+
+
+## Buys a holding, or works the one you have up a level.
+func take_site(id: String) -> bool:
+	if not can_take_site(id):
+		return false
+	var site: Dictionary = Industry.get_site(id)
+	var tier := site_tier(id)
+	if not spend(step_price(int(site["cost"]), tier)):
+		return false
+	sites[id] = tier + 1
+	save_profile()
+	estate_changed.emit()
+	return true
+
+
+func can_take_works(id: String) -> bool:
+	var plant: Dictionary = Industry.get_works(id)
+	if plant.is_empty():
+		return false
+	var tier := works_tier(id)
+	if tier >= Industry.MAX_TIER:
+		return false
+	return level >= int(plant["level"]) and can_afford(step_price(int(plant["cost"]), tier))
+
+
+func take_works(id: String) -> bool:
+	if not can_take_works(id):
+		return false
+	var plant: Dictionary = Industry.get_works(id)
+	var tier := works_tier(id)
+	if not spend(step_price(int(plant["cost"]), tier)):
+		return false
+	plants[id] = tier + 1
+	save_profile()
+	estate_changed.emit()
+	return true
+
+
+## What the yard takes in when a job is handed over. Every holding you own
+## yields its material, more of it the further it has been worked up.
+func work_the_land() -> Dictionary:
+	var taken: Dictionary = {}
+	for site: Dictionary in Industry.sites():
+		var id := str(site["id"])
+		var tier := site_tier(id)
+		if tier <= 0:
+			continue
+		var amount: int = int(site["per_job"]) * tier
+		var material := str(site["yields"])
+		materials[material] = material_count(material) + amount
+		taken[material] = int(taken.get(material, 0)) + amount
+	if not taken.is_empty():
+		estate_changed.emit()
+	return taken
+
+
+## How many batches a works could put through right now, given what is in the
+## yard. A plant makes one good a batch per level it has been built up to.
+func batches_available(works_id: String) -> int:
+	var plant: Dictionary = Industry.get_works(works_id)
+	if plant.is_empty() or works_tier(works_id) <= 0:
+		return 0
+	var good: Dictionary = Industry.get_good(str(plant["makes"]))
+	var takes := int(good["takes"])
+	if takes <= 0:
+		return 0
+	return material_count(str(good["from"])) / takes
+
+
+## Runs a works once: it eats its material and leaves finished goods.
+func run_works(works_id: String) -> int:
+	var plant: Dictionary = Industry.get_works(works_id)
+	if plant.is_empty():
+		return 0
+	var tier := works_tier(works_id)
+	if tier <= 0:
+		return 0
+	var good: Dictionary = Industry.get_good(str(plant["makes"]))
+	var material := str(good["from"])
+	var takes := int(good["takes"])
+	var batches: int = mini(tier, material_count(material) / takes)
+	if batches <= 0:
+		return 0
+
+	materials[material] = material_count(material) - batches * takes
+	var made := str(good["id"])
+	goods[made] = good_count(made) + batches
+	save_profile()
+	estate_changed.emit()
+	return batches
+
+
+## True when the bench could improve this piece a step further right now.
+func can_improve(item_id: String) -> bool:
+	var cost: Dictionary = Industry.upgrade_cost(item_id)
+	if cost.is_empty():
+		return false
+	return good_count(str(cost["good"])) >= int(cost["goods"]) \
+		and can_afford(int(cost["money"]))
+
+
+## Takes a piece up one tier. Every copy of that piece follows — the bench
+## improves the pattern, not the one on the trolley.
+func improve(item_id: String) -> bool:
+	if not can_improve(item_id):
+		return false
+	var cost: Dictionary = Industry.upgrade_cost(item_id)
+	if not spend(int(cost["money"])):
+		return false
+	var good := str(cost["good"])
+	goods[good] = good_count(good) - int(cost["goods"])
+	quality[item_id] = int(cost["tier"])
+	save_profile()
+	estate_changed.emit()
+	stock_changed.emit()
+	return true
 
 
 func store_layout(house_id: String, data: Dictionary) -> void:
@@ -366,6 +541,11 @@ func reset() -> void:
 	active_contracts.clear()
 	repeats.clear()
 	owned_districts.clear()
+	materials.clear()
+	goods.clear()
+	sites.clear()
+	plants.clear()
+	quality.clear()
 	_grant_starter_paints()
 	_grant_free_districts()
 	save_profile()
@@ -380,7 +560,7 @@ func save_profile() -> void:
 		push_warning("Could not save the profile (%d)" % FileAccess.get_open_error())
 		return
 	file.store_string(JSON.stringify({
-		"version": 3,
+		"version": 4,
 		"money": money,
 		"xp": xp,
 		"level": level,
@@ -391,6 +571,11 @@ func save_profile() -> void:
 		"contracts": active_contracts,
 		"repeats": repeats,
 		"districts": owned_districts,
+		"materials": materials,
+		"goods": goods,
+		"sites": sites,
+		"plants": plants,
+		"quality": quality,
 	}, "\t"))
 	file.close()
 
@@ -417,6 +602,13 @@ func load_profile() -> void:
 	# Profiles written before the city had quarters simply own none of them;
 	# _grant_free_districts() hands back the one everybody starts with.
 	owned_districts = data.get("districts", {})
+	# Profiles written before the estate existed simply have none of it, and
+	# start with nothing bought and nothing in the yard.
+	materials = data.get("materials", {})
+	goods = data.get("goods", {})
+	sites = data.get("sites", {})
+	plants = data.get("plants", {})
+	quality = data.get("quality", {})
 	# Counts come back from JSON as floats.
 	inventory = {}
 	for item_id: String in data.get("inventory", {}):

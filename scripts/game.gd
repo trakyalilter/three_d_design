@@ -22,6 +22,8 @@ var city_ui: CityUI
 var designer: RoomDesigner
 var shop: ShopFloor
 var shop_ui: ShopUI
+var estate: EstateView
+var estate_ui: EstateUI
 
 var _loading: LoadingScreen
 ## The house the player was last looking at, so leaving a shop puts the map
@@ -96,6 +98,7 @@ func enter_city(focus_house: String = "") -> void:
 	city_ui.start_job.connect(enter_designer)
 	city_ui.free_build.connect(func() -> void: enter_designer(""))
 	city_ui.shop_entered.connect(func(shop_id: String) -> void: enter_shop(shop_id))
+	city_ui.estate_entered.connect(func(fields: bool) -> void: enter_estate(fields))
 	# A career reset can hand back quarters as well as money, so redraw the map.
 	city_ui.career_reset.connect(func() -> void: city.rebuild())
 	city_ui.repeat_taken.connect(func(_house_id: String) -> void: city.refresh_markers())
@@ -215,6 +218,92 @@ func _buy_paint_in_shop(surface: String, entry: Dictionary) -> void:
 	shop.reselect_paint(surface, str(entry["name"]))
 
 
+## The ground and the works. Two maps of the same shape, so one screen builds
+## either — the land you buy and work, and the plants that turn what it yields
+## into something a piece of furniture can be improved with.
+func enter_estate(fields: bool) -> void:
+	if _changing:
+		return
+	_changing = true
+
+	var from_house := _last_house
+	var screen: LoadingScreen = await _cover(
+		"Out of town", "The Estate" if fields else "The Works",
+		"Driving out" if fields else "Walking the yard")
+
+	estate_ui = EstateUI.new()
+	estate_ui.name = "EstateUI"
+	add_child(estate_ui)
+
+	estate = EstateView.new()
+	estate.name = "Estate"
+	estate.staged_build = true
+	estate.setup(EstateView.Kind.FIELDS if fields else EstateView.Kind.WORKS)
+	add_child(estate)
+	estate.ui_probe = estate_ui.is_point_over_ui
+
+	await _run_stages(screen, estate.build_stages())
+	estate_ui.configure(fields)
+
+	estate.plot_picked.connect(estate_ui.show_plot)
+	estate.nothing_picked.connect(estate_ui.close_sheet)
+
+	estate_ui.leave_requested.connect(func() -> void: enter_city(from_house))
+	estate_ui.buy_site.connect(_take_site)
+	estate_ui.buy_works.connect(_take_works)
+	estate_ui.run_works.connect(_run_works)
+	estate_ui.improve_item.connect(_improve_item)
+
+	await _uncover(screen)
+
+
+func _take_site(site_id: String) -> void:
+	if not Game.take_site(site_id):
+		Audio.play("deny")
+		estate_ui.toast("Not enough money")
+		return
+	Audio.play("quarter")
+	var site: Dictionary = Industry.get_site(site_id)
+	estate_ui.toast("%s is yours, and working" % site["name"], 2.4)
+	estate.rebuild()
+	estate.focus_on(site_id)
+
+
+func _take_works(works_id: String) -> void:
+	if not Game.take_works(works_id):
+		Audio.play("deny")
+		estate_ui.toast("Not enough money")
+		return
+	Audio.play("quarter")
+	var works: Dictionary = Industry.get_works(works_id)
+	estate_ui.toast("%s is built" % works["name"], 2.4)
+	estate.rebuild()
+	estate.focus_on(works_id)
+
+
+func _run_works(works_id: String) -> void:
+	var made := Game.run_works(works_id)
+	if made <= 0:
+		Audio.play("deny")
+		estate_ui.toast("Nothing in the yard to put through")
+		return
+	Audio.play("buy")
+	var works: Dictionary = Industry.get_works(works_id)
+	var good: Dictionary = Industry.get_good(str(works["makes"]))
+	estate_ui.toast("%d × %s off the line" % [made, good["name"]], 2.0)
+
+
+func _improve_item(item_id: String) -> void:
+	var cost: Dictionary = Industry.upgrade_cost(item_id)
+	if not Game.improve(item_id):
+		Audio.play("deny")
+		estate_ui.toast("Not enough to do that yet")
+		return
+	Audio.play("levelup")
+	estate_ui.toast("%s is now %s" % [
+		Catalog.display_name(item_id), str(cost["name"]).to_lower()], 2.2)
+
+
 # ------------------------------------------------------------- the changeover
 
 ## Puts the loading screen up, gives it a frame to actually paint, and only
@@ -257,7 +346,7 @@ func _uncover(screen: LoadingScreen) -> void:
 
 
 func _clear() -> void:
-	for node in [designer, city, city_ui, title, shop, shop_ui]:
+	for node in [designer, city, city_ui, title, shop, shop_ui, estate, estate_ui]:
 		if is_instance_valid(node):
 			remove_child(node)
 			node.queue_free()
@@ -267,6 +356,8 @@ func _clear() -> void:
 	title = null
 	shop = null
 	shop_ui = null
+	estate = null
+	estate_ui = null
 
 
 func _notification(what: int) -> void:
@@ -287,6 +378,12 @@ func _notification(what: int) -> void:
 				return
 			if shop != null:
 				enter_city(_last_house)
+				return
+			if estate != null:
+				if estate_ui.is_sheet_open():
+					estate_ui.close_sheet()
+				else:
+					enter_city(_last_house)
 				return
 			if city_ui == null:
 				Game.save_profile()

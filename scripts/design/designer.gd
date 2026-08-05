@@ -771,11 +771,21 @@ func _on_finish() -> void:
 	var installed := installed_value()
 	var payout := int(job["payout"])
 	var review := RoomReview.score(_review_entries(), room.area(), installed, int(job["budget"]))
-	var bonus := int(round(float(payout) * float(review["bonus_rate"])))
+
+	# Furniture that has been through the bench is worth more to the client
+	# than the same piece off the shop floor, and teaches you more fitting it.
+	var tiers: Array = []
+	for item in _items():
+		tiers.append(Game.quality_of(item.item_id))
+	var craft := Industry.quality_bonus(tiers)
+
+	var bonus := int(round(float(payout) * (float(review["bonus_rate"]) + craft)))
 	# A well-judged room is worth more experience too.
-	var xp_reward := int(round(float(job["xp"]) * (0.8 + 0.2 * float(review["stars"]))))
+	var xp_reward := int(round(
+		float(job["xp"]) * (0.8 + 0.2 * float(review["stars"])) * (1.0 + craft)))
 
 	var result := Game.record_completion(house_id, payout, bonus, xp_reward, installed, int(review["stars"]))
+	result["craft"] = craft
 
 	Audio.stars(int(review["stars"]))
 	if int(result.get("levels", 0)) > 0:
