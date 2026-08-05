@@ -183,6 +183,12 @@ with **Buy** and **Sell one** on it. A piece you cannot buy yet is still put out
 colour, with what it is waiting for on the ticket — a level, or a quarter of the city you do
 not own.
 
+The floor is laid out to be read rather than on a fixed grid. Rows are spaced by how deep
+the pieces in them actually are, tall stock stands at the back the way a showroom does it,
+and each ticket is on a stand tall enough to be seen over its own piece — so a corner sofa
+never parks itself across the price of the thing behind it. The shop is built as deep as its
+stock needs, and the pendants hang out to the sides, clear of the tickets.
+
 The shop is dressed like a shop: a counter with a till, wall shelving, pendant lights, plants
 by the door, a shopfront with the trade's colour on the sill, and the shop's own name and
 tagline over the back wall.

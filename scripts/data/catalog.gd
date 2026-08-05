@@ -1305,6 +1305,19 @@ func footprint(id: String) -> Vector2:
 	return Vector2(hi.x - lo.x, hi.z - lo.z)
 
 
+## Where the middle of that footprint sits relative to the piece's own origin.
+## A piece is modelled around whatever point suited it, so a bed's box is not
+## necessarily centred on the node — anything laying pieces out on a floor has
+## to allow for that or it puts a label inside the furniture.
+func footprint_centre(id: String) -> Vector2:
+	var e: Dictionary = _items.get(id, {}).get("extents", {})
+	if e.is_empty():
+		return Vector2.ZERO
+	var lo: Vector3 = e["min"]
+	var hi: Vector3 = e["max"]
+	return Vector2((lo.x + hi.x) * 0.5, (lo.z + hi.z) * 0.5)
+
+
 func height(id: String) -> float:
 	var e: Dictionary = _items.get(id, {}).get("extents", {})
 	if e.is_empty():

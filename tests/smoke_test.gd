@@ -302,20 +302,29 @@ func _check_shop() -> void:
 	_expect(main.shop.get_node("Tickets").get_child_count() == expected,
 		"not every piece on the floor has a price ticket")
 
-	# Nothing may be standing inside anything else, or on top of the counter.
-	var spots: Array[Vector3] = []
-	for child: Node in floor_stock.get_children():
-		var piece := child as FurnitureItem
-		_expect(piece != null, "something that is not a piece is on the shop floor")
-		if piece == null:
+	# The floor has to be laid out on the ground the pieces actually take up:
+	# nothing standing inside anything else, and — the part a fixed grid got
+	# wrong — nothing standing across another piece's price card.
+	for shop: Dictionary in Catalog.SHOPS:
+		var id := str(shop["id"])
+		if str(shop["category"]) == "" or Catalog.shop_stock(id).is_empty():
 			continue
-		for other in spots:
-			_expect(other.distance_to(piece.global_position) > 1.2,
-				"two pieces are standing on the same spot in %s" % shop_id)
-		spots.append(piece.global_position)
-		_expect(absf(piece.global_position.x) < ShopFloor.WIDTH * 0.5
-			and absf(piece.global_position.z) < ShopFloor.DEPTH * 0.5,
-			"%s is standing outside the shop" % piece.item_id)
+		main.enter_shop(id)
+		await _settle()
+		# The pick bodies have to be in the physics world before anything can be
+		# cast against them.
+		await get_tree().physics_frame
+		await get_tree().physics_frame
+		if main.shop == null:
+			_failures.append("%s did not open" % id)
+			continue
+		_check_shop_layout(id, main.shop)
+
+	main.enter_shop(shop_id)
+	await _settle()
+	if main.shop == null:
+		return
+	floor_stock = main.shop.get_node("Stock")
 
 	# Buying off the floor: the card's button is what the player presses.
 	var item_id: String = Catalog.shop_stock(shop_id)[0]
@@ -350,6 +359,80 @@ func _check_shop() -> void:
 	_expect(main.city != null and main.shop == null, "leaving the shop did not land on the map")
 	print("shops           %d pieces on the floor, priced and pickable; %d tins of paint"
 		% [expected, tins])
+
+
+## The ground every piece and every card covers, in one shop. Two of them
+## overlapping is exactly what the player saw: a ticket standing under the piece
+## in front of it cannot be read.
+func _check_shop_layout(shop_id: String, floor) -> void:
+	var boxes: Array[Dictionary] = []
+	for child: Node in floor.get_node("Stock").get_children():
+		var piece := child as FurnitureItem
+		if piece == null:
+			_failures.append("something that is not a piece is on the floor in %s" % shop_id)
+			continue
+		# A piece is not modelled around its own origin, so the box it covers is
+		# offset from where the node stands.
+		var middle: Vector2 = Catalog.footprint_centre(piece.item_id)
+		var yaw := piece.rotation.y
+		var at := piece.global_position + Vector3(
+			middle.x * cos(yaw) + middle.y * sin(yaw), 0.0,
+			-middle.x * sin(yaw) + middle.y * cos(yaw))
+		var rect := _plan_rect(at, Catalog.footprint(piece.item_id), yaw)
+		boxes.append({"what": piece.item_id, "card": false, "rect": rect})
+		_expect(absf(rect.position.x) < ShopFloor.WIDTH * 0.5
+			and absf(rect.end.x) < ShopFloor.WIDTH * 0.5
+			and absf(rect.position.y) < floor.depth * 0.5
+			and absf(rect.end.y) < floor.depth * 0.5,
+			"%s is standing through a wall of %s" % [piece.item_id, shop_id])
+
+	# Standing clear on the floor is not enough on its own: a card behind a tall
+	# piece is still unreadable. Every card has to be visible from where the
+	# camera actually is, which is a question only a ray can answer.
+	var camera: Camera3D = floor.rig.camera
+	var space: PhysicsDirectSpaceState3D = floor.get_world_3d().direct_space_state
+	for child: Node in floor.get_node("Tickets").get_children():
+		var card := child as Node3D
+		if card == null or not card.has_meta("span"):
+			continue
+		boxes.append({
+			"what": "a price card",
+			"card": true,
+			"rect": _plan_rect(card.global_position, card.get_meta("span"), 0.0),
+		})
+
+		var read_at: Vector3 = card.global_position + (card.get_meta("read_from") as Vector3)
+		var query := PhysicsRayQueryParameters3D.create(camera.global_position, read_at)
+		query.collide_with_areas = false
+		query.collision_mask = FurnitureItem.PICK_LAYER
+		var blocked: Dictionary = space.intersect_ray(query)
+		if blocked.is_empty():
+			continue
+		var by := (blocked["collider"] as Node).get_parent() as FurnitureItem
+		_failures.append("in %s, %s stands in front of a price card"
+			% [shop_id, by.item_id if by != null else "something"])
+
+	for i in boxes.size():
+		for j in range(i + 1, boxes.size()):
+			var a: Dictionary = boxes[i]
+			var b: Dictionary = boxes[j]
+			# A hair off each rect, so two things merely standing shoulder to
+			# shoulder do not read as a clash.
+			if not (a["rect"] as Rect2).grow(-0.02).intersects((b["rect"] as Rect2).grow(-0.02)):
+				continue
+			if bool(a["card"]) or bool(b["card"]):
+				_failures.append("in %s, %s covers %s" % [shop_id, a["what"], b["what"]])
+			else:
+				_failures.append("in %s, %s and %s are standing in each other"
+					% [shop_id, a["what"], b["what"]])
+
+
+## The rectangle a thing of this size covers on the floor once it is turned.
+func _plan_rect(at: Vector3, size: Vector2, yaw: float) -> Rect2:
+	var c := absf(cos(yaw))
+	var s := absf(sin(yaw))
+	var span := Vector2(size.x * c + size.y * s, size.x * s + size.y * c)
+	return Rect2(at.x - span.x * 0.5, at.z - span.y * 0.5, span.x, span.y)
 
 
 # -------------------------------------------------------------------- sound

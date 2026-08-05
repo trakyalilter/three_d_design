@@ -16,16 +16,32 @@ signal picked(item_id: String)
 signal picked_paint(surface: String, entry: Dictionary)
 signal nothing_picked()
 
-## Aisle layout. Stock stands in rows across the floor, front to back.
-const AISLE_X := 2.35
-const ROW_Z := 2.30
+## Aisle layout. Stock stands in rows across the floor, front to back, and the
+## spacing comes from how big the pieces in each row actually are — a fixed grid
+## stood a two-metre corner sofa across the ticket of the row behind it.
 const PER_ROW := 4
+## Side to side between two pieces.
+const AISLE_GAP := 0.62
+## From a piece's front edge to its own card.
+const TICKET_GAP := 0.36
+## The card, and the floor it needs to be read on.
+const TICKET_DEPTH := 0.50
+## Room to walk between one row's cards and the next row.
+const WALK_GAP := 0.60
+## How much of the width the rows may use, clear of the counter and the shelves.
+const USABLE_W := 8.8
+## The card itself. A piece narrower than its own card still has to be given a
+## card's width, or two kettles put their tickets on top of each other.
+const CARD_SIZE := Vector2(1.30, 0.50)
+const CARD_TILT := 32.0
 
-## The shell. Deep enough for four rows and open at the front, so the camera
-## can look in without the near wall being in the way.
+## The shell. Open at the front so the camera can look in without the near wall
+## being in the way. The depth is whatever the stock turns out to need.
 const WIDTH := 11.0
-const DEPTH := 12.0
+const MIN_DEPTH := 12.0
 const HEIGHT := 3.4
+
+var depth := MIN_DEPTH
 
 var shop: Dictionary = {}
 var rig: CameraRig
@@ -41,6 +57,13 @@ var _selected: FurnitureItem = null
 var _tins: Node3D
 var _selected_tin: Node3D = null
 var _tin_glow: MeshInstance3D
+
+## Where every piece stands and where its card goes, worked out before anything
+## is built because the shop is then sized to fit it.
+var _spots: Array[Dictionary] = []
+## Half the width of the widest row, so the pendants can be hung outside the
+## stock rather than over the top of it and its tickets.
+var _stock_half_w := 3.4
 
 var _touches: Dictionary = {}
 var _touch_origins: Dictionary = {}
@@ -84,6 +107,7 @@ func is_paint_shop() -> bool:
 # ------------------------------------------------------------------ the shell
 
 func _build_shell() -> void:
+	_plan_floor()
 	_build_environment()
 
 	_fixtures = Node3D.new()
@@ -113,8 +137,126 @@ func _build_shell() -> void:
 	rig.distance = 12.6
 	rig.min_distance = 4.5
 	rig.max_distance = 18.0
-	rig.pan_limit = Vector2(WIDTH * 0.5, DEPTH * 0.5)
+	rig.pan_limit = Vector2(WIDTH * 0.5, depth * 0.5)
 	add_child(rig)
+
+
+## Works out where every piece will stand, before the shell is built, because
+## the shell is then sized to fit it. Rows are packed by how wide the pieces
+## actually are and spaced by how deep they are, with room left after each row
+## for its own cards — which is what stops anything standing across a ticket.
+func _plan_floor() -> void:
+	_spots = []
+	depth = MIN_DEPTH
+	if is_paint_shop():
+		return
+
+	var ids := Catalog.shop_stock(str(shop.get("id", "")))
+	if ids.is_empty():
+		return
+
+	# Tallest at the back, the way a showroom does it. It is not only tidier: a
+	# wardrobe standing in front of the cards behind it hides them, and no
+	# amount of spacing on the floor fixes that.
+	var sorted: Array[String] = []
+	for id: String in ids:
+		sorted.append(id)
+	sorted.sort_custom(func(a: String, b: String) -> bool:
+		var left := Catalog.height(a)
+		var right := Catalog.height(b)
+		if not is_equal_approx(left, right):
+			return left > right
+		return Catalog.footprint(a).y > Catalog.footprint(b).y)
+
+	# Every piece, with the box it takes up on the floor once it is turned.
+	var pieces: Array[Dictionary] = []
+	for i in sorted.size():
+		var id := sorted[i]
+		# Turned a little off square so a row does not read as a shelf.
+		var yaw := deg_to_rad(-18.0 + float(i % 3) * 18.0)
+		var box: Vector2 = Catalog.footprint(id)
+		var c := absf(cos(yaw))
+		var s := absf(sin(yaw))
+		# Where the middle of that box sits once the piece is turned, so the
+		# piece can be nudged to put its box on the spot rather than its origin.
+		var middle: Vector2 = Catalog.footprint_centre(id)
+		var turned := Vector2(
+			middle.x * cos(yaw) + middle.y * sin(yaw),
+			-middle.x * sin(yaw) + middle.y * cos(yaw))
+		var across_it := box.x * c + box.y * s
+		pieces.append({
+			"id": id,
+			"yaw": yaw,
+			# A piece is given whichever is wider, itself or its card.
+			"w": maxf(across_it, CARD_SIZE.x),
+			"d": box.x * s + box.y * c,
+			"off": turned,
+		})
+
+	# Pack across the floor: as many as fit, four at the most.
+	var rows: Array[Array] = []
+	var row: Array[Dictionary] = []
+	var across := 0.0
+	for piece: Dictionary in pieces:
+		var wide := float(piece["w"])
+		var want: float = (across + AISLE_GAP + wide) if not row.is_empty() else wide
+		if not row.is_empty() and (row.size() >= PER_ROW or want > USABLE_W):
+			rows.append(row)
+			row = []
+			want = wide
+		row.append(piece)
+		across = want
+	if not row.is_empty():
+		rows.append(row)
+
+	# Then front to back, from a local zero at the back of the first row.
+	var cursor := 0.0
+	var widest := 0.0
+	var laid: Array[Dictionary] = []
+	for r: Array in rows:
+		var deepest := 0.0
+		var total := 0.0
+		for piece: Dictionary in r:
+			deepest = maxf(deepest, float(piece["d"]))
+			total += float(piece["w"])
+		total += AISLE_GAP * float(r.size() - 1)
+		widest = maxf(widest, total)
+
+		var x := -total * 0.5
+		for piece: Dictionary in r:
+			var wide := float(piece["w"])
+			x += wide * 0.5
+			laid.append({
+				"id": piece["id"],
+				"yaw": piece["yaw"],
+				"off": piece["off"],
+				"x": x,
+				"z": cursor + deepest * 0.5,
+				# The card sits clear of this piece's own front edge, not at a
+				# fixed distance, so a deep piece never covers its own ticket.
+				"front": float(piece["d"]) * 0.5 + TICKET_GAP,
+			})
+			x += wide * 0.5 + AISLE_GAP
+		cursor += deepest + TICKET_GAP + TICKET_DEPTH + WALK_GAP
+
+	# Room behind the first row for the counter — clear of it, not alongside it —
+	# and a strip at the front to stand in. The shop grows if the stock needs
+	# more than the usual twelve.
+	var back := 4.1
+	_stock_half_w = widest * 0.5
+	depth = maxf(MIN_DEPTH, back + cursor + 1.0)
+	var z0 := -depth * 0.5 + back
+	for spot: Dictionary in laid:
+		var off: Vector2 = spot["off"]
+		_spots.append({
+			"id": spot["id"],
+			"yaw": spot["yaw"],
+			# Where the middle of the piece goes, and where the piece's own
+			# origin has to be put so that the middle lands there.
+			"at": Vector3(float(spot["x"]), 0.0, z0 + float(spot["z"])),
+			"stand": Vector3(float(spot["x"]) - off.x, 0.0, z0 + float(spot["z"]) - off.y),
+			"front": float(spot["front"]),
+		})
 
 
 func _build_environment() -> void:
@@ -165,19 +307,19 @@ func _build_fixtures() -> void:
 	var accent: Color = shop.get("color", Color(0.6, 0.6, 0.6))
 
 	var half_w := WIDTH * 0.5
-	var half_d := DEPTH * 0.5
+	var half_d := depth * 0.5
 	var floor_colour := Color(0.80, 0.78, 0.75)
 	var wall := Color(0.90, 0.89, 0.87)
 
 	# Floor, with a border band in the shop's colour and a runner up the middle.
-	_batch.box(floor_colour, Vector3(WIDTH, 0.2, DEPTH), Vector3(0, -0.1, 0))
+	_batch.box(floor_colour, Vector3(WIDTH, 0.2, depth), Vector3(0, -0.1, 0))
 	_batch.box(accent.lerp(floor_colour, 0.55), Vector3(WIDTH, 0.02, 0.5), Vector3(0, 0.01, -half_d + 0.6))
-	_batch.box(accent.lerp(floor_colour, 0.78), Vector3(2.0, 0.02, DEPTH - 2.4), Vector3(0, 0.012, 0.6))
+	_batch.box(accent.lerp(floor_colour, 0.78), Vector3(2.0, 0.02, depth - 2.4), Vector3(0, 0.012, 0.6))
 
 	# Three walls. The front is left open so the camera can see in.
 	_batch.box(wall, Vector3(WIDTH, HEIGHT, 0.24), Vector3(0, HEIGHT * 0.5, -half_d))
 	for sx in [-1.0, 1.0]:
-		_batch.box(wall.darkened(0.04), Vector3(0.24, HEIGHT, DEPTH), Vector3(sx * half_w, HEIGHT * 0.5, 0))
+		_batch.box(wall.darkened(0.04), Vector3(0.24, HEIGHT, depth), Vector3(sx * half_w, HEIGHT * 0.5, 0))
 	# Skirting, so the wall does not meet the floor in a hard line.
 	_batch.box(wall.darkened(0.22), Vector3(WIDTH, 0.18, 0.30), Vector3(0, 0.09, -half_d + 0.02))
 
@@ -202,7 +344,7 @@ func _build_counter(accent: Color) -> void:
 	var half_w := WIDTH * 0.5
 	var wood := Color(0.52, 0.38, 0.26)
 	var top := Color(0.30, 0.31, 0.34)
-	var at := Vector3(-half_w + 1.5, 0, -DEPTH * 0.5 + 2.6)
+	var at := Vector3(-half_w + 1.5, 0, -depth * 0.5 + 2.6)
 
 	_batch.box(wood, Vector3(2.2, 1.05, 0.85), at + Vector3(0, 0.52, 0))
 	_batch.box(top, Vector3(2.35, 0.08, 1.0), at + Vector3(0, 1.08, 0))
@@ -226,7 +368,7 @@ func _build_shelving(wall: Color, accent: Color) -> void:
 	var bracket := Color(0.34, 0.35, 0.38)
 	for shelf in 3:
 		var y := 1.05 + float(shelf) * 0.75
-		_batch.box(wall.darkened(0.30), Vector3(0.42, 0.07, DEPTH - 3.0),
+		_batch.box(wall.darkened(0.30), Vector3(0.42, 0.07, depth - 3.0),
 			Vector3(half_w - 0.34, y, 0.4))
 		for z in [-2.6, 0.4, 3.4]:
 			_batch.box(bracket, Vector3(0.34, 0.05, 0.06),
@@ -234,7 +376,7 @@ func _build_shelving(wall: Color, accent: Color) -> void:
 		# Stock boxes, in the shop's colours, purely so the shelves are not bare.
 		for i in 4:
 			var z := -2.9 + float(i) * 1.9 + float(shelf) * 0.4
-			if z > DEPTH * 0.5 - 1.4:
+			if z > depth * 0.5 - 1.4:
 				continue
 			var tone: Color = accent.lerp(Color(0.92, 0.90, 0.86), 0.25 + float(i) * 0.16)
 			_batch.box(tone, Vector3(0.30, 0.30, 0.44), Vector3(half_w - 0.34, y + 0.19, z))
@@ -244,7 +386,7 @@ func _build_shelving(wall: Color, accent: Color) -> void:
 ## you are looking into rather than a floating floor.
 func _build_window_line(accent: Color) -> void:
 	var half_w := WIDTH * 0.5
-	var half_d := DEPTH * 0.5
+	var half_d := depth * 0.5
 	var frame := Color(0.30, 0.31, 0.35)
 
 	# A sill and two posts, and nothing above head height. Glass across the
@@ -258,22 +400,32 @@ func _build_window_line(accent: Color) -> void:
 		_batch.box(frame, Vector3(3.5, 0.10, 0.32), Vector3(x, 1.80, half_d), SceneryBatch.Layer.SHINY)
 
 
+## Pendants down the ceiling, spread over however deep the shop turned out and
+## hung outside the rows rather than over the top of them — a shade in front of
+## a price card is the one thing on this floor you cannot look round. They hang
+## short too: a long drop reads as something standing on the floor.
 func _build_lights() -> void:
 	var fitting := Color(0.24, 0.25, 0.28)
 	var bulb := Color(1.0, 0.97, 0.86)
-	for z in [-3.6, -0.6, 2.4]:
+	var lamps := maxi(3, int(round(depth / 3.6)))
+	var out: float = clampf(_stock_half_w + 0.80, 3.4, WIDTH * 0.5 - 0.85)
+	for i in lamps:
+		var z: float = -depth * 0.5 + 2.4 + (depth - 4.2) * float(i) / float(maxi(lamps - 1, 1))
 		for sx in [-1.0, 1.0]:
-			var x: float = sx * 2.6
-			_batch.cylinder(fitting, 0.04, 0.55, Vector3(x, HEIGHT - 0.28, z), SceneryBatch.Layer.SHINY, 6)
-			_batch.cone(fitting, 0.34, 0.30, Vector3(x, HEIGHT - 0.68, z), SceneryBatch.Layer.SHINY, 10)
-			_batch.box(bulb, Vector3(0.36, 0.04, 0.36), Vector3(x, HEIGHT - 0.83, z))
+			var x: float = sx * out
+			# A pale, slightly thicker stem, so the shade overhead reads as
+			# hanging rather than as something standing on the floor.
+			_batch.cylinder(Color(0.62, 0.63, 0.66), 0.05, 0.34,
+				Vector3(x, HEIGHT - 0.18, z), SceneryBatch.Layer.SHINY, 6)
+			_batch.cone(fitting, 0.28, 0.26, Vector3(x, HEIGHT - 0.48, z), SceneryBatch.Layer.SHINY, 10)
+			_batch.box(bulb, Vector3(0.30, 0.04, 0.30), Vector3(x, HEIGHT - 0.61, z))
 
 
 func _build_plants() -> void:
 	var pot := Color(0.66, 0.48, 0.36)
 	var leaf := Color(0.28, 0.52, 0.28)
-	for spot in [Vector3(-WIDTH * 0.5 + 0.9, 0, DEPTH * 0.5 - 1.2),
-			Vector3(WIDTH * 0.5 - 0.9, 0, DEPTH * 0.5 - 1.2)]:
+	for spot in [Vector3(-WIDTH * 0.5 + 0.9, 0, depth * 0.5 - 1.2),
+			Vector3(WIDTH * 0.5 - 0.9, 0, depth * 0.5 - 1.2)]:
 		_batch.cylinder(pot, 0.30, 0.44, spot + Vector3(0, 0.22, 0), SceneryBatch.Layer.OPAQUE, 10)
 		_batch.sphere(leaf, 0.46, spot + Vector3(0, 0.86, 0))
 		_batch.sphere(leaf.darkened(0.12), 0.32, spot + Vector3(0.24, 1.16, -0.1))
@@ -286,7 +438,7 @@ func _build_sign() -> void:
 	name_plate.text = str(shop.get("name", "The shop"))
 	name_plate.font_size = 96
 	name_plate.pixel_size = 0.0042
-	name_plate.position = Vector3(0, HEIGHT - 0.85, -DEPTH * 0.5 + 0.22)
+	name_plate.position = Vector3(0, HEIGHT - 0.85, -depth * 0.5 + 0.22)
 	name_plate.modulate = Color(0.08, 0.09, 0.12)
 	name_plate.outline_size = 0
 	_fixtures.add_child(name_plate)
@@ -297,7 +449,7 @@ func _build_sign() -> void:
 	tagline.pixel_size = 0.0052
 	tagline.width = 1400.0
 	tagline.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	tagline.position = Vector3(0, HEIGHT - 1.62, -DEPTH * 0.5 + 0.22)
+	tagline.position = Vector3(0, HEIGHT - 1.62, -depth * 0.5 + 0.22)
 	tagline.modulate = Color(0.36, 0.38, 0.42)
 	tagline.outline_size = 0
 	_fixtures.add_child(tagline)
@@ -313,30 +465,20 @@ func _stock_the_floor() -> void:
 		_stock_paint()
 		return
 
-	var ids := Catalog.shop_stock(str(shop.get("id", "")))
-	for i in ids.size():
-		var id: String = ids[i]
+	for spot: Dictionary in _spots:
+		var id := str(spot["id"])
 		var available := Game.is_item_unlocked(id)
+		var at: Vector3 = spot["at"]
 
 		var piece := FurnitureItem.new()
 		piece.setup(id, Color(0.62, 0.63, 0.66) if not available else Color.TRANSPARENT)
 		_stock.add_child(piece)
-		piece.global_position = _stand_at(i)
-		# Turned a little off square so a row does not read as a shelf.
-		piece.rotation.y = deg_to_rad(-18.0 + float(i % 3) * 18.0)
+		piece.global_position = spot["stand"]
+		piece.rotation.y = float(spot["yaw"])
 
-		_ticket(_stand_at(i), Catalog.display_name(id),
+		_ticket(at + Vector3(0, 0, float(spot["front"])), Catalog.height(id),
+			Catalog.display_name(id),
 			UIKit.money(Catalog.price(id)) if available else _lock_line(id), available)
-
-
-## Where the i-th piece stands. Rows of four, front to back.
-func _stand_at(index: int) -> Vector3:
-	var column := index % PER_ROW
-	var row := index / PER_ROW
-	return Vector3(
-		(float(column) - float(PER_ROW - 1) * 0.5) * AISLE_X,
-		0.0,
-		-DEPTH * 0.5 + 4.2 + float(row) * ROW_Z)
 
 
 ## What a locked piece is waiting for: a level, or a quarter of the city.
@@ -347,33 +489,77 @@ func _lock_line(id: String) -> String:
 	return "Level %d" % Catalog.effective_unlock_level(id)
 
 
-## A little card on the floor in front of a piece, the way a showroom does it.
-func _ticket(at: Vector3, title: String, price: String, available: bool) -> void:
+## The card in front of a piece. It stands on a little easel rather than lying
+## flat: a card on the floor is read at a glancing angle and disappears behind
+## whatever is in front of it, and this one is turned up towards the camera.
+func _ticket(at: Vector3, tall: float, title: String, price: String, available: bool) -> void:
 	var card := Node3D.new()
-	card.position = at + Vector3(0, 0.02, 0.86)
+	card.position = at
+	# The floor it takes up, so a layout check can see it.
+	card.set_meta("span", Vector2(CARD_SIZE.x, TICKET_DEPTH))
 	_tickets.add_child(card)
 
-	var stand := MeshInstance3D.new()
+	var paper := Color(0.96, 0.95, 0.92) if available else Color(0.74, 0.73, 0.72)
+
+	# How high the card has to sit to be read over the piece it belongs to. A
+	# card on the floor works for a footstool and disappears behind a wardrobe,
+	# so the post grows with the piece: it clears the top of it, less whatever
+	# the camera's own angle already sees over.
+	var lift: float = clampf(tall - TICKET_GAP * 0.47 + 0.06, 0.05, 1.95)
+
+	# A foot and a post, so the card is standing on something.
+	var foot := MeshInstance3D.new()
+	var base := BoxMesh.new()
+	base.size = Vector3(CARD_SIZE.x * 0.42, 0.04, 0.24)
+	foot.mesh = base
+	foot.material_override = _matte(paper.darkened(0.34))
+	foot.position = Vector3(0, 0.02, 0.02)
+	foot.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	card.add_child(foot)
+
+	if lift > 0.16:
+		var post := MeshInstance3D.new()
+		var stem := BoxMesh.new()
+		stem.size = Vector3(0.05, lift, 0.05)
+		post.mesh = stem
+		post.material_override = _matte(paper.darkened(0.34))
+		post.position = Vector3(0, lift * 0.5, 0.02)
+		post.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		card.add_child(post)
+
+	# The face, leaned back at about the angle the camera looks down at.
+	var face := Node3D.new()
+	face.position = Vector3(0, lift + CARD_SIZE.y * 0.5 * cos(deg_to_rad(CARD_TILT)), 0)
+	face.rotation = Vector3(deg_to_rad(-CARD_TILT), 0.0, 0.0)
+	card.add_child(face)
+	# The point a check should be able to see: the bottom line of the card, just
+	# clear of the plate itself.
+	card.set_meta("read_from", Vector3(0, lift + 0.05, 0.06))
+
+	var plate := MeshInstance3D.new()
 	var box := BoxMesh.new()
-	box.size = Vector3(1.10, 0.02, 0.46)
-	stand.mesh = box
-	var material := StandardMaterial3D.new()
-	material.albedo_color = Color(0.96, 0.95, 0.92) if available else Color(0.74, 0.73, 0.72)
-	material.roughness = 0.9
-	stand.material_override = material
-	stand.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	card.add_child(stand)
+	box.size = Vector3(CARD_SIZE.x, CARD_SIZE.y, 0.02)
+	plate.mesh = box
+	plate.material_override = _matte(paper)
+	plate.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	face.add_child(plate)
 
 	var text := Label3D.new()
 	text.text = "%s\n%s" % [title, price]
 	text.font_size = 44
-	text.pixel_size = 0.0044
-	text.rotation = Vector3(deg_to_rad(-90.0), 0.0, 0.0)
-	text.position = Vector3(0, 0.02, 0)
+	text.pixel_size = 0.0048
+	text.position = Vector3(0, 0, 0.02)
 	text.modulate = Color(0.12, 0.13, 0.16) if available else Color(0.52, 0.30, 0.30)
 	text.outline_size = 0
 	text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	card.add_child(text)
+	face.add_child(text)
+
+
+static func _matte(colour: Color) -> StandardMaterial3D:
+	var material := StandardMaterial3D.new()
+	material.albedo_color = colour
+	material.roughness = 0.9
+	return material
 
 
 ## The Colour House sells shades rather than furniture, so its floor is racks
@@ -388,7 +574,7 @@ func _stock_paint() -> void:
 			var at := Vector3(
 				(float(i) - float(entries.size() - 1) * 0.5) * 1.15,
 				0.0,
-				-DEPTH * 0.5 + 4.6 + float(s) * 3.4)
+				-depth * 0.5 + 4.6 + float(s) * 3.4)
 			_tin(surface, entry, at)
 
 		var heading := Label3D.new()
@@ -403,7 +589,7 @@ func _stock_paint() -> void:
 
 
 func at_row(surface_index: int) -> float:
-	return -DEPTH * 0.5 + 4.6 + float(surface_index) * 3.4
+	return -depth * 0.5 + 4.6 + float(surface_index) * 3.4
 
 
 ## One tin of paint on a stand, pickable in its own right.
@@ -471,9 +657,15 @@ static func _solid(size: Vector3, colour: Color, at: Vector3) -> MeshInstance3D:
 func _open_up() -> void:
 	set_process_unhandled_input(true)
 	# Far enough back to take the whole floor in, and low enough to read the
-	# tickets.
-	rig.focus = Vector3(0, 1.1, 0.0)
-	rig.distance = 12.6
+	# tickets. Both follow the depth, since the shop is built to fit its stock.
+	var middle := 0.0
+	if not _spots.is_empty():
+		for spot: Dictionary in _spots:
+			middle += (spot["at"] as Vector3).z
+		middle /= float(_spots.size())
+	rig.focus = Vector3(0, 1.0, middle)
+	rig.max_distance = maxf(18.0, depth * 1.3)
+	rig.distance = clampf(depth * 0.82, 10.5, rig.max_distance)
 	rig.snap_to_target()
 
 
