@@ -376,14 +376,7 @@ func _build() -> void:
 		"id": "chair", "name": "Chair", "category": "Dining",
 		"price": 90, "level": 1,
 		"tint": Color(0.33, 0.21, 0.13),
-		"parts": [
-			{"shape": "box", "size": Vector3(0.44, 0.05, 0.44), "pos": Vector3(0, 0.44, 0), "mat": "tint"},
-			{"shape": "box", "size": Vector3(0.44, 0.52, 0.05), "pos": Vector3(0, 0.72, -0.195), "mat": "tint"},
-			{"shape": "box", "size": Vector3(0.05, 0.44, 0.05), "pos": Vector3(-0.18, 0.22, -0.17), "mat": "wood_dark"},
-			{"shape": "box", "size": Vector3(0.05, 0.44, 0.05), "pos": Vector3(0.18, 0.22, -0.17), "mat": "wood_dark"},
-			{"shape": "box", "size": Vector3(0.05, 0.44, 0.05), "pos": Vector3(-0.18, 0.22, 0.17), "mat": "wood_dark"},
-			{"shape": "box", "size": Vector3(0.05, 0.44, 0.05), "pos": Vector3(0.18, 0.22, 0.17), "mat": "wood_dark"},
-		],
+		"parts": _chair(),
 	})
 	_add({
 		"id": "bar_stool", "name": "Bar Stool", "category": "Dining",
@@ -1062,80 +1055,180 @@ func _build_electronics() -> void:
 
 # ------------------------------------------------------------------ helpers
 
+## Sofa, loveseat and armchair are the same piece at three widths, so this is
+## the model most often standing in a finished room. Everything upholstered is
+## marked soft, which rounds it and shades it as fabric rather than as board.
 func _sofa(width: float, depth: float) -> Array:
 	var half := width * 0.5
-	var arm := 0.17
+	var arm := 0.18
 	var seat_w: float = width - arm * 2.0
+	var half_d := depth * 0.5
 	var parts: Array = [
-		{"shape": "box", "size": Vector3(width, 0.32, depth), "pos": Vector3(0, 0.22, 0), "mat": "tint"},
-		{"shape": "box", "size": Vector3(width, 0.58, 0.22), "pos": Vector3(0, 0.62, -depth * 0.5 + 0.11), "mat": "tint"},
-		{"shape": "box", "size": Vector3(arm, 0.34, depth), "pos": Vector3(-half + arm * 0.5, 0.55, 0), "mat": "tint"},
-		{"shape": "box", "size": Vector3(arm, 0.34, depth), "pos": Vector3(half - arm * 0.5, 0.55, 0), "mat": "tint"},
+		# One body, not a stack of slabs: the base, the arms and the back all
+		# run into each other, which is what makes the thing read as upholstery
+		# rather than as a crate with a cushion in it.
+		{"shape": "box", "size": Vector3(width - 0.04, 0.24, depth - 0.03),
+			"pos": Vector3(0, 0.24, 0), "mat": "tint", "soft": true, "bevel": 0.045},
+		# The back, leaning away from the seat the way a back does.
+		{"shape": "box", "size": Vector3(width, 0.56, 0.18),
+			"pos": Vector3(0, 0.64, -half_d + 0.12), "rot": Vector3(-7, 0, 0),
+			"mat": "tint", "soft": true, "bevel": 0.055},
 	]
-	# Seat cushions: one per ~0.7 m of usable width.
+	# Rolled arms: a soft block that runs down into the base, with a bolster
+	# along the top of it.
+	for sx in [-1.0, 1.0]:
+		parts.append({"shape": "box", "size": Vector3(arm, 0.42, depth - 0.05),
+			"pos": Vector3(sx * (half - arm * 0.5), 0.50, 0),
+			"mat": "tint", "soft": true, "bevel": 0.055})
+		parts.append({"shape": "cyl", "size": Vector3(arm * 0.5, depth - 0.05, arm * 0.5),
+			"pos": Vector3(sx * (half - arm * 0.5), 0.71, 0),
+			"rot": Vector3(90, 0, 0), "mat": "tint"})
+
+	# Seat cushions: one per ~0.7 m of usable width, with a back cushion over
+	# each of them.
 	var cushions: int = maxi(1, int(round(seat_w / 0.72)))
 	var cw: float = (seat_w - 0.04 * (cushions + 1)) / float(cushions)
 	for i in cushions:
 		var cx: float = -seat_w * 0.5 + 0.04 * (i + 1) + cw * (i + 0.5)
 		parts.append({
-			"shape": "box",
-			"size": Vector3(cw, 0.16, depth - 0.26),
-			"pos": Vector3(cx, 0.46, 0.06),
-			"mat": "white",
+			"shape": "box", "size": Vector3(cw, 0.16, depth - 0.24),
+			"pos": Vector3(cx, 0.44, 0.05), "mat": "white",
+			"soft": true, "bevel": 0.07,
 		})
+		parts.append({
+			"shape": "box", "size": Vector3(cw, 0.33, 0.15),
+			"pos": Vector3(cx, 0.69, -half_d + 0.26), "rot": Vector3(-9, 0, 0),
+			"mat": "white", "soft": true, "bevel": 0.065,
+		})
+	# Turned feet, narrowing towards the floor. They run up into the plinth
+	# rather than meeting it face to face, which would flicker.
 	for sx in [-1.0, 1.0]:
 		for sz in [-1.0, 1.0]:
 			parts.append({
 				"shape": "cyl",
-				"size": Vector3(0.03, 0.06, 0.03),
-				"pos": Vector3(sx * (half - 0.12), 0.03, sz * (depth * 0.5 - 0.12)),
+				"size": Vector3(0.036, 0.14, 0.022),
+				"pos": Vector3(sx * (half - 0.14), 0.07, sz * (half_d - 0.14)),
 				"mat": "wood_dark",
 			})
 	return parts
 
 
+## The mattress and everything on it is soft; the frame around it is not. The
+## headboard is panelled rather than a single slab, which is most of what makes
+## a bed look made rather than assembled.
 func _bed(width: float, length: float) -> Array:
 	var hw := width * 0.5
 	var hl := length * 0.5
 	var parts: Array = [
-		{"shape": "box", "size": Vector3(width, 0.30, length), "pos": Vector3(0, 0.16, 0), "mat": "wood_dark"},
-		{"shape": "box", "size": Vector3(width - 0.06, 0.24, length - 0.06), "pos": Vector3(0, 0.42, 0), "mat": "white"},
-		{"shape": "box", "size": Vector3(width, 0.78, 0.08), "pos": Vector3(0, 0.60, -hl - 0.04), "mat": "wood_dark"},
-		{"shape": "box", "size": Vector3(width - 0.06, 0.07, length * 0.62), "pos": Vector3(0, 0.56, hl * 0.36), "mat": "tint"},
+		# A rail round the outside with the mattress sitting down inside it.
+		{"shape": "box", "size": Vector3(width, 0.26, length),
+			"pos": Vector3(0, 0.19, 0), "mat": "wood_dark"},
+		{"shape": "box", "size": Vector3(width - 0.10, 0.22, length - 0.10),
+			"pos": Vector3(0, 0.43, 0), "mat": "white", "soft": true, "bevel": 0.05},
+		# The headboard: two uprights and a panel between them.
+		{"shape": "box", "size": Vector3(width, 0.16, 0.09),
+			"pos": Vector3(0, 0.92, -hl - 0.045), "mat": "wood_dark"},
+		{"shape": "box", "size": Vector3(width - 0.14, 0.56, 0.05),
+			"pos": Vector3(0, 0.60, -hl - 0.04), "mat": "tint"},
+		_head_post(hw, hl, -1.0),
+		_head_post(hw, hl, 1.0),
+		# The duvet, folded back off the pillows.
+		{"shape": "box", "size": Vector3(width - 0.04, 0.10, length * 0.60),
+			"pos": Vector3(0, 0.58, hl * 0.38), "mat": "tint", "soft": true, "bevel": 0.045},
+		{"shape": "box", "size": Vector3(width - 0.04, 0.06, 0.16),
+			"pos": Vector3(0, 0.61, hl * 0.38 - length * 0.30), "mat": "white",
+			"soft": true, "bevel": 0.028},
 	]
 	var pillow_w: float = minf(0.62, width * 0.46)
-	if width > 1.2:
-		parts.append({"shape": "box", "size": Vector3(pillow_w, 0.14, 0.34), "pos": Vector3(-width * 0.24, 0.60, -hl + 0.30), "mat": "white"})
-		parts.append({"shape": "box", "size": Vector3(pillow_w, 0.14, 0.34), "pos": Vector3(width * 0.24, 0.60, -hl + 0.30), "mat": "white"})
-	else:
-		parts.append({"shape": "box", "size": Vector3(pillow_w, 0.14, 0.34), "pos": Vector3(0, 0.60, -hl + 0.30), "mat": "white"})
+	var pillows: Array = [-width * 0.24, width * 0.24] if width > 1.2 else [0.0]
+	for px: float in pillows:
+		parts.append({"shape": "box", "size": Vector3(pillow_w, 0.15, 0.36),
+			"pos": Vector3(px, 0.61, -hl + 0.32), "rot": Vector3(-6, 0, 0),
+			"mat": "white", "soft": true, "bevel": 0.07})
 	for sx in [-1.0, 1.0]:
 		for sz in [-1.0, 1.0]:
 			parts.append({
 				"shape": "box",
-				"size": Vector3(0.07, 0.06, 0.07),
+				"size": Vector3(0.08, 0.06, 0.08),
 				"pos": Vector3(sx * (hw - 0.07), 0.03, sz * (hl - 0.07)),
 				"mat": "dark",
+				"taper": Vector2(0.7, 0.7),
 			})
 	return parts
 
 
-func _table(width: float, depth: float, height: float, top: float) -> Array:
+## One post of a headboard, standing a little proud of the panel.
+func _head_post(hw: float, hl: float, sx: float) -> Dictionary:
+	return {
+		"shape": "box", "size": Vector3(0.09, 0.72, 0.09),
+		"pos": Vector3(sx * (hw - 0.045), 0.64, -hl - 0.045), "mat": "wood_dark",
+	}
+
+
+## A dining chair. It was a seat slab, a back slab and four posts, which is
+## about as plain as a shape gets: this one has a slatted back between two
+## uprights, stretchers between the legs, and legs that narrow to the floor.
+func _chair() -> Array:
 	var parts: Array = [
-		{"shape": "box", "size": Vector3(width, top, depth), "pos": Vector3(0, height - top * 0.5, 0), "mat": "tint"},
+		{"shape": "box", "size": Vector3(0.44, 0.055, 0.44),
+			"pos": Vector3(0, 0.442, 0), "mat": "tint", "bevel": 0.014},
+		# The top rail, and two slats under it with daylight between them.
+		{"shape": "box", "size": Vector3(0.44, 0.075, 0.055),
+			"pos": Vector3(0, 0.945, -0.195), "mat": "tint", "bevel": 0.016},
+		{"shape": "box", "size": Vector3(0.34, 0.085, 0.035),
+			"pos": Vector3(0, 0.815, -0.195), "mat": "tint"},
+		{"shape": "box", "size": Vector3(0.34, 0.085, 0.035),
+			"pos": Vector3(0, 0.665, -0.195), "mat": "tint"},
+	]
+	for sx in [-1.0, 1.0]:
+		# The back legs run on up to become the uprights of the back.
+		parts.append({"shape": "box", "size": Vector3(0.05, 0.985, 0.05),
+			"pos": Vector3(sx * 0.185, 0.492, -0.195), "mat": "wood_dark",
+			"taper": Vector2(0.66, 0.66)})
+		parts.append({"shape": "box", "size": Vector3(0.05, 0.45, 0.05),
+			"pos": Vector3(sx * 0.185, 0.225, 0.17), "mat": "wood_dark",
+			"taper": Vector2(0.66, 0.66)})
+		# A stretcher down each side, low, where a chair really has one.
+		parts.append({"shape": "box", "size": Vector3(0.032, 0.032, 0.33),
+			"pos": Vector3(sx * 0.185, 0.16, -0.012), "mat": "wood_dark"})
+	return parts
+
+
+## A top on four legs, with the apron rails that stop it reading as a slab on
+## sticks. The legs narrow towards the floor, which is what says furniture
+## rather than trestle.
+func _table(width: float, depth: float, height: float, top: float) -> Array:
+	var clear: float = height - top
+	var parts: Array = [
+		{"shape": "box", "size": Vector3(width, top, depth),
+			"pos": Vector3(0, height - top * 0.5, 0), "mat": "tint", "bevel": 0.018},
 	]
 	var leg := 0.06
+	var inset: float = leg
+	# Rails under the top, set in from the edge on all four sides.
+	if clear > 0.22:
+		var rail: float = minf(0.07, clear * 0.4)
+		for sx in [-1.0, 1.0]:
+			parts.append({"shape": "box",
+				"size": Vector3(leg * 0.6, rail, depth - inset * 3.4),
+				"pos": Vector3(sx * (width * 0.5 - inset * 1.3), height - top - rail * 0.6, 0),
+				"mat": "wood_dark"})
+			parts.append({"shape": "box",
+				"size": Vector3(width - inset * 3.4, rail, leg * 0.6),
+				"pos": Vector3(0, height - top - rail * 0.6, sx * (depth * 0.5 - inset * 1.3)),
+				"mat": "wood_dark"})
 	for sx in [-1.0, 1.0]:
 		for sz in [-1.0, 1.0]:
 			parts.append({
 				"shape": "box",
-				"size": Vector3(leg, height - top, leg),
+				"size": Vector3(leg, clear, leg),
 				"pos": Vector3(
 					sx * (width * 0.5 - leg),
-					(height - top) * 0.5,
+					clear * 0.5,
 					sz * (depth * 0.5 - leg)
 				),
 				"mat": "wood_dark",
+				"taper": Vector2(0.68, 0.68),
 			})
 	return parts
 
@@ -1178,9 +1271,16 @@ func _measure(parts: Array) -> Dictionary:
 			_:
 				half = size * 0.5
 		if part.has("rot"):
-			# Conservative: rotated parts get a bounding cube of their longest axis.
-			var m: float = maxf(half.x, maxf(half.y, half.z))
-			half = Vector3(m, m, m)
+			# A rotated part used to be given a bounding cube of its longest
+			# axis, which turned a tilted shelf into a piece half a metre wider
+			# than it is. Turn the box and measure what it actually covers.
+			var r: Vector3 = part["rot"]
+			var basis := Basis.from_euler(Vector3(
+				deg_to_rad(r.x), deg_to_rad(r.y), deg_to_rad(r.z)))
+			half = Vector3(
+				absf(basis.x.x) * half.x + absf(basis.y.x) * half.y + absf(basis.z.x) * half.z,
+				absf(basis.x.y) * half.x + absf(basis.y.y) * half.y + absf(basis.z.y) * half.z,
+				absf(basis.x.z) * half.x + absf(basis.y.z) * half.y + absf(basis.z.z) * half.z)
 		var pos: Vector3 = part["pos"]
 		lo = Vector3(minf(lo.x, pos.x - half.x), minf(lo.y, pos.y - half.y), minf(lo.z, pos.z - half.z))
 		hi = Vector3(maxf(hi.x, pos.x + half.x), maxf(hi.y, pos.y + half.y), maxf(hi.z, pos.z + half.z))

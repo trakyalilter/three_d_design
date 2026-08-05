@@ -434,6 +434,19 @@ everything unlocked, with its own save and load.
 ## The catalogue
 
 167 pieces across twenty-five shops, all built from primitives at runtime, $45 to $1,980 each.
+
+Every piece is a list of boxes and cylinders, but not plain ones. A hard ninety-degree edge
+puts two faces at right angles with nothing between them, so nothing in the room ever catches
+a highlight and every piece comes out looking like a crate — which is what the catalogue used
+to look like. So each box has a couple of millimetres taken off its edges, the way a real
+piece of furniture does, and gets a lit rim for it. On top of that a part can ask to be
+**soft**, which rounds it much further and shades the rounding as a curve — that is the
+difference between a cushion and a block — or to **taper**, which narrows it towards the
+floor and is most of what makes a leg read as a leg. The chamfer is cut inside the box and a
+taper only ever narrows it, so a piece measures exactly what it always did and nothing that
+places, stacks, prices or picks furniture had to change. It costs about 400 triangles a
+piece: a furnished room runs to sixteen thousand, which a phone does not notice.
+
 Ten of the shops stand on Maple Quarter's avenue:
 
 | Shop | Opens | Stock |
@@ -552,6 +565,8 @@ scripts/
                          into an off-screen viewport, one per frame, and caches
                          it for the tray
     mesh_builder.gd      Welds a part list into one shared mesh per item type
+    prim.gd              The shapes a piece is built from: chamfered boxes,
+                         soft ones for upholstery, and tapered ones for legs
     proc_textures.gd     Floorboards, plaster and contact shadows, generated
     room.gd              The floor plan: floors, walls, skirting, doorways,
                          grid, wall auto-hide and a paint scheme per room

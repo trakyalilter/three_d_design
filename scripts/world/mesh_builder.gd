@@ -55,28 +55,23 @@ static func build(item_id: String, parts: Array) -> Dictionary:
 	return result
 
 
+## Every part is a box unless it says otherwise, and every box has its edges
+## taken off — see Prim for why that one change does most of the work. A part
+## may ask for more: `soft` for upholstery, `taper` for a leg, `bevel` to set
+## the chamfer itself.
 static func _primitive_for(part: Dictionary) -> Mesh:
 	var size: Vector3 = part["size"]
 	match str(part.get("shape", "box")):
 		"cyl":
-			var cyl := CylinderMesh.new()
-			cyl.top_radius = size.x
-			cyl.bottom_radius = size.z
-			cyl.height = size.y
-			cyl.radial_segments = 16
-			cyl.rings = 0
-			return cyl
+			return Prim.cylinder(size)
 		"sphere":
-			var sphere := SphereMesh.new()
-			sphere.radius = size.x
-			sphere.height = size.y
-			sphere.radial_segments = 12
-			sphere.rings = 6
-			return sphere
+			return Prim.sphere(size)
 		_:
-			var box := BoxMesh.new()
-			box.size = size
-			return box
+			var soft := bool(part.get("soft", false))
+			return Prim.box(size,
+				float(part.get("bevel", Prim.SOFT_BEVEL if soft else Prim.DEFAULT_BEVEL)),
+				soft,
+				part.get("taper", Vector2.ONE))
 
 
 static func _transform_for(part: Dictionary) -> Transform3D:
