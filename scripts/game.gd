@@ -98,7 +98,7 @@ func enter_city(focus_house: String = "") -> void:
 	city_ui.start_job.connect(enter_designer)
 	city_ui.free_build.connect(func() -> void: enter_designer(""))
 	city_ui.shop_entered.connect(func(shop_id: String) -> void: enter_shop(shop_id))
-	city_ui.estate_entered.connect(func(fields: bool) -> void: enter_estate(fields))
+	city_ui.estate_entered.connect(func() -> void: enter_estate())
 	# A career reset can hand back quarters as well as money, so redraw the map.
 	city_ui.career_reset.connect(func() -> void: city.rebuild())
 	city_ui.repeat_taken.connect(func(_house_id: String) -> void: city.refresh_markers())
@@ -221,15 +221,14 @@ func _buy_paint_in_shop(surface: String, entry: Dictionary) -> void:
 ## The ground and the works. Two maps of the same shape, so one screen builds
 ## either — the land you buy and work, and the plants that turn what it yields
 ## into something a piece of furniture can be improved with.
-func enter_estate(fields: bool) -> void:
+func enter_estate() -> void:
 	if _changing:
 		return
 	_changing = true
 
 	var from_house := _last_house
 	var screen: LoadingScreen = await _cover(
-		"Out of town", "The Estate" if fields else "The Works",
-		"Driving out" if fields else "Walking the yard")
+		"Out of town", "The Estate", "Driving out")
 
 	estate_ui = EstateUI.new()
 	estate_ui.name = "EstateUI"
@@ -238,12 +237,11 @@ func enter_estate(fields: bool) -> void:
 	estate = EstateView.new()
 	estate.name = "Estate"
 	estate.staged_build = true
-	estate.setup(EstateView.Kind.FIELDS if fields else EstateView.Kind.WORKS)
 	add_child(estate)
 	estate.ui_probe = estate_ui.is_point_over_ui
 
 	await _run_stages(screen, estate.build_stages())
-	estate_ui.configure(fields)
+	estate_ui.configure()
 
 	estate.plot_picked.connect(estate_ui.show_plot)
 	estate.nothing_picked.connect(estate_ui.close_sheet)

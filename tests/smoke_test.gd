@@ -604,15 +604,17 @@ func _check_estate() -> void:
 		_expect(not Industry.get_material(str(good["from"])).is_empty(),
 			"%s is made from '%s', which is not a material" % [good["id"], good["from"]])
 
-	main.enter_estate(true)
+	main.enter_estate()
 	await _settle()
 	_expect(main.estate != null, "the estate did not open")
 	_expect(main.city == null, "the map was left running under the estate")
 	if main.estate == null:
 		return
-	_expect(main.estate.get_node("Plots").get_child_count() == Industry.sites().size(),
-		"the fields put out %d holdings for %d in the table"
-			% [main.estate.get_node("Plots").get_child_count(), Industry.sites().size()])
+	# One map: every holding, every works and the bench, all on it.
+	var want: int = Industry.sites().size() + Industry.works().size() + 1
+	_expect(main.estate.get_node("Plots").get_child_count() == want,
+		"the estate put out %d plots for the %d it has"
+			% [main.estate.get_node("Plots").get_child_count(), want])
 
 	# Buying ground, through the sheet's own button.
 	var site: Dictionary = Industry.sites()[0]
@@ -664,18 +666,8 @@ func _check_estate() -> void:
 	_expect(Game.material_count(material) <= Game.material_cap(material),
 		"the yard took more %s than it holds" % material)
 
-	main.enter_city()
-	await _settle()
-
-	# The works: material in, a run that takes time, goods out.
-	main.enter_estate(false)
-	await _settle()
-	_expect(main.estate != null and not main.estate.is_fields(), "the works did not open")
-	if main.estate == null:
-		return
-	_expect(main.estate.get_node("Plots").get_child_count() == Industry.works().size() + 1,
-		"the works ground is missing a plant or the bench")
-
+	# The works: material in, a run that takes time, goods out. Same map — the
+	# holdings and the plants are two ends of one road now.
 	# Whichever works serves the sofa, since the sofa is what goes on the bench.
 	var plant: Dictionary = Industry.works_for(Industry.grain_of("sofa"))
 	_expect(not plant.is_empty(), "nothing makes what a sofa wants")

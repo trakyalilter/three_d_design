@@ -1,11 +1,11 @@
 class_name EstateUI
 extends CanvasLayer
-## The overlay on the two estate maps: what is in the yard along the top, and a
+## The overlay on the map out of town: what is in the yard along the top, and a
 ## sheet for whichever plot was tapped.
 ##
-## One panel serves both maps. A holding offers to be bought or worked up; a
-## works offers to be built up and to run a batch; the bench lists the furniture
-## you own and what it would take to improve each piece.
+## A holding offers to be bought, worked up and carted off; a works offers to be
+## built up and to put a run on; the bench lists the furniture you own and what
+## it would take to improve each piece.
 
 signal leave_requested()
 signal buy_site(site_id: String)
@@ -28,7 +28,6 @@ var _sheet_actions: HBoxContainer
 var _toast: Label
 var _toast_timer: Timer
 
-var _fields := true
 var _tick := 0.0
 ## What the sheet is showing, so a purchase can redraw it in place.
 var _showing: Dictionary = {}
@@ -78,13 +77,8 @@ func _watching_a_clock() -> bool:
 	return str(_showing.get("kind", "")) == "site"
 
 
-func configure(fields: bool) -> void:
-	_fields = fields
-	_hint.text = "Every holding you own fills on its own clock, whether the app is open or not. Tap one to cart off what is standing on it." \
-		if fields \
-		else "Put a run on and it takes real time to come off the line. The bench improves what you own with what it makes."
-	# The tally is materials on the fields and finished goods at the works, so it
-	# has to be redrawn whenever the map changes under it.
+func configure() -> void:
+	_hint.text = "Holdings fill on their own clock, open or not. Cart one off, run it through a works, then take it to the bench."
 	refresh()
 
 
@@ -107,7 +101,7 @@ func _build_top_bar() -> void:
 	row.add_child(_money_label)
 
 	_yard = HBoxContainer.new()
-	_yard.add_theme_constant_override("separation", 14)
+	_yard.add_theme_constant_override("separation", 10)
 	row.add_child(_yard)
 
 	row.add_child(UIKit.spacer())
@@ -202,11 +196,14 @@ func refresh() -> void:
 		_yard.remove_child(child)
 		child.queue_free()
 
-	var entries: Array = Industry.materials() if _fields else Industry.goods()
-	for entry: Dictionary in entries:
+	# Both halves of the estate are on one map now, so both halves of what it
+	# holds are on one tally: what came out of the ground, then what was made
+	# from it.
+	for entry: Dictionary in Industry.materials() + Industry.goods():
 		var id := str(entry["id"])
-		var held: int = Game.material_count(id) if _fields else Game.good_count(id)
-		var cap: int = Game.material_cap(id) if _fields else Game.good_cap(id)
+		var raw := Industry.get_material(id).has("unit")
+		var held: int = Game.material_count(id) if raw else Game.good_count(id)
+		var cap: int = Game.material_cap(id) if raw else Game.good_cap(id)
 		var cell := HBoxContainer.new()
 		cell.add_theme_constant_override("separation", 5)
 		var chip := ColorRect.new()
@@ -221,7 +218,7 @@ func refresh() -> void:
 			tone = UIKit.BAD
 		elif held <= 0:
 			tone = UIKit.MUTED
-		var count := UIKit.label("%d/%d" % [held, cap], 17, tone)
+		var count := UIKit.label("%d/%d" % [held, cap], 16, tone)
 		count.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		cell.add_child(count)
 		_yard.add_child(cell)

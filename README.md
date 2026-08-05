@@ -316,7 +316,14 @@ room hide themselves as you orbit, and a piece that overlaps another glows red.
 Two roads lead out of the city, and the top bar opens them when you are ready: **Estate** at
 level 3 and **Works** at level 5.
 
-**The estate** is eight holdings either side of a dirt track — two woods, two fields, two
+Everything below is on **one map out of town**, reached by the **Estate** button in the top
+bar from level 3. It used to be two screens — the ground on one and the works on the other —
+which meant the half that grows things and the half that makes things were never in front of
+you at once, and the growing half had nothing to decide once the ground was bought. One road
+runs the length of it now: holdings down the west end, works down the east, and the bench at
+the end of the road.
+
+**The holdings** are eight plots either side of that road — two woods, two fields, two
 hills and two dunes — and each of them yields one of the four raw materials: timber, cotton,
 iron ore and silica sand. Tap unworked ground to see what it would hand you and what the
 agent wants for it. Buy it and a camp goes up: a hut, a yard, a cart, logs stacked by the
@@ -336,8 +343,8 @@ every holding that yields it, so storage is something you build rather than a nu
 handed. Cart a holding off into a full yard and it takes what it can; the rest stays in the
 ground until there is room.
 
-**The works** is the second road: a sawmill, a weaving shed, a foundry and a glasshouse
-standing along a road, plus the finishing bench in the middle. Each plant takes three of one
+**The works** are the east end of the same road: a sawmill, a weaving shed, a foundry and a glasshouse
+standing along it, with the finishing bench at the end. Each plant takes three of one
 material and turns it into one finished good — hardwood board, a bolt of cloth, a steel fitting,
 a glass pane. **A run takes real time**: fifteen minutes at the sawmill up to forty at the
 glasshouse. The material goes in when you put the run on — it is in the machine, not in the
@@ -345,7 +352,8 @@ yard — and the goods come off when it is done. Building a plant up puts one mo
 same run rather than making the run quicker, so a tier-3 sawmill makes three boards in the
 same fifteen minutes. Each works has a store of its own, and a full store will not take a run.
 
-**The finishing bench** is where the goods go into the furniture. It lists everything in your
+**The finishing bench** stands where the road stops, and is where the goods go into the
+furniture. It lists everything in your
 warehouse with what the next step up would take, and improving a piece lifts **every one of
 that kind you own** — and everything of that kind you buy afterwards. There are three steps:
 
@@ -586,9 +594,9 @@ scripts/
     city_ui.gd           Wallet, XP bar, briefing sheet, shop counters, stock,
                          and the quarter you are thinking about buying
   estate/
-    estate_view.gd       Both maps out of town: the holdings and what grows or
-                         is dug on them, the works and their chimneys, and the
-                         bench
+    estate_view.gd       The map out of town: the holdings and what grows or is
+                         dug on them, the works and their chimneys, and the
+                         bench at the end of the road
     estate_ui.gd         The yard tally, and the sheet for whichever plot was
                          tapped
   design/

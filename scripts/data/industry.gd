@@ -6,9 +6,10 @@ extends Node
 ## those into finished goods, and a bench where the goods go into the furniture
 ## you already own to make it worth more.
 ##
-## Nothing here runs on a clock. Sites yield every time a job is handed over,
-## which keeps the whole thing inside the loop the game already has and means a
-## player who puts the game down does not come back to a queue.
+## All of it stands on one map out of town: the eight holdings west of the
+## crossing, the four works east of it, and the bench at the end of the road,
+## which is where everything the land gives and everything the works make
+## finally comes together.
 
 ## The four things that come out of the ground.
 const MATERIALS: Array[Dictionary] = [
@@ -64,89 +65,90 @@ const GRAIN_BY_ROLE := {
 	"glass": "pane", "porcelain": "pane", "screen": "pane", "dark": "pane",
 }
 
-## Ground you can buy and work. Eight holdings on a grid, two to a material, so
-## there is always a second one to buy when the first is not keeping up.
+## Ground you can buy and work. Eight holdings down the west half of the map,
+## two to a material, so there is always a second one to buy when the first is
+## not keeping up.
 const SITES: Array[Dictionary] = [
 	{
 		"id": "elm_stand", "name": "Elm Stand", "yields": "timber",
-		"terrain": "forest", "at": Vector2(-24, -16),
+		"terrain": "forest", "at": Vector2(-52, -16),
 		"cost": 2400, "level": 3, "per_job": 4,
 		"blurb": "Mixed hardwood on a slope, cut on rotation.",
 	},
 	{
 		"id": "black_pines", "name": "The Black Pines", "yields": "timber",
-		"terrain": "forest", "at": Vector2(-24, 16),
+		"terrain": "forest", "at": Vector2(-52, 16),
 		"cost": 9500, "level": 12, "per_job": 7,
 		"blurb": "Older, straighter and a longer haul to the road.",
 	},
 	{
 		"id": "low_meadow", "name": "Low Meadow", "yields": "cotton",
-		"terrain": "field", "at": Vector2(-8, -16),
+		"terrain": "field", "at": Vector2(-36, -16),
 		"cost": 2800, "level": 4, "per_job": 4,
 		"blurb": "Flat and well watered. Two pickings a season.",
 	},
 	{
 		"id": "long_acre", "name": "Long Acre", "yields": "cotton",
-		"terrain": "field", "at": Vector2(-8, 16),
+		"terrain": "field", "at": Vector2(-36, 16),
 		"cost": 11000, "level": 14, "per_job": 7,
 		"blurb": "The big field. It takes a crew, and it pays for one.",
 	},
 	{
 		"id": "old_adit", "name": "The Old Adit", "yields": "iron",
-		"terrain": "hill", "at": Vector2(8, -16),
+		"terrain": "hill", "at": Vector2(-20, -16),
 		"cost": 3600, "level": 6, "per_job": 3,
 		"blurb": "A shallow working somebody else gave up on.",
 	},
 	{
 		"id": "deep_seam", "name": "The Deep Seam", "yields": "iron",
-		"terrain": "hill", "at": Vector2(8, 16),
+		"terrain": "hill", "at": Vector2(-20, 16),
 		"cost": 14000, "level": 17, "per_job": 6,
 		"blurb": "Good ore, a long way down, and a pump to run.",
 	},
 	{
 		"id": "white_dune", "name": "White Dune", "yields": "sand",
-		"terrain": "dune", "at": Vector2(24, -16),
+		"terrain": "dune", "at": Vector2(-4, -16),
 		"cost": 3200, "level": 8, "per_job": 4,
 		"blurb": "Clean silica, dug and screened on site.",
 	},
 	{
 		"id": "glass_flats", "name": "The Glass Flats", "yields": "sand",
-		"terrain": "dune", "at": Vector2(24, 16),
+		"terrain": "dune", "at": Vector2(-4, 16),
 		"cost": 13000, "level": 20, "per_job": 7,
 		"blurb": "Miles of it, and a conveyor to the loading bay.",
 	},
 ]
 
-## The works. Each one turns its material into its good, and the plant's tier
-## is how many it can put through in a batch.
+## The works, down the east half. Each one turns its material into its good,
+## and the plant's tier is how many it can put through in a run.
 const WORKS: Array[Dictionary] = [
 	{
 		"id": "sawmill", "name": "The Sawmill", "makes": "board",
-		"at": Vector2(-18, -12), "cost": 5200, "level": 5,
+		"at": Vector2(18, -16), "cost": 5200, "level": 5,
 		"blurb": "Log in one end, board out the other.",
 	},
 	{
 		"id": "weaving_shed", "name": "The Weaving Shed", "makes": "cloth",
-		"at": Vector2(6, -12), "cost": 6000, "level": 7,
+		"at": Vector2(18, 16), "cost": 6000, "level": 7,
 		"blurb": "Looms in a long room with the light down one side.",
 	},
 	{
 		"id": "foundry", "name": "The Foundry", "makes": "fitting",
-		"at": Vector2(-18, 14), "cost": 8500, "level": 10,
+		"at": Vector2(36, -16), "cost": 8500, "level": 10,
 		"blurb": "Ore in, castings out, and the chimney going all day.",
 	},
 	{
 		"id": "glasshouse", "name": "The Glasshouse", "makes": "pane",
-		"at": Vector2(6, 14), "cost": 9800, "level": 13,
+		"at": Vector2(36, 16), "cost": 9800, "level": 13,
 		"blurb": "Sand, heat, and a very steady hand.",
 	},
 ]
 
-## The bench where goods go into furniture. It stands on the works ground and
-## costs nothing — the goods are the price.
+## The bench where goods go into furniture. It stands at the end of the road
+## and costs nothing — the goods are the price.
 const BENCH := {
 	"id": "bench", "name": "The Finishing Bench",
-	"at": Vector2(-6, 1), "level": 5,
+	"at": Vector2(52, 0), "level": 5,
 	"blurb": "Where a piece off the shop floor becomes something better.",
 }
 

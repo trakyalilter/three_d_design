@@ -1,27 +1,29 @@
 class_name EstateView
 extends Node3D
-## The two maps behind the shops: the ground you work, and the works you run.
+## The map behind the shops: the ground you work, the works you run, and the
+## bench where the two meet.
 ##
-## They are the same thing built from different plot lists — a strip of land
-## with holdings on it, a road down the middle, and one pick volume per plot.
-## The fields grow trees, crops, spoil heaps and dunes; the works grow sheds
-## with chimneys. Both are welded into a SceneryBatch like the city is.
+## It used to be two screens, which meant the half that grows things and the
+## half that makes things were never on the same map — and the growing half had
+## nothing to decide once the ground was bought. One road runs the length of it
+## now: holdings down the west end, works down the east, and the bench at the
+## end of the road, so a load of timber can be watched from the stand it came
+## off to the mill that cuts it. Welded into a SceneryBatch like the city is.
 
 signal plot_picked(kind: String, id: String)
 signal nothing_picked()
 
-enum Kind { FIELDS, WORKS }
-
 const PICK_LAYER := 4
-const HALF_W := 40.0
+const HALF_W := 64.0
 const HALF_D := 30.0
 const ROAD_HALF := 3.4
+## Where the road stops, short of the bench's forecourt at the east end.
+const ROAD_END := 44.0
 
 const GRASS := Color(0.40, 0.54, 0.33)
 const DIRT := Color(0.52, 0.44, 0.34)
 const ROAD := Color(0.28, 0.27, 0.26)
 
-var kind: int = Kind.FIELDS
 var rig: CameraRig
 
 var _batch: SceneryBatch
@@ -42,16 +44,8 @@ var ui_probe: Callable = Callable()
 var staged_build := false
 
 
-func setup(which: int) -> void:
-	kind = which
-
-
-func is_fields() -> bool:
-	return kind == Kind.FIELDS
-
-
 func title() -> String:
-	return "The Estate" if is_fields() else "The Works"
+	return "Out of Town"
 
 
 func _ready() -> void:
@@ -65,8 +59,9 @@ func _ready() -> void:
 func build_stages() -> Array:
 	return [
 		["Walking the boundary", _build_shell],
-		["Laying out the ground" if is_fields() else "Laying out the yard", _build_ground],
-		["Counting what is standing" if is_fields() else "Firing the chimneys", _build_plots],
+		["Laying out the ground", _build_ground],
+		["Counting what is standing", _build_plots],
+		["Firing the chimneys", _build_works_side],
 		["Opening the gate", _open_up],
 	]
 
@@ -84,11 +79,11 @@ func _build_shell() -> void:
 
 	rig = CameraRig.new()
 	rig.name = "CameraRig"
-	rig.yaw = -18.0
-	rig.pitch = -38.0
-	rig.distance = 54.0
+	rig.yaw = -5.0
+	rig.pitch = -43.0
+	rig.distance = 82.0
 	rig.min_distance = 16.0
-	rig.max_distance = 96.0
+	rig.max_distance = 130.0
 	rig.pan_limit = Vector2(HALF_W, HALF_D)
 	add_child(rig)
 	rig.camera.far = 320.0
@@ -98,17 +93,10 @@ func _build_environment() -> void:
 	var world := WorldEnvironment.new()
 	var env := Environment.new()
 	var sky_material := ProceduralSkyMaterial.new()
-	if is_fields():
-		sky_material.sky_top_color = Color(0.30, 0.50, 0.74)
-		sky_material.sky_horizon_color = Color(0.80, 0.86, 0.88)
-		sky_material.ground_bottom_color = Color(0.28, 0.34, 0.26)
-		sky_material.ground_horizon_color = Color(0.58, 0.64, 0.54)
-	else:
-		# The works sit under a working sky: lower sun, more haze.
-		sky_material.sky_top_color = Color(0.36, 0.42, 0.52)
-		sky_material.sky_horizon_color = Color(0.78, 0.74, 0.68)
-		sky_material.ground_bottom_color = Color(0.26, 0.26, 0.26)
-		sky_material.ground_horizon_color = Color(0.52, 0.50, 0.47)
+	sky_material.sky_top_color = Color(0.30, 0.50, 0.74)
+	sky_material.sky_horizon_color = Color(0.80, 0.86, 0.88)
+	sky_material.ground_bottom_color = Color(0.28, 0.34, 0.26)
+	sky_material.ground_horizon_color = Color(0.58, 0.64, 0.54)
 	var sky := Sky.new()
 	sky.sky_material = sky_material
 	env.background_mode = Environment.BG_SKY
@@ -118,7 +106,7 @@ func _build_environment() -> void:
 	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	env.tonemap_white = 1.8
 	env.fog_enabled = true
-	env.fog_light_color = Color(0.70, 0.74, 0.78) if is_fields() else Color(0.72, 0.70, 0.66)
+	env.fog_light_color = Color(0.72, 0.75, 0.78)
 	env.fog_density = 0.0006
 	world.environment = env
 	add_child(world)
@@ -146,15 +134,17 @@ func _build_environment() -> void:
 
 func _build_ground() -> void:
 	_batch = SceneryBatch.new()
-	_batch.box(GRASS if is_fields() else Color(0.44, 0.44, 0.41),
-		Vector3(HALF_W * 2.0, 1.0, HALF_D * 2.0), Vector3(0, -0.5, 0))
+	_batch.box(GRASS, Vector3(HALF_W * 2.0, 1.0, HALF_D * 2.0), Vector3(0, -0.5, 0))
 	_weather_the_ground()
 
-	# A track down the middle, with the plots either side of it.
-	_batch.box(DIRT, Vector3(HALF_W * 2.0, 0.10, (ROAD_HALF + 1.2) * 2.0), Vector3(0, 0.02, 0))
-	_batch.box(ROAD, Vector3(HALF_W * 2.0, 0.12, ROAD_HALF * 2.0), Vector3(0, 0.04, 0))
+	# One road the length of the map, from the gate at the west end to the
+	# bench's forecourt at the east. Everything the estate makes comes down it.
+	var run := ROAD_END + HALF_W
+	var mid := (ROAD_END - HALF_W) * 0.5
+	_batch.box(DIRT, Vector3(run, 0.10, (ROAD_HALF + 1.2) * 2.0), Vector3(mid, 0.02, 0))
+	_batch.box(ROAD, Vector3(run, 0.12, ROAD_HALF * 2.0), Vector3(mid, 0.04, 0))
 	var x := -HALF_W + 3.0
-	while x < HALF_W:
+	while x < ROAD_END - 1.0:
 		_batch.box(Color(0.86, 0.84, 0.70), Vector3(1.8, 0.02, 0.24), Vector3(x, 0.11, 0))
 		x += 5.0
 
@@ -183,8 +173,7 @@ func _build_ground() -> void:
 ## and both keep clear of the track and the plots.
 func _weather_the_ground() -> void:
 	var seeded := RandomNumberGenerator.new()
-	seeded.seed = 90210 if is_fields() else 40404
-	var base: Color = GRASS if is_fields() else Color(0.44, 0.44, 0.41)
+	seeded.seed = 90210
 
 	for _i in 46:
 		var x: float = seeded.randf_range(-HALF_W + 3.0, HALF_W - 3.0)
@@ -193,11 +182,11 @@ func _weather_the_ground() -> void:
 			continue
 		var w: float = seeded.randf_range(4.0, 13.0)
 		var d: float = seeded.randf_range(4.0, 11.0)
-		var shade: Color
-		if is_fields():
-			shade = base.lerp(Color(0.52, 0.62, 0.36), seeded.randf_range(-0.25, 0.60))
-		else:
-			shade = base.lerp(Color(0.58, 0.57, 0.53), seeded.randf_range(-0.45, 0.75))
+		# Mown grass most of the way, scuffing to bare ground down at the works
+		# end where everything is driven over.
+		var worn: float = clampf((x + 6.0) / 40.0, 0.0, 1.0)
+		var shade: Color = GRASS.lerp(Color(0.52, 0.62, 0.36), seeded.randf_range(-0.25, 0.60))
+		shade = shade.lerp(Color(0.50, 0.48, 0.43), worn * seeded.randf_range(0.2, 0.9))
 		_batch.box(shade, Vector3(w, 0.05, d), Vector3(x, 0.025, z))
 
 	for _i in 30:
@@ -205,12 +194,12 @@ func _weather_the_ground() -> void:
 		var z: float = seeded.randf_range(-HALF_D + 2.0, HALF_D - 2.0)
 		if absf(z) < ROAD_HALF + 1.6 or _on_a_plot(x, z):
 			continue
-		if is_fields():
+		if x < 6.0:
 			var r: float = seeded.randf_range(0.5, 1.1)
 			_batch.sphere(Color(0.25, 0.42, 0.24).lerp(GRASS, seeded.randf() * 0.6),
 				r, Vector3(x, r * 0.55, z))
 		elif seeded.randf() < 0.5:
-			# Weeds through a crack, and a pallet or a drum left out.
+			# Down at the works end: weeds through a crack, and a pallet left out.
 			var r2: float = seeded.randf_range(0.25, 0.5)
 			_batch.sphere(Color(0.34, 0.44, 0.26), r2, Vector3(x, r2 * 0.5, z))
 		else:
@@ -221,26 +210,29 @@ func _weather_the_ground() -> void:
 ## True where a plot's own pad already covers the ground, so the weathering does
 ## not print over the top of it.
 func _on_a_plot(x: float, z: float) -> bool:
-	var plots: Array = Industry.sites() if is_fields() else Industry.works()
+	var plots: Array = Industry.sites() + Industry.works()
 	for plot: Dictionary in plots:
 		var at: Vector2 = plot["at"]
 		if absf(x - at.x) < 9.0 and absf(z - at.y) < 8.0:
 			return true
-	if not is_fields():
-		var bench: Vector2 = Industry.BENCH["at"]
-		if absf(x - bench.x) < 6.0 and absf(z - bench.y) < 5.0:
-			return true
+	var bench: Vector2 = Industry.BENCH["at"]
+	if absf(x - bench.x) < 7.0 and absf(z - bench.y) < 6.0:
+		return true
 	return false
 
 
+## The west half: the holdings, and whatever grows or is dug on them.
 func _build_plots() -> void:
-	if is_fields():
-		for site: Dictionary in Industry.sites():
-			_build_site(site)
-	else:
-		for works: Dictionary in Industry.works():
-			_build_works(works)
-		_build_bench()
+	for site: Dictionary in Industry.sites():
+		_build_site(site)
+
+
+## The east half: the plants, and the bench at the end of the road. Split off
+## as its own stage only so the loading bar has something honest to say.
+func _build_works_side() -> void:
+	for works: Dictionary in Industry.works():
+		_build_works(works)
+	_build_bench()
 	_batch.commit(_scenery)
 	_batch = null
 
@@ -561,12 +553,16 @@ func _plot_body(here: Vector3, plot_kind: String, id: String,
 
 	var plate := Label3D.new()
 	plate.text = str(plot["name"])
-	if tier > 0 and plot_kind != "bench":
-		plate.text += "  ·  %s" % ["", "worked", "well worked", "at full tilt"][mini(tier, 3)]
+	# The tier is worth reading up close and is only in the way from across the
+	# map, so it is kept apart and put back on by _process.
+	plate.set_meta("plain", plate.text)
+	plate.set_meta("worked", plate.text + ("  ·  %s"
+		% ["", "worked", "well worked", "at full tilt"][mini(tier, 3)])
+		if tier > 0 and plot_kind != "bench" else plate.text)
 	plate.font_size = 60
 	plate.pixel_size = 0.00060
 	plate.fixed_size = true
-	plate.position = Vector3(0, 6.4, 0)
+	plate.position = Vector3(0, 6.4 + float(_labels.size() % 3) * 2.2, 0)
 	plate.modulate = Color(0.97, 0.98, 1.0)
 	plate.outline_size = 22
 	plate.outline_modulate = Color(0.05, 0.06, 0.09, 0.95)
@@ -586,7 +582,7 @@ func _plot_body(here: Vector3, plot_kind: String, id: String,
 		pip.fixed_size = true
 		# Over the name plate, not under it, and carrying the number so the map
 		# says how much is waiting without anything being tapped.
-		pip.position = Vector3(0, 7.9, 0)
+		pip.position = Vector3(0, plate.position.y + 1.5, 0)
 		pip.modulate = Color(0.99, 0.83, 0.35)
 		pip.outline_size = 26
 		pip.outline_modulate = Color(0.05, 0.06, 0.09, 0.95)
@@ -620,6 +616,19 @@ func _process(delta: float) -> void:
 	if _pip_tick > 0.0:
 		return
 	_pip_tick = 1.0
+
+	# Thirteen name plates across one map will not all fit at arm's length, so
+	# they shrink as the camera pulls back and drop the tier off the end. Close
+	# in, where there is room, they read in full.
+	var close: float = clampf(
+		inverse_lerp(rig.max_distance * 0.72, rig.min_distance * 1.6, rig.distance),
+		0.0, 1.0)
+	for plate in _labels:
+		if not is_instance_valid(plate):
+			continue
+		plate.pixel_size = lerpf(0.00034, 0.00060, close)
+		plate.text = str(plate.get_meta("worked" if close > 0.45 else "plain"))
+
 	for pip in _pips:
 		if not is_instance_valid(pip):
 			continue
@@ -632,6 +641,7 @@ func _process(delta: float) -> void:
 		pip.visible = waiting > 0
 		if waiting > 0:
 			pip.text = "▼ %d" % waiting
+			pip.pixel_size = lerpf(0.00040, 0.00060, close)
 
 
 ## Rebuilds everything after a purchase, since the camps and chimneys grow.
@@ -645,6 +655,7 @@ func rebuild() -> void:
 	_batch = SceneryBatch.new()
 	_build_ground()
 	_build_plots()
+	_build_works_side()
 
 
 # --------------------------------------------------------------------- input
