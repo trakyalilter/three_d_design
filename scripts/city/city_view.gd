@@ -266,6 +266,38 @@ func _build_base_ground() -> void:
 
 func _build_ground(tint: Color = GROUND) -> void:
 	_batch.box(_tone(tint), Vector3(QUARTER_HALF * 2.0, 1.0, QUARTER_HALF * 2.0), _at(Vector3(0, -0.48, 0)))
+	_patch_the_ground(tint)
+
+
+## One flat green field is the largest thing on the map and the emptiest. This
+## lays mown patches over it — a spread of low quads in neighbouring greens,
+## seeded off the quarter's own position so a quarter looks the same every time
+## it is built. They are kept clear of the avenue, where the paving goes.
+func _patch_the_ground(tint: Color) -> void:
+	var seeded := RandomNumberGenerator.new()
+	seeded.seed = hash(Vector2i(int(_origin.x), int(_origin.y)))
+	for _i in 34:
+		var x: float = seeded.randf_range(-QUARTER_HALF + 4.0, QUARTER_HALF - 4.0)
+		var z: float = seeded.randf_range(-QUARTER_HALF + 4.0, QUARTER_HALF - 4.0)
+		if absf(x) < AVENUE_HALF + 12.0 and absf(z) < CROSS_Z + 6.0:
+			continue
+		var w: float = seeded.randf_range(7.0, 19.0)
+		var d: float = seeded.randf_range(7.0, 19.0)
+		var shade: Color = tint.lerp(LAWN, seeded.randf_range(-0.20, 0.50))
+		_batch.box(_tone(shade), Vector3(w, 0.06, d), _at(Vector3(x, 0.03, z)))
+	# And a scattering of bushes and stones, so the field has something on it.
+	for _i in 22:
+		var x: float = seeded.randf_range(-QUARTER_HALF + 3.0, QUARTER_HALF - 3.0)
+		var z: float = seeded.randf_range(-QUARTER_HALF + 3.0, QUARTER_HALF - 3.0)
+		if absf(x) < AVENUE_HALF + 14.0 and absf(z) < CROSS_Z + 8.0:
+			continue
+		if seeded.randf() < 0.65:
+			var r: float = seeded.randf_range(0.5, 1.0)
+			_batch.sphere(_tone(Color(0.26, 0.44, 0.25).lerp(LAWN, seeded.randf() * 0.5)),
+				r, _at(Vector3(x, r * 0.55, z)))
+		else:
+			var r2: float = seeded.randf_range(0.35, 0.7)
+			_batch.sphere(_tone(Color(0.58, 0.58, 0.55)), r2, _at(Vector3(x, r2 * 0.4, z)))
 
 
 ## The roads that run between quarters, so the grid reads as one city. Drawn
@@ -338,7 +370,7 @@ func _build_shops(district: Dictionary) -> void:
 	]
 	var shops := Catalog.shops_in(str(district["id"]))
 	for i in mini(shops.size(), slots.size()):
-		_build_shop(shops[i], slots[i], 0.0 if i % 2 == 0 else 3.2)
+		_build_shop(shops[i], slots[i], float(i % 3) * 2.6)
 	if shops.size() < slots.size() - 1:
 		_build_plaza(district, shops.size())
 
@@ -348,7 +380,10 @@ func _build_shop(shop: Dictionary, slot: Vector2, stagger: float) -> void:
 	var yaw: float = deg_to_rad(90.0 if slot.x < 0.0 else -90.0)
 	var world := _frame(Transform3D(Basis(Vector3.UP, yaw), Vector3(slot.x, 0, slot.y)))
 
-	var accent: Color = shop["color"]
+	# The shop's colour, knocked back for use on the building itself. At full
+	# strength a parade of ten of them reads as a row of neon, and the sign and
+	# the map pin carry the identity anyway.
+	var accent: Color = (shop["color"] as Color).lerp(Color(0.86, 0.85, 0.82), 0.26)
 	var wall := Color(0.88, 0.87, 0.85)
 	var dark := Color(0.22, 0.23, 0.27)
 	var glass := Color(0.55, 0.72, 0.82, 0.55)
@@ -358,13 +393,24 @@ func _build_shop(shop: Dictionary, slot: Vector2, stagger: float) -> void:
 	var height := 4.6
 
 	_batch.box(wall, Vector3(width, height, depth), world * Vector3(0, height * 0.5, -depth * 0.5), SceneryBatch.Layer.OPAQUE, world.basis)
-	# Parapet band in the shop's colour, which doubles as its roof from above.
-	_batch.box(accent, Vector3(width + 0.3, 0.8, depth + 0.3), world * Vector3(0, height + 0.2, -depth * 0.5), SceneryBatch.Layer.OPAQUE, world.basis)
-	# Shopfront glazing and door.
+	_roof_top(world, accent, width, depth, height)
+	# The fascia over the window, which is where a shop's colour belongs — on
+	# its front, where you read it from, and not spread over the whole roof.
+	_batch.box(accent, Vector3(width, 0.85, 0.22), world * Vector3(0, 4.0, 0.06), SceneryBatch.Layer.OPAQUE, world.basis)
+	_batch.box(accent.darkened(0.35), Vector3(width, 0.10, 0.26), world * Vector3(0, 3.55, 0.07), SceneryBatch.Layer.OPAQUE, world.basis)
+	# Shopfront glazing, mullions and door.
 	_batch.box(glass, Vector3(width - 1.2, 2.4, 0.12), world * Vector3(0, 1.5, 0.02), SceneryBatch.Layer.GLASS, world.basis)
+	for m in 3:
+		var mx: float = (float(m) - 1.0) * (width - 1.2) * 0.30
+		_batch.box(dark, Vector3(0.10, 2.4, 0.16), world * Vector3(mx, 1.5, 0.05), SceneryBatch.Layer.OPAQUE, world.basis)
+	_batch.box(dark, Vector3(width - 1.0, 0.14, 0.20), world * Vector3(0, 0.26, 0.04), SceneryBatch.Layer.OPAQUE, world.basis)
 	_batch.box(dark, Vector3(1.0, 2.2, 0.16), world * Vector3(width * 0.5 - 1.1, 1.1, 0.04), SceneryBatch.Layer.OPAQUE, world.basis)
-	# Awning.
-	_batch.box(accent, Vector3(width - 0.4, 0.16, 1.5), world * Vector3(0, 3.15, 0.7), SceneryBatch.Layer.OPAQUE, world.basis)
+	# A striped awning, hung on two stays.
+	for i in 5:
+		var stripe: Color = accent if i % 2 == 0 else Color(0.94, 0.93, 0.90)
+		_batch.box(stripe, Vector3((width - 0.4) / 5.0, 0.16, 1.5),
+			world * Vector3((float(i) - 2.0) * (width - 0.4) / 5.0, 3.15, 0.7),
+			SceneryBatch.Layer.OPAQUE, world.basis)
 	for sx in [-1.0, 1.0]:
 		_batch.box(dark, Vector3(0.1, 0.9, 0.1), world * Vector3(sx * (width * 0.5 - 0.5), 3.6, 1.3), SceneryBatch.Layer.OPAQUE, world.basis)
 	# Two planters by the door.
@@ -386,7 +432,7 @@ func _build_shop(shop: Dictionary, slot: Vector2, stagger: float) -> void:
 	sign.pixel_size = 0.00050
 	sign.fixed_size = true
 	sign.position = Vector3(0, height + 1.8 + stagger, -depth * 0.5)
-	sign.modulate = accent.lightened(0.5)
+	sign.modulate = (shop["color"] as Color).lightened(0.5)
 	sign.outline_size = 22
 	sign.outline_modulate = Color(0.05, 0.06, 0.09, 0.95)
 	sign.billboard = BaseMaterial3D.BILLBOARD_ENABLED
@@ -406,6 +452,48 @@ func _build_shop(shop: Dictionary, slot: Vector2, stagger: float) -> void:
 	shape.position = Vector3(0, (height + 1.0) * 0.5, -depth * 0.5 + 0.4)
 	body.add_child(shape)
 	holder.add_child(body)
+
+
+## What the map spends most of its time looking at. A shop's roof used to be one
+## slab in the shop's own colour, which from up here read as a sheet of paint
+## lying on the grass rather than as a building. It is a felted deck now, with
+## the colour kept to a band round the parapet and enough on top of it — a
+## plant room, vents, a rooflight, a run of ducting — to say this is a roof.
+func _roof_top(world: Transform3D, accent: Color, width: float, depth: float, height: float) -> void:
+	var b := world.basis
+	var middle := -depth * 0.5
+	var felt := _tone(Color(0.30, 0.31, 0.34))
+	var kit := _tone(Color(0.62, 0.63, 0.66))
+
+	_batch.box(felt, Vector3(width + 0.24, 0.30, depth + 0.24),
+		world * Vector3(0, height + 0.05, middle), SceneryBatch.Layer.OPAQUE, b)
+	# The parapet: four thin walls, the coloured band on the outside of them.
+	for sz in [-1.0, 1.0]:
+		_batch.box(accent, Vector3(width + 0.3, 0.5, 0.18),
+			world * Vector3(0, height + 0.42, middle + sz * (depth + 0.12) * 0.5),
+			SceneryBatch.Layer.OPAQUE, b)
+	for sx in [-1.0, 1.0]:
+		_batch.box(accent, Vector3(0.18, 0.5, depth + 0.3),
+			world * Vector3(sx * (width + 0.12) * 0.5, height + 0.42, middle),
+			SceneryBatch.Layer.OPAQUE, b)
+
+	# A plant room and its ducting, a rooflight, and a couple of vents.
+	_batch.box(kit, Vector3(1.7, 0.85, 1.3),
+		world * Vector3(-width * 0.22, height + 0.62, middle - depth * 0.22),
+		SceneryBatch.Layer.OPAQUE, b)
+	_batch.box(kit.darkened(0.2), Vector3(1.9, 0.14, 1.5),
+		world * Vector3(-width * 0.22, height + 1.08, middle - depth * 0.22),
+		SceneryBatch.Layer.OPAQUE, b)
+	_batch.box(kit.darkened(0.12), Vector3(0.34, 0.34, depth * 0.42),
+		world * Vector3(-width * 0.22, height + 0.38, middle + depth * 0.10),
+		SceneryBatch.Layer.OPAQUE, b)
+	_batch.box(_tone(Color(0.62, 0.78, 0.86, 0.7)), Vector3(1.5, 0.16, 1.2),
+		world * Vector3(width * 0.24, height + 0.30, middle + depth * 0.14),
+		SceneryBatch.Layer.GLASS, b)
+	for i in 2:
+		_batch.cylinder(kit, 0.22, 0.55,
+			world * Vector3(width * 0.28, height + 0.48, middle - depth * (0.18 + float(i) * 0.16)),
+			SceneryBatch.Layer.SHINY, 10, b)
 
 
 # -------------------------------------------------------------------- plaza
@@ -453,9 +541,10 @@ func _build_plaza(district: Dictionary, taken: int) -> void:
 func _build_houses(district: Dictionary) -> void:
 	var houses := Jobs.houses_in(str(district["id"]))
 	for i in houses.size():
-		# Neighbours get their name plates at different heights so the labels
-		# do not stack on top of each other from map height.
-		_build_house(houses[i], 0.0 if i % 2 == 0 else 2.6, district)
+		# Neighbours get their name plates at three different heights so the
+		# labels do not stack on top of each other from map height. Two was not
+		# enough: a plate still landed on its neighbour's neighbour.
+		_build_house(houses[i], float(i % 3) * 2.4, district)
 
 
 func _build_house(job: Dictionary, stagger: float, district: Dictionary) -> void:
@@ -535,8 +624,9 @@ func _terrace_house(job: Dictionary, style: Dictionary, world: Transform3D) -> v
 	# Walls, floor band and roof.
 	_batch.box(body_color, size, world * Vector3(0, size.y * 0.5 + 0.1, 0), SceneryBatch.Layer.OPAQUE, b)
 	_batch.box(trim, Vector3(size.x + 0.3, 0.3, size.z + 0.3), world * Vector3(0, 0.25, 0), SceneryBatch.Layer.OPAQUE, b)
-	_batch.prism(roof_color, Vector3(size.x + 0.7, 1.9, size.z + 0.7), world * Vector3(0, size.y + 1.05, 0), SceneryBatch.Layer.OPAQUE, b)
+	_pitched_roof(world, roof_color, size, 1.9)
 	_batch.box(roof_color.darkened(0.35), Vector3(0.7, 1.5, 0.7), world * Vector3(size.x * 0.28, size.y + 1.4, -size.z * 0.22), SceneryBatch.Layer.OPAQUE, b)
+	_batch.box(trim.darkened(0.10), Vector3(0.78, 0.22, 0.78), world * Vector3(size.x * 0.28, size.y + 2.2, -size.z * 0.22), SceneryBatch.Layer.OPAQUE, b)
 
 	# Front door and windows.
 	var front := size.z * 0.5 + 0.06
@@ -557,6 +647,38 @@ func _terrace_house(job: Dictionary, style: Dictionary, world: Transform3D) -> v
 	var hedge_side: float = -1.0 if int(str(job["id"]).hash()) % 2 == 0 else 1.0
 	_batch.box(_tone(Color(0.26, 0.46, 0.26)), Vector3(0.6, 0.9, size.z + 2.0), world * Vector3(hedge_side * (size.x * 0.5 + 1.4), 0.5, 0), SceneryBatch.Layer.OPAQUE, b)
 	_batch.cylinder(_tone(Color(0.30, 0.34, 0.38)), 0.34, 0.9, world * Vector3(-hedge_side * (size.x * 0.5 + 1.0), 0.5, size.z * 0.4), SceneryBatch.Layer.OPAQUE, 10, b)
+
+
+## A pitched roof, which from map height is most of what a house is. A bare
+## prism reads as a coloured wedge, so this one gets the things that say tile:
+## courses running up each slope, a ridge cap along the top and barge boards
+## down the ends.
+func _pitched_roof(world: Transform3D, roof_color: Color, size: Vector3, rise: float) -> void:
+	var b := world.basis
+	var span := size.z + 0.7
+	var top := size.y + 0.1
+	_batch.prism(roof_color, Vector3(size.x + 0.7, rise, span),
+		world * Vector3(0, top + rise * 0.5, 0), SceneryBatch.Layer.OPAQUE, b)
+
+	# Four courses up each slope, each one sitting proud of the one below it.
+	var pitch := atan2(rise, span * 0.5)
+	for sz in [-1.0, 1.0]:
+		for i in 4:
+			var along: float = (float(i) + 0.5) / 4.0
+			var z: float = sz * span * 0.5 * (1.0 - along)
+			var y: float = top + rise * along
+			_batch.box(roof_color.darkened(0.13 if i % 2 == 0 else 0.04),
+				Vector3(size.x + 0.74, 0.07, 0.16),
+				world * Vector3(0, y - 0.02, z),
+				SceneryBatch.Layer.OPAQUE,
+				b * Basis(Vector3.RIGHT, sz * pitch))
+	# The ridge, and a board down each gable end.
+	_batch.box(roof_color.darkened(0.22), Vector3(size.x + 0.86, 0.17, 0.24),
+		world * Vector3(0, top + rise, 0), SceneryBatch.Layer.OPAQUE, b)
+	for sx in [-1.0, 1.0]:
+		_batch.prism(roof_color.darkened(0.28), Vector3(0.16, rise, span),
+			world * Vector3(sx * (size.x + 0.7) * 0.5, top + rise * 0.5, 0),
+			SceneryBatch.Layer.OPAQUE, b)
 
 
 ## Hanami Ward. A townhouse under a broad tiled roof: shallow pitch, eaves that

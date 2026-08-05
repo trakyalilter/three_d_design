@@ -112,6 +112,18 @@ MultiMeshes — nine draw calls and about half a millisecond of transform writes
 against five hundred nodes each with its own script. The static city is still welded into
 three meshes underneath; this is the layer that moves over the top.
 
+A map is looked at from above, so what it is mostly made of is roofs and grass, and both of
+those used to be flat colour. A shop's roof was one slab in the shop's own colour, which
+from map height read as a sheet of paint lying on the ground rather than as a building; it
+is a felted deck now, with a plant room, ducting, a rooflight and vents on it, and the shop's
+colour kept to a band round the parapet and the fascia over the window, where you read it
+from. The colour is knocked back a quarter on the building too — ten shops at full strength
+was a row of neon, and the sign and the map pin carry the identity anyway. House roofs get
+what says tile from above: courses up each slope, a ridge along the top and barge boards down
+the gable ends. And the field the whole quarter stands on is mown in patches, seeded off the
+quarter's own position so it looks the same every time it is built, with bushes and stones
+scattered over the parts nothing else uses.
+
 ### Whole floors
 
 Most jobs are one room. Seventeen of them are a whole floor — two to five rooms with walls and
