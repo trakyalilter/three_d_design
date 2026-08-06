@@ -61,6 +61,7 @@ func _ready() -> void:
 	await _check_estate()
 
 	print("=== catalogue ===")
+	_check_winding()
 	_check_catalogue()
 
 	print("=== floor plans ===")
@@ -906,6 +907,62 @@ func _biggest_finished_house() -> String:
 			best_area = area
 			best = house_id
 	return best
+
+
+## Which way round the triangles face. Godot winds a front face clockwise seen
+## from outside, and a piece wound the other way is drawn inside out: the
+## renderer culls the surface you are looking at and you see the back of the far
+## wall instead, so a solid chest of drawers comes out looking like an open
+## crate. It is invisible on anything with no cavity in it, which is why it went
+## unnoticed across a whole release — so it is measured here rather than looked
+## at.
+func _check_winding() -> void:
+	var inside_out := 0
+	var worst := ""
+	for id in Catalog.ids():
+		var built: Dictionary = MeshBuilder.build(id, Catalog.get_item(id)["parts"])
+		var wrong := _facing_the_wrong_way(built["mesh"] as ArrayMesh)
+		if wrong > 0:
+			inside_out += 1
+			worst = id
+	_expect(inside_out == 0,
+		"%d pieces are wound inside out, %s among them" % [inside_out, worst])
+
+	# And the rule itself is checked against Godot's own meshes, so this cannot
+	# quietly agree with a mistake.
+	var reference := BoxMesh.new()
+	reference.size = Vector3.ONE
+	var mesh := ArrayMesh.new()
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, reference.surface_get_arrays(0))
+	_expect(_facing_the_wrong_way(mesh) == 0,
+		"the winding rule disagrees with Godot's own BoxMesh, so it is the rule that is wrong")
+	print("winding         %d pieces, every triangle facing out" % Catalog.ids().size())
+
+
+## Triangles whose winding disagrees with the normal they carry.
+func _facing_the_wrong_way(mesh: ArrayMesh) -> int:
+	var wrong := 0
+	for s in mesh.get_surface_count():
+		var arrays := mesh.surface_get_arrays(s)
+		var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		var norms: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+		var index: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+		if index.is_empty():
+			for i in verts.size():
+				index.append(i)
+		for t in index.size() / 3:
+			var ia := index[t * 3]
+			var ib := index[t * 3 + 1]
+			var ic := index[t * 3 + 2]
+			var face := (verts[ib] - verts[ia]).cross(verts[ic] - verts[ia])
+			if face.length_squared() < 1e-12:
+				continue
+			var carried: Vector3 = norms[ia] + norms[ib] + norms[ic]
+			if carried.length_squared() < 1e-12:
+				continue
+			if face.normalized().dot(carried.normalized()) > 0.2:
+				wrong += 1
+	return wrong
 
 
 # ---------------------------------------------------------------- catalogue

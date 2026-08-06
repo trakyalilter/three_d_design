@@ -43,8 +43,8 @@ static func box(size: Vector3, bevel: float = DEFAULT_BEVEL, soft: bool = false,
 	var tool := SurfaceTool.new()
 	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
 
-	# The six faces, each inset by the chamfer. Taking the two other axes in
-	# cyclic order makes the corners come out wound anticlockwise from outside.
+	# The six faces, each inset by the chamfer. The corners are taken in cyclic
+	# order and _quad turns them the right way round.
 	for axis in 3:
 		var i := (axis + 1) % 3
 		var j := (axis + 2) % 3
@@ -126,12 +126,18 @@ static func sphere(size: Vector3) -> Mesh:
 # ------------------------------------------------------------------ the welding
 
 ## One quad, wound so it faces `out` whichever order the corners arrived in.
+##
+## Godot winds a front face *clockwise* seen from outside — its own BoxMesh and
+## CylinderMesh both do — so that is the way round this has to be. Wound the
+## other way the renderer culls the face you are looking at and you see the
+## inside of the far wall instead, which makes a solid piece of furniture look
+## like an empty shell.
 static func _quad(tool: SurfaceTool, points: Array[Vector3], out: Vector3,
 		a: Vector3, h: Vector3, soft: bool, taper: Vector2, tall: float) -> void:
 	var p: Array[Vector3] = []
 	for point in points:
 		p.append(_pull(point, taper, h.y, tall))
-	if (p[1] - p[0]).cross(p[2] - p[0]).dot(out) < 0.0:
+	if (p[1] - p[0]).cross(p[2] - p[0]).dot(out) > 0.0:
 		p.reverse()
 		points = points.duplicate()
 		points.reverse()
@@ -148,7 +154,7 @@ static func _tri(tool: SurfaceTool, points: Array[Vector3], out: Vector3,
 	var p: Array[Vector3] = []
 	for point in points:
 		p.append(_pull(point, taper, h.y, tall))
-	if (p[1] - p[0]).cross(p[2] - p[0]).dot(out) < 0.0:
+	if (p[1] - p[0]).cross(p[2] - p[0]).dot(out) > 0.0:
 		p.reverse()
 		points = points.duplicate()
 		points.reverse()
