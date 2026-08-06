@@ -1240,6 +1240,7 @@ func _add(def: Dictionary) -> void:
 	assert(not _items.has(def["id"]),
 		"catalogue already has a piece called '%s'" % def["id"])
 	def["extents"] = _measure(def["parts"])
+	def["does"] = _traits_for(def)
 	def["level"] = def.get("level", 1)
 	def["price"] = def.get("price", 100)
 	def["shop"] = str(def.get("shop", _shop_for_category(def["category"])))
@@ -1383,6 +1384,93 @@ func shop_district(shop_id: String) -> String:
 
 func district_of(id: String) -> String:
 	return shop_district(shop_of(id))
+
+
+# ---------------------------------------------------------------- what it does
+
+## What a piece is *for*, as against what it is called.
+##
+## A brief that names products is a shopping list, and following a shopping
+## list is not designing. A brief that asks for somewhere to sit, somewhere to
+## put a lamp and somewhere to put the books is a problem, and the catalogue is
+## how you solve it. These are the terms that problem is written in.
+##
+## Worked out from what is already known about a piece — its category, whether
+## anything can stand on it, and what it is called — with a table below for the
+## ones no rule would get right.
+const TRAITS: Array[String] = [
+	"seats", "sleeps", "surfaces", "storage", "lights", "greenery",
+]
+
+## Pieces the rules read wrong, and what they actually do. Anything not here is
+## inferred; anything here is taken at its word.
+const TRAIT_OVERRIDES := {
+	"sofa": {"seats": 3}, "designer_sofa": {"seats": 3}, "corner_sofa": {"seats": 5},
+	"loveseat": {"seats": 2}, "gallery_sofa": {"seats": 3},
+	"window_seat": {"seats": 2}, "dining_bench": {"seats": 2},
+	"bench_long": {"seats": 3}, "garden_bench": {"seats": 2},
+	"chaise": {"seats": 1}, "net_hammock": {"seats": 1, "sleeps": 1},
+	"bunk_bed": {"sleeps": 2}, "bed_double": {"sleeps": 2}, "king_bed": {"sleeps": 2},
+	"futon_roll": {"sleeps": 1}, "coffin_bed": {"sleeps": 1},
+	"footstool": {"seats": 1}, "zabuton": {"seats": 1}, "ottoman": {"seats": 1},
+	"toy_chest": {"storage": 1}, "steamer_trunk": {"storage": 2},
+	"blanket_box": {"storage": 1}, "laundry_basket": {"storage": 1},
+	"tansu": {"storage": 3}, "kiri_chest": {"storage": 3},
+	"rope_light": {"lights": 1}, "light_column": {"lights": 1},
+	"smart_panel": {"lights": 1}, "night_light": {"lights": 1},
+	"ikebana": {"greenery": 1}, "bonsai": {"greenery": 1},
+	"four_poster": {"sleeps": 2}, "rope_swing": {"seats": 1},
+	"hat_stand": {"storage": 1}, "umbrella_stand": {"storage": 1},
+	# A workbench is not seating and a bedside shelf is not a bed, whatever
+	# their names have in them.
+	"workbench": {"seats": 0}, "bedside_shelf": {"sleeps": 0},
+}
+
+## Words that give a piece away when its category does not.
+const TRAIT_WORDS := {
+	"lights": ["lamp", "lantern", "light", "uplighter", "pendant", "chandelier",
+		"sconce", "candle", "candelabra"],
+	"greenery": ["plant", "fern", "planter", "herb", "flower", "bonsai", "ikebana", "potting"],
+	"storage": ["wardrobe", "shelf", "shelving", "cabinet", "chest", "dresser", "drawer",
+		"cupboard", "sideboard", "trunk", "rack", "box", "case", "locker", "pantry"],
+	"seats": ["chair", "stool", "seat", "sofa", "settee", "bench", "recliner", "pew"],
+	"sleeps": ["bed", "cot", "crib", "futon", "hammock"],
+}
+
+
+## What this piece contributes towards one of the terms above.
+func does(id: String, trait_name: String) -> int:
+	var def: Dictionary = _items.get(id, {})
+	if def.is_empty():
+		return 0
+	return int((def.get("does", {}) as Dictionary).get(trait_name, 0))
+
+
+## Everything a piece does, worked out once when it is added to the catalogue.
+func _traits_for(def: Dictionary) -> Dictionary:
+	var id := str(def["id"])
+	var name := str(def.get("name", "")).to_lower()
+	var category := str(def.get("category", ""))
+	var out: Dictionary = {}
+
+	# Anything with a usable top is somewhere to put something down, which is
+	# what half the briefs in the game are really asking for.
+	if float(def.get("surface", 0.0)) > 0.0:
+		out["surfaces"] = 1
+
+	for trait_name: String in TRAIT_WORDS:
+		for word: String in TRAIT_WORDS[trait_name]:
+			if name.contains(word):
+				out[trait_name] = maxi(int(out.get(trait_name, 0)), 1)
+				break
+
+	# A storage piece is storage whatever it is called.
+	if category == "Storage":
+		out["storage"] = maxi(int(out.get("storage", 0)), 1)
+
+	for trait_name: String in TRAIT_OVERRIDES.get(id, {}):
+		out[trait_name] = int(TRAIT_OVERRIDES[id][trait_name])
+	return out
 
 
 # ------------------------------------------------------------------- the look

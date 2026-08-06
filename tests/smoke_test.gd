@@ -1202,6 +1202,18 @@ static func _same_color(a: Color, b: Color) -> bool:
 
 
 ## Whether the brief's line for `item_id` in `scope` currently reads as met.
+## Whether a line pinned to a room is ticked — by its kind, since most lines
+## ask for what a room has to do rather than for a named piece.
+func _room_line_met(house_id: String, designer, kind: String, scope: String) -> bool:
+	var job := Jobs.get_job(house_id)
+	var index := 0
+	for req: Dictionary in job["requirements"]:
+		if str(req.get("type", "")) == kind and str(req.get("room", "")) == scope:
+			return bool(Jobs.evaluate(house_id, designer._context())[index]["met"])
+		index += 1
+	return false
+
+
 func _line_met(house_id: String, designer, item_id: String, scope: String) -> bool:
 	var job := Jobs.get_job(house_id)
 	var index := 0
@@ -1580,34 +1592,74 @@ func _unmet(results: Array[Dictionary]) -> String:
 ## Satisfies a brief as plainly as possible, out of stock. Lines pinned to a
 ## room of a flat are placed in that room.
 func _furnish(designer, job: Dictionary) -> void:
+	# The inflexible lines first — a named piece and a painted wall have one
+	# answer each, and a room filled with cushions has nowhere left to put the
+	# sink. Then the open asks, with whatever is left.
+	for pass_named in [true, false]:
+		for req: Dictionary in job["requirements"]:
+			var scope := str(req.get("room", ""))
+			var kind := str(req["type"])
+			# A named piece and a painted wall have one answer each; a capability
+			# and a "buy from N shops" line have many. The rigid ones go down
+			# first or there is nowhere left to put the sink.
+			var rigid: bool = kind == "item" or kind.ends_with("_color")
+			if Catalog.TRAITS.has(kind) or rigid != pass_named:
+				continue
+			match kind:
+				"item":
+					for i in int(req.get("count", 1)):
+						_place(designer, str(req["id"]), scope)
+				"category":
+					for i in int(req.get("count", 1)):
+						var pick := _cheapest_owned_in(str(req["category"]))
+						if pick != "":
+							_place(designer, pick, scope)
+				"categories":
+					var used := 0
+					for category in Catalog.CATEGORIES:
+						if used >= int(req["count"]):
+							break
+						var id := _cheapest_owned_in(category)
+						if id != "":
+							_place(designer, id, scope)
+							used += 1
+				"floor_color":
+					designer._on_paint_target(scope)
+					designer._on_floor_paint(_owned_paint("floor", req["names"]))
+					designer._on_paint_target("")
+				"wall_color":
+					designer._on_paint_target(scope)
+					designer._on_wall_paint(_owned_paint("wall", req["names"]))
+					designer._on_paint_target("")
+
+	# What each room has to be able to do, answered a room at a time and not a
+	# line at a time — the same way Jobs plans the basket. A study wanting three
+	# surfaces and three places to put things away wants three bookshelves, and
+	# taking them one line at a time fills it with six pieces that do not fit.
+	var wants: Dictionary = {}
 	for req: Dictionary in job["requirements"]:
+		var kind := str(req["type"])
+		if not Catalog.TRAITS.has(kind):
+			continue
 		var scope := str(req.get("room", ""))
-		match str(req["type"]):
-			"item":
-				for i in int(req.get("count", 1)):
-					_place(designer, str(req["id"]), scope)
-			"category":
-				for i in int(req.get("count", 1)):
-					var pick := _cheapest_owned_in(str(req["category"]))
-					if pick != "":
-						_place(designer, pick, scope)
-			"categories":
-				var used := 0
-				for category in Catalog.CATEGORIES:
-					if used >= int(req["count"]):
-						break
-					var id := _cheapest_owned_in(category)
-					if id != "":
-						_place(designer, id, scope)
-						used += 1
-			"floor_color":
-				designer._on_paint_target(scope)
-				designer._on_floor_paint(_owned_paint("floor", req["names"]))
-				designer._on_paint_target("")
-			"wall_color":
-				designer._on_paint_target(scope)
-				designer._on_wall_paint(_owned_paint("wall", req["names"]))
-				designer._on_paint_target("")
+		if not wants.has(scope):
+			wants[scope] = {}
+		var room: Dictionary = wants[scope]
+		room[kind] = int(room.get(kind, 0)) + int(req.get("count", 1))
+
+	for scope: String in wants:
+		var guard := 0
+		while _still_wanting(designer, wants[scope], scope) and guard < 30:
+			var left := _what_is_left(designer, wants[scope], scope)
+			var pick := _owned_that_covers(left)
+			if pick == "":
+				break
+			var before := _covered(designer, wants[scope], scope)
+			_place(designer, pick, scope)
+			# A piece that did not land would otherwise be tried thirty times.
+			if _covered(designer, wants[scope], scope) == before:
+				break
+			guard += 1
 
 	# Room-by-room piece counts have to be topped up room by room.
 	for req: Dictionary in job["requirements"]:
@@ -1657,6 +1709,61 @@ func _place(designer, item_id: String, scope: String) -> void:
 	# Nowhere clear: leave it in the right room and let the overlap check speak.
 	var middle := rect.position + rect.size * 0.5
 	item.global_position = designer._clamp_to_room(item, Vector3(middle.x, 0.0, middle.y))
+
+
+## How much of one capability the room has so far, in a given scope.
+func _does_in(designer, kind: String, scope: String) -> int:
+	var total := 0
+	for item in designer._items():
+		if scope != "" and designer.room.room_id_at(item.footprint_center()) != scope:
+			continue
+		total += Catalog.does(item.item_id, kind)
+	return total
+
+
+## What a room still needs, trait by trait.
+func _what_is_left(designer, wanted: Dictionary, scope: String) -> Dictionary:
+	var left: Dictionary = {}
+	for kind: String in wanted:
+		left[kind] = maxi(int(wanted[kind]) - _does_in(designer, kind, scope), 0)
+	return left
+
+
+func _still_wanting(designer, wanted: Dictionary, scope: String) -> bool:
+	for kind: String in wanted:
+		if _does_in(designer, kind, scope) < int(wanted[kind]):
+			return true
+	return false
+
+
+## How much of what the room wants it already does, all traits together.
+func _covered(designer, wanted: Dictionary, scope: String) -> int:
+	var total := 0
+	for kind: String in wanted:
+		total += mini(_does_in(designer, kind, scope), int(wanted[kind]))
+	return total
+
+
+## The piece in stock that covers the most of what is left. A bookshelf is a
+## surface *and* somewhere to put things away, so it answers two lines with one
+## piece and leaves floor for the rest.
+func _owned_that_covers(left: Dictionary) -> String:
+	var best := ""
+	var best_cover := 0
+	var best_price := 1 << 30
+	for id in Catalog.ids():
+		if Game.stock_of(id) <= 0:
+			continue
+		var cover := 0
+		for kind: String in left:
+			cover += mini(Catalog.does(id, kind), int(left[kind]))
+		if cover <= 0:
+			continue
+		if cover > best_cover or (cover == best_cover and Catalog.price(id) < best_price):
+			best_cover = cover
+			best_price = Catalog.price(id)
+			best = id
+	return best
 
 
 func _cheapest_owned_in(category: String) -> String:

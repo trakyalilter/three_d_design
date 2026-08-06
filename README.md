@@ -271,6 +271,40 @@ rest of the session. It works through a tab one piece per frame in the backgroun
 first look at a category fills in over about a quarter of a second instead of stalling on
 twenty renders at once.
 
+### A brief is a problem, not a docket
+
+A brief used to name products. Seventy per cent of every line in the game was
+*"Fit 4 × Tatami Mat"* — you flew to five shops, tapped seventeen Buy buttons and put
+seventeen things down, and the only decisions left were where each one went and what colour
+to tint it. That is a courier's job, and it wasted a 167-piece catalogue as a lookup table.
+
+Most lines now say what the room has to be able to **do**:
+
+| | |
+|---|---|
+| Seating for four | Anything anyone can sit on, in any combination |
+| Somewhere to sleep | A bed, a bunk, a futon, a hammock |
+| Two surfaces to put things down on | Anything with a usable top |
+| Somewhere to put things away | Storage of any kind |
+| A light to read by | Any lamp, lantern or fitting |
+| Something green | Anything that grows |
+
+What a piece does is worked out from what was already known about it — its category,
+whether anything can stand on it, and what it is called — with a table for the ones no rule
+would get right. A bookshelf is a surface **and** somewhere to put things away, so it answers
+two lines with one piece; a corner sofa seats five where a chair seats one.
+
+Some things are still named, because there is no creative substitute for them: plumbing,
+white goods, a television, a particular rug. Thirty-nine of the fifty-six houses ask for what
+they need; the seventeen whole-floor jobs still name their pieces room by room, and that is
+the next thing to convert.
+
+The brief sheet still offers a shopping list, but it is now a **suggestion** rather than the
+answer. It works a room at a time and picks whatever covers the most of what is still
+missing, cheapest of equals — which is how it lands on three bookshelves for a study rather
+than three side tables and three laundry baskets. Ignore it and buy something else; the room
+is judged on what it does, not on what you bought.
+
 ### The verdict
 
 The brief only says what has to be *in* the room. The stars say whether it is any good.

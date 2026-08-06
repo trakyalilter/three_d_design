@@ -103,8 +103,8 @@ const HOUSES: Array[Dictionary] = [
 		"map": {"pos": Vector2(-34, -27), "rot": 0.0},
 		"style": {"body": Color(0.86, 0.80, 0.68), "roof": Color(0.52, 0.30, 0.26), "size": Vector3(5.5, 3.0, 5.5)},
 		"requirements": [
-			{"type": "item", "id": "bed_single", "count": 1},
-			{"type": "item", "id": "nightstand", "count": 1},
+			{"type": "sleeps", "count": 1},
+			{"type": "surfaces", "count": 1},
 			{"type": "total", "count": 5},
 			{"type": "no_overlap"},
 		],
@@ -124,8 +124,8 @@ const HOUSES: Array[Dictionary] = [
 		"map": {"pos": Vector2(-22, -27), "rot": 0.0},
 		"style": {"body": Color(0.74, 0.80, 0.84), "roof": Color(0.30, 0.36, 0.44), "size": Vector3(6.5, 3.2, 6.0)},
 		"requirements": [
-			{"type": "item", "id": "sofa", "count": 1},
-			{"type": "item", "id": "coffee_table", "count": 1},
+			{"type": "seats", "count": 2},
+			{"type": "surfaces", "count": 1},
 			{"type": "category", "category": "Decor", "count": 2},
 			{"type": "total", "count": 6},
 			{"type": "no_overlap"},
@@ -146,9 +146,10 @@ const HOUSES: Array[Dictionary] = [
 		"map": {"pos": Vector2(-10, -27), "rot": 0.0},
 		"style": {"body": Color(0.80, 0.84, 0.74), "roof": Color(0.42, 0.36, 0.28), "size": Vector3(6.0, 3.0, 5.5)},
 		"requirements": [
-			{"type": "item", "id": "bookshelf", "count": 2},
-			{"type": "item", "id": "armchair", "count": 1},
-			{"type": "item", "id": "floor_lamp", "count": 1},
+			{"type": "seats", "count": 1},
+			{"type": "surfaces", "count": 1},
+			{"type": "storage", "count": 1},
+			{"type": "lights", "count": 1},
 			{"type": "wall_color", "names": ["Sage", "Linen"]},
 			{"type": "no_overlap"},
 		],
@@ -212,11 +213,9 @@ const HOUSES: Array[Dictionary] = [
 		"map": {"pos": Vector2(34, -27), "rot": 0.0},
 		"style": {"body": Color(0.82, 0.70, 0.72), "roof": Color(0.44, 0.26, 0.32), "size": Vector3(6.5, 3.4, 6.0)},
 		"requirements": [
-			{"type": "item", "id": "bed_double", "count": 1},
-			{"type": "item", "id": "wardrobe", "count": 1},
-			{"type": "item", "id": "nightstand", "count": 2},
-			{"type": "item", "id": "dresser", "count": 1},
-			{"type": "item", "id": "blanket_box", "count": 1},
+			{"type": "sleeps", "count": 2},
+			{"type": "surfaces", "count": 2},
+			{"type": "storage", "count": 2},
 			{"type": "total", "count": 8},
 			{"type": "no_overlap"},
 		],
@@ -236,11 +235,9 @@ const HOUSES: Array[Dictionary] = [
 		"map": {"pos": Vector2(-34, 27), "rot": 180.0},
 		"style": {"body": Color(0.70, 0.66, 0.62), "roof": Color(0.28, 0.28, 0.32), "size": Vector3(7.5, 4.2, 6.5)},
 		"requirements": [
-			{"type": "item", "id": "sofa", "count": 1},
+			{"type": "seats", "count": 5},
+			{"type": "surfaces", "count": 1},
 			{"type": "item", "id": "television", "count": 1},
-			{"type": "item", "id": "dining_table", "count": 1},
-			{"type": "item", "id": "chair", "count": 4},
-			{"type": "item", "id": "chaise", "count": 1},
 			{"type": "categories", "count": 4},
 			{"type": "total", "count": 14},
 			{"type": "no_overlap"},
@@ -286,8 +283,8 @@ const HOUSES: Array[Dictionary] = [
 		"map": {"pos": Vector2(-10, 27), "rot": 180.0},
 		"style": {"body": Color(0.64, 0.68, 0.76), "roof": Color(0.22, 0.26, 0.34), "size": Vector3(8.0, 5.4, 6.5)},
 		"requirements": [
-			{"type": "item", "id": "bed_double", "count": 1},
-			{"type": "item", "id": "sofa", "count": 1},
+			{"type": "seats", "count": 2},
+			{"type": "sleeps", "count": 2},
 			{"type": "item", "id": "fridge", "count": 1},
 			{"type": "item", "id": "toilet", "count": 1},
 			{"type": "item", "id": "kitchen_trolley", "count": 1},
@@ -312,13 +309,14 @@ const HOUSES: Array[Dictionary] = [
 		"map": {"pos": Vector2(10, 27), "rot": 180.0},
 		"style": {"body": Color(0.90, 0.86, 0.76), "roof": Color(0.48, 0.22, 0.20), "size": Vector3(8.5, 6.0, 7.0)},
 		"requirements": [
+			{"type": "sleeps", "count": 1},
+			{"type": "surfaces", "count": 1},
+			{"type": "storage", "count": 1},
 			{"type": "categories", "count": 6},
 			{"type": "total", "count": 24},
 			{"type": "item", "id": "bathtub", "count": 1},
 			{"type": "item", "id": "stove", "count": 1},
-			{"type": "item", "id": "bed_king", "count": 1},
 			{"type": "item", "id": "range_hood", "count": 1},
-			{"type": "item", "id": "ladder_shelf", "count": 1},
 			{"type": "wall_color", "names": ["Harbour", "Storm", "Ink", "Blush"]},
 			{"type": "no_overlap"},
 		],
@@ -340,12 +338,12 @@ const HOUSES: Array[Dictionary] = [
 		"map": {"pos": Vector2(-22, -27), "rot": 0.0},
 		"style": {"body": Color(0.72, 0.66, 0.58), "roof": Color(0.34, 0.32, 0.30), "size": Vector3(7.5, 4.6, 6.5)},
 		"requirements": [
-			{"type": "item", "id": "bed_double", "count": 1},
-			{"type": "item", "id": "desk", "count": 1},
+			{"type": "sleeps", "count": 2},
+			{"type": "surfaces", "count": 1},
+			{"type": "storage", "count": 1},
 			{"type": "item", "id": "computer", "count": 1},
 			{"type": "item", "id": "counter", "count": 1},
 			{"type": "item", "id": "sail_screen", "count": 1, "label": "Split the room with a sail screen"},
-			{"type": "item", "id": "crate_shelf", "count": 1},
 			{"type": "categories", "count": 5},
 			{"type": "total", "count": 14},
 			{"type": "no_overlap"},
@@ -366,13 +364,13 @@ const HOUSES: Array[Dictionary] = [
 		"map": {"pos": Vector2(22, -27), "rot": 0.0},
 		"style": {"body": Color(0.84, 0.78, 0.64), "roof": Color(0.40, 0.34, 0.30), "size": Vector3(7.0, 3.8, 6.0)},
 		"requirements": [
-			{"type": "item", "id": "kitchen_island", "count": 1},
+			{"type": "surfaces", "count": 1},
+			{"type": "storage", "count": 1},
 			{"type": "item", "id": "dishwasher", "count": 1},
 			{"type": "item", "id": "pantry", "count": 1},
 			{"type": "item", "id": "stove", "count": 1},
 			{"type": "item", "id": "fridge", "count": 1},
 			{"type": "item", "id": "counter", "count": 2},
-			{"type": "item", "id": "workbench", "count": 1},
 			{"type": "item", "id": "cask_stand", "count": 1},
 			{"type": "item", "id": "galley_shelf", "count": 1},
 			{"type": "floor_color", "names": ["Concrete", "Slate", "Chalk"]},
@@ -394,13 +392,11 @@ const HOUSES: Array[Dictionary] = [
 		"map": {"pos": Vector2(-22, 27), "rot": 180.0},
 		"style": {"body": Color(0.56, 0.60, 0.66), "roof": Color(0.24, 0.26, 0.32), "size": Vector3(7.0, 4.2, 6.5)},
 		"requirements": [
+			{"type": "seats", "count": 3},
+			{"type": "lights", "count": 2},
 			{"type": "item", "id": "tv_large", "count": 1},
 			{"type": "item", "id": "speaker_tower", "count": 2},
 			{"type": "item", "id": "soundbar", "count": 1},
-			{"type": "item", "id": "sofa", "count": 1},
-			{"type": "item", "id": "recliner", "count": 2},
-			{"type": "item", "id": "rope_light", "count": 2},
-			{"type": "item", "id": "lantern", "count": 2},
 			{"type": "wall_color", "names": ["Ink", "Storm", "Harbour"]},
 			{"type": "total", "count": 12},
 			{"type": "no_overlap"},
@@ -421,16 +417,13 @@ const HOUSES: Array[Dictionary] = [
 		"map": {"pos": Vector2(22, 27), "rot": 180.0},
 		"style": {"body": Color(0.68, 0.74, 0.78), "roof": Color(0.28, 0.34, 0.40), "size": Vector3(6.5, 4.0, 6.0)},
 		"requirements": [
-			{"type": "item", "id": "desk", "count": 1},
+			{"type": "seats", "count": 1},
+			{"type": "surfaces", "count": 3},
+			{"type": "storage", "count": 3},
 			{"type": "item", "id": "computer", "count": 1},
 			{"type": "item", "id": "printer", "count": 1},
-			{"type": "item", "id": "bookshelf", "count": 2},
-			{"type": "item", "id": "display_cabinet", "count": 1},
 			{"type": "item", "id": "porthole_mirror", "count": 1},
-			{"type": "item", "id": "steamer_trunk", "count": 1},
 			{"type": "item", "id": "signal_flags", "count": 1},
-			{"type": "item", "id": "filing_cabinet", "count": 2},
-			{"type": "item", "id": "chair", "count": 1},
 			{"type": "categories", "count": 4},
 			{"type": "total", "count": 12},
 			{"type": "no_overlap"},
@@ -453,14 +446,10 @@ const HOUSES: Array[Dictionary] = [
 		"map": {"pos": Vector2(-22, -27), "rot": 0.0},
 		"style": {"body": Color(0.88, 0.78, 0.62), "roof": Color(0.50, 0.30, 0.24), "size": Vector3(7.5, 4.0, 6.5)},
 		"requirements": [
-			{"type": "item", "id": "sofa", "count": 1},
-			{"type": "item", "id": "loveseat", "count": 1},
-			{"type": "item", "id": "armchair", "count": 2},
+			{"type": "seats", "count": 5},
+			{"type": "surfaces", "count": 1},
 			{"type": "item", "id": "television", "count": 1},
-			{"type": "item", "id": "tv_stand", "count": 1},
 			{"type": "item", "id": "rug", "count": 1},
-			{"type": "item", "id": "ottoman", "count": 1},
-			{"type": "item", "id": "rocking_chair", "count": 1},
 			{"type": "item", "id": "play_mat", "count": 1},
 			{"type": "item", "id": "fireside_set", "count": 1},
 			{"type": "categories", "count": 5},
@@ -483,15 +472,11 @@ const HOUSES: Array[Dictionary] = [
 		"map": {"pos": Vector2(22, -27), "rot": 0.0},
 		"style": {"body": Color(0.90, 0.84, 0.86), "roof": Color(0.46, 0.32, 0.42), "size": Vector3(6.0, 3.6, 5.5)},
 		"requirements": [
-			{"type": "item", "id": "crib", "count": 1},
-			{"type": "item", "id": "bunk_bed", "count": 1},
-			{"type": "item", "id": "dressing_table", "count": 1},
-			{"type": "item", "id": "laundry_basket", "count": 1},
-			{"type": "item", "id": "shoe_rack", "count": 1},
-			{"type": "item", "id": "high_chair", "count": 1},
-			{"type": "item", "id": "toy_chest", "count": 1},
+			{"type": "seats", "count": 1},
+			{"type": "sleeps", "count": 2},
+			{"type": "surfaces", "count": 2},
+			{"type": "storage", "count": 2},
 			{"type": "item", "id": "rocking_horse", "count": 1},
-			{"type": "item", "id": "bookcase_low", "count": 1},
 			{"type": "wall_color", "names": ["Blush", "Sage", "Linen"]},
 			{"type": "total", "count": 11},
 			{"type": "no_overlap"},
@@ -512,13 +497,12 @@ const HOUSES: Array[Dictionary] = [
 		"map": {"pos": Vector2(-22, 27), "rot": 180.0},
 		"style": {"body": Color(0.80, 0.72, 0.76), "roof": Color(0.38, 0.24, 0.32), "size": Vector3(7.5, 4.4, 6.5)},
 		"requirements": [
-			{"type": "item", "id": "bed_double", "count": 1},
-			{"type": "item", "id": "wardrobe", "count": 2},
-			{"type": "item", "id": "dressing_table", "count": 1},
+			{"type": "seats", "count": 2},
+			{"type": "sleeps", "count": 2},
+			{"type": "surfaces", "count": 2},
+			{"type": "storage", "count": 1},
+			{"type": "greenery", "count": 1},
 			{"type": "item", "id": "floor_mirror", "count": 1},
-			{"type": "item", "id": "nightstand", "count": 2},
-			{"type": "item", "id": "window_seat", "count": 1},
-			{"type": "item", "id": "fern_stand", "count": 2},
 			{"type": "categories", "count": 4},
 			{"type": "total", "count": 15},
 			{"type": "no_overlap"},
@@ -539,14 +523,12 @@ const HOUSES: Array[Dictionary] = [
 		"map": {"pos": Vector2(22, 27), "rot": 180.0},
 		"style": {"body": Color(0.86, 0.82, 0.72), "roof": Color(0.44, 0.36, 0.28), "size": Vector3(8.0, 4.6, 7.0)},
 		"requirements": [
-			{"type": "item", "id": "kitchen_island", "count": 1},
-			{"type": "item", "id": "dining_table", "count": 1},
-			{"type": "item", "id": "chair", "count": 6},
+			{"type": "seats", "count": 6},
+			{"type": "surfaces", "count": 3},
+			{"type": "storage", "count": 1},
 			{"type": "item", "id": "stove", "count": 1},
 			{"type": "item", "id": "sink_unit", "count": 1},
-			{"type": "item", "id": "sideboard", "count": 1},
 			{"type": "item", "id": "herb_rack", "count": 1},
-			{"type": "item", "id": "bench_long", "count": 2},
 			{"type": "item", "id": "range_hood", "count": 1},
 			{"type": "categories", "count": 5},
 			{"type": "total", "count": 20},
@@ -570,17 +552,13 @@ const HOUSES: Array[Dictionary] = [
 		"map": {"pos": Vector2(-22, -27), "rot": 0.0},
 		"style": {"body": Color(0.78, 0.76, 0.82), "roof": Color(0.30, 0.28, 0.40), "size": Vector3(8.0, 6.4, 7.0)},
 		"requirements": [
-			{"type": "item", "id": "display_cabinet", "count": 3},
-			{"type": "item", "id": "bookshelf", "count": 2},
-			{"type": "item", "id": "floor_lamp", "count": 2},
+			{"type": "seats", "count": 2},
+			{"type": "surfaces", "count": 3},
+			{"type": "storage", "count": 3},
+			{"type": "lights", "count": 2},
 			{"type": "item", "id": "vase", "count": 2},
-			{"type": "item", "id": "wing_chair", "count": 2},
-			{"type": "item", "id": "sculpture_plinth", "count": 2},
-			{"type": "item", "id": "glass_case", "count": 2},
 			{"type": "item", "id": "art_easel", "count": 2},
 			{"type": "item", "id": "pedestal_vase", "count": 1},
-			{"type": "item", "id": "pendant_cluster", "count": 1},
-			{"type": "item", "id": "arc_lamp", "count": 1},
 			{"type": "categories", "count": 5},
 			{"type": "total", "count": 18},
 			{"type": "no_overlap"},
@@ -601,13 +579,13 @@ const HOUSES: Array[Dictionary] = [
 		"map": {"pos": Vector2(22, -27), "rot": 0.0},
 		"style": {"body": Color(0.76, 0.86, 0.88), "roof": Color(0.22, 0.42, 0.50), "size": Vector3(6.5, 5.6, 6.0)},
 		"requirements": [
+			{"type": "lights", "count": 2},
 			{"type": "item", "id": "bathtub", "count": 1},
 			{"type": "item", "id": "shower", "count": 1},
 			{"type": "item", "id": "basin", "count": 2},
 			{"type": "item", "id": "vanity_unit", "count": 1},
 			{"type": "item", "id": "bathroom_cabinet", "count": 1},
 			{"type": "item", "id": "bath_mat", "count": 2},
-			{"type": "item", "id": "floor_uplighter", "count": 2},
 			{"type": "item", "id": "towel_rail", "count": 2},
 			{"type": "floor_color", "names": ["Chalk", "Sandstone", "Concrete"]},
 			{"type": "no_overlap"},
@@ -628,15 +606,11 @@ const HOUSES: Array[Dictionary] = [
 		"map": {"pos": Vector2(-22, 27), "rot": 180.0},
 		"style": {"body": Color(0.62, 0.64, 0.74), "roof": Color(0.20, 0.22, 0.32), "size": Vector3(8.5, 7.0, 7.0)},
 		"requirements": [
-			{"type": "item", "id": "designer_sofa", "count": 1},
-			{"type": "item", "id": "marble_table", "count": 1},
-			{"type": "item", "id": "marble_console", "count": 1},
-			{"type": "item", "id": "light_column", "count": 2},
-			{"type": "item", "id": "arc_lamp", "count": 1},
+			{"type": "seats", "count": 4},
+			{"type": "surfaces", "count": 2},
+			{"type": "storage", "count": 1},
+			{"type": "lights", "count": 2},
 			{"type": "item", "id": "tv_large", "count": 1},
-			{"type": "item", "id": "dining_table", "count": 1},
-			{"type": "item", "id": "chair", "count": 4},
-			{"type": "item", "id": "desk", "count": 1},
 			{"type": "item", "id": "air_conditioner", "count": 1},
 			{"type": "categories", "count": 6},
 			{"type": "total", "count": 24},
@@ -658,15 +632,15 @@ const HOUSES: Array[Dictionary] = [
 		"map": {"pos": Vector2(22, 27), "rot": 180.0},
 		"style": {"body": Color(0.92, 0.88, 0.80), "roof": Color(0.42, 0.20, 0.24), "size": Vector3(9.0, 7.6, 7.5)},
 		"requirements": [
+			{"type": "seats", "count": 3},
+			{"type": "sleeps", "count": 2},
+			{"type": "surfaces", "count": 1},
+			{"type": "storage", "count": 1},
 			{"type": "categories", "count": 8, "label": "Buy from every shop in the city"},
-			{"type": "item", "id": "bed_double", "count": 1},
 			{"type": "item", "id": "bathtub", "count": 1},
-			{"type": "item", "id": "kitchen_island", "count": 1},
 			{"type": "item", "id": "tv_large", "count": 1},
-			{"type": "item", "id": "drinks_cabinet", "count": 1},
 			{"type": "item", "id": "projector", "count": 1},
 			{"type": "item", "id": "mirror_wall", "count": 1},
-			{"type": "item", "id": "corner_sofa", "count": 1},
 			{"type": "wall_color", "names": ["Harbour", "Storm", "Ink", "Blush", "Sage"]},
 			{"type": "total", "count": 30},
 			{"type": "no_overlap"},
@@ -692,11 +666,9 @@ const HOUSES: Array[Dictionary] = [
 		"map": {"pos": Vector2(34, 27), "rot": 180.0},
 		"style": {"body": Color(0.84, 0.76, 0.70), "roof": Color(0.40, 0.30, 0.26), "size": Vector3(5.5, 3.2, 5.0)},
 		"requirements": [
-			{"type": "item", "id": "coat_stand", "count": 1},
-			{"type": "item", "id": "shoe_rack", "count": 1},
-			{"type": "item", "id": "umbrella_stand", "count": 1},
+			{"type": "surfaces", "count": 1},
+			{"type": "storage", "count": 2},
 			{"type": "item", "id": "wall_art", "count": 2},
-			{"type": "item", "id": "console_table", "count": 1},
 			{"type": "total", "count": 8},
 			{"type": "no_overlap"},
 		],
@@ -716,11 +688,10 @@ const HOUSES: Array[Dictionary] = [
 		"map": {"pos": Vector2(-10, -27), "rot": 0.0},
 		"style": {"body": Color(0.74, 0.72, 0.66), "roof": Color(0.32, 0.34, 0.36), "size": Vector3(6.0, 4.0, 5.5)},
 		"requirements": [
-			{"type": "item", "id": "workbench", "count": 1},
-			{"type": "item", "id": "pipe_rack", "count": 1},
-			{"type": "item", "id": "bed_single", "count": 1},
-			{"type": "item", "id": "lantern", "count": 2},
-			{"type": "item", "id": "girder_shelf", "count": 1},
+			{"type": "sleeps", "count": 1},
+			{"type": "surfaces", "count": 1},
+			{"type": "storage", "count": 2},
+			{"type": "lights", "count": 2},
 			{"type": "categories", "count": 4},
 			{"type": "total", "count": 12},
 			{"type": "no_overlap"},
@@ -741,8 +712,8 @@ const HOUSES: Array[Dictionary] = [
 		"map": {"pos": Vector2(10, -27), "rot": 0.0},
 		"style": {"body": Color(0.78, 0.74, 0.62), "roof": Color(0.34, 0.40, 0.44), "size": Vector3(6.5, 4.2, 6.0)},
 		"requirements": [
-			{"type": "item", "id": "deck_chair", "count": 2},
-			{"type": "item", "id": "barrel_table", "count": 1},
+			{"type": "seats", "count": 2},
+			{"type": "surfaces", "count": 1},
 			{"type": "item", "id": "signal_flags", "count": 1},
 			{"type": "item", "id": "rope_coil", "count": 2},
 			{"type": "item", "id": "porthole_mirror", "count": 1},
@@ -798,11 +769,11 @@ const HOUSES: Array[Dictionary] = [
 		"map": {"pos": Vector2(-10, -27), "rot": 0.0},
 		"style": {"body": Color(0.92, 0.82, 0.72), "roof": Color(0.52, 0.34, 0.26), "size": Vector3(6.0, 3.6, 5.5)},
 		"requirements": [
-			{"type": "item", "id": "toy_chest", "count": 2},
+			{"type": "surfaces", "count": 2},
+			{"type": "storage", "count": 2},
+			{"type": "lights", "count": 1},
 			{"type": "item", "id": "play_mat", "count": 1},
-			{"type": "item", "id": "bookcase_low", "count": 2},
 			{"type": "item", "id": "rocking_horse", "count": 1},
-			{"type": "item", "id": "night_light", "count": 1},
 			{"type": "total", "count": 13},
 			{"type": "no_overlap"},
 		],
@@ -822,11 +793,10 @@ const HOUSES: Array[Dictionary] = [
 		"map": {"pos": Vector2(10, -27), "rot": 0.0},
 		"style": {"body": Color(0.86, 0.84, 0.70), "roof": Color(0.42, 0.36, 0.24), "size": Vector3(5.5, 3.4, 5.0)},
 		"requirements": [
-			{"type": "item", "id": "rocking_chair", "count": 1},
+			{"type": "seats", "count": 2},
+			{"type": "surfaces", "count": 1},
+			{"type": "greenery", "count": 1},
 			{"type": "item", "id": "fireside_set", "count": 1},
-			{"type": "item", "id": "tall_planter", "count": 2},
-			{"type": "item", "id": "fern_stand", "count": 1},
-			{"type": "item", "id": "window_seat", "count": 1},
 			{"type": "wall_color", "names": ["Sage", "Linen", "Blush"]},
 			{"type": "total", "count": 11},
 			{"type": "no_overlap"},
@@ -882,11 +852,12 @@ const HOUSES: Array[Dictionary] = [
 		"map": {"pos": Vector2(-10, -27), "rot": 0.0},
 		"style": {"body": Color(0.72, 0.72, 0.80), "roof": Color(0.26, 0.28, 0.38), "size": Vector3(5.5, 6.0, 5.5)},
 		"requirements": [
-			{"type": "item", "id": "wing_chair", "count": 1},
-			{"type": "item", "id": "marble_console", "count": 1},
-			{"type": "item", "id": "light_column", "count": 1},
+			{"type": "seats", "count": 1},
+			{"type": "sleeps", "count": 2},
+			{"type": "surfaces", "count": 1},
+			{"type": "storage", "count": 1},
+			{"type": "lights", "count": 1},
 			{"type": "item", "id": "crystal_bowl", "count": 1},
-			{"type": "item", "id": "bed_double", "count": 1},
 			{"type": "categories", "count": 4},
 			{"type": "total", "count": 12},
 			{"type": "no_overlap"},
@@ -907,12 +878,13 @@ const HOUSES: Array[Dictionary] = [
 		"map": {"pos": Vector2(10, -27), "rot": 0.0},
 		"style": {"body": Color(0.80, 0.78, 0.86), "roof": Color(0.30, 0.26, 0.40), "size": Vector3(7.0, 6.6, 6.0)},
 		"requirements": [
-			{"type": "item", "id": "glass_case", "count": 3},
+			{"type": "seats", "count": 2},
+			{"type": "surfaces", "count": 2},
+			{"type": "storage", "count": 2},
+			{"type": "lights", "count": 2},
 			{"type": "item", "id": "pedestal_vase", "count": 2},
 			{"type": "item", "id": "art_easel", "count": 1},
 			{"type": "item", "id": "mirror_wall", "count": 1},
-			{"type": "item", "id": "designer_sofa", "count": 1},
-			{"type": "item", "id": "light_column", "count": 2},
 			{"type": "categories", "count": 4},
 			{"type": "total", "count": 18},
 			{"type": "no_overlap"},
@@ -1262,9 +1234,9 @@ const HOUSES: Array[Dictionary] = [
 		"map": {"pos": Vector2(-22, -27), "rot": 0.0},
 		"style": {"kind": "machiya", "body": Color(0.90, 0.86, 0.78), "roof": Color(0.28, 0.30, 0.34), "size": Vector3(7.0, 3.2, 6.5)},
 		"requirements": [
+			{"type": "seats", "count": 3},
+			{"type": "surfaces", "count": 1},
 			{"type": "item", "id": "tatami_mat", "count": 4},
-			{"type": "item", "id": "chabudai", "count": 1},
-			{"type": "item", "id": "zabuton", "count": 4},
 			{"type": "total", "count": 10},
 			{"type": "no_overlap"},
 		],
@@ -1284,10 +1256,11 @@ const HOUSES: Array[Dictionary] = [
 		"map": {"pos": Vector2(-10, -27), "rot": 0.0},
 		"style": {"kind": "machiya", "body": Color(0.84, 0.78, 0.68), "roof": Color(0.24, 0.26, 0.30), "size": Vector3(6.5, 3.0, 6.0)},
 		"requirements": [
-			{"type": "item", "id": "futon_roll", "count": 1},
+			{"type": "sleeps", "count": 1},
+			{"type": "surfaces", "count": 1},
+			{"type": "storage", "count": 2},
+			{"type": "lights", "count": 1},
 			{"type": "item", "id": "tatami_mat", "count": 3},
-			{"type": "item", "id": "tansu", "count": 1},
-			{"type": "item", "id": "andon_lamp", "count": 1},
 			{"type": "total", "count": 9},
 			{"type": "no_overlap"},
 		],
@@ -1307,9 +1280,9 @@ const HOUSES: Array[Dictionary] = [
 		"map": {"pos": Vector2(10, -27), "rot": 0.0},
 		"style": {"kind": "machiya", "body": Color(0.88, 0.84, 0.76), "roof": Color(0.30, 0.28, 0.32), "size": Vector3(7.0, 3.4, 6.5)},
 		"requirements": [
+			{"type": "surfaces", "count": 1},
+			{"type": "greenery", "count": 1},
 			{"type": "item", "id": "shoji_screen", "count": 2},
-			{"type": "item", "id": "chabudai", "count": 1},
-			{"type": "item", "id": "bonsai", "count": 1},
 			{"type": "category", "category": "Storage", "count": 1},
 			{"type": "total", "count": 11},
 			{"type": "no_overlap"},
@@ -1358,7 +1331,7 @@ const HOUSES: Array[Dictionary] = [
 		"map": {"pos": Vector2(-34, 27), "rot": 180.0},
 		"style": {"kind": "machiya", "body": Color(0.92, 0.88, 0.80), "roof": Color(0.22, 0.24, 0.28), "size": Vector3(7.5, 3.6, 6.5)},
 		"requirements": [
-			{"type": "item", "id": "andon_lamp", "count": 3},
+			{"type": "lights", "count": 2},
 			{"type": "item", "id": "shoji_screen", "count": 2},
 			{"type": "item", "id": "byobu", "count": 1},
 			{"type": "categories", "count": 4},
@@ -1381,9 +1354,9 @@ const HOUSES: Array[Dictionary] = [
 		"map": {"pos": Vector2(-22, 27), "rot": 180.0},
 		"style": {"kind": "machiya", "body": Color(0.80, 0.80, 0.76), "roof": Color(0.30, 0.32, 0.34), "size": Vector3(6.0, 3.2, 6.0)},
 		"requirements": [
+			{"type": "greenery", "count": 1},
 			{"type": "category", "category": "Bathroom", "count": 3},
 			{"type": "item", "id": "tsukubai", "count": 1},
-			{"type": "item", "id": "bonsai", "count": 1},
 			{"type": "wall_color", "names": ["Sage", "Cotton", "Morning"]},
 			{"type": "total", "count": 12},
 			{"type": "no_overlap"},
@@ -1470,9 +1443,9 @@ const HOUSES: Array[Dictionary] = [
 		"map": {"pos": Vector2(-22, -27), "rot": 0.0},
 		"style": {"kind": "manor", "body": Color(0.42, 0.40, 0.44), "roof": Color(0.20, 0.17, 0.24), "size": Vector3(6.5, 4.4, 6.0)},
 		"requirements": [
-			{"type": "item", "id": "coffin_bed", "count": 1},
-			{"type": "item", "id": "candelabra", "count": 1},
-			{"type": "item", "id": "high_back_chair", "count": 1},
+			{"type": "seats", "count": 1},
+			{"type": "sleeps", "count": 1},
+			{"type": "lights", "count": 1},
 			{"type": "total", "count": 9},
 			{"type": "no_overlap"},
 		],
@@ -1492,10 +1465,10 @@ const HOUSES: Array[Dictionary] = [
 		"map": {"pos": Vector2(-10, -27), "rot": 0.0},
 		"style": {"kind": "manor", "body": Color(0.38, 0.42, 0.38), "roof": Color(0.18, 0.20, 0.22), "size": Vector3(6.5, 4.6, 6.0)},
 		"requirements": [
+			{"type": "lights", "count": 2},
 			{"type": "item", "id": "cauldron_stove", "count": 1},
 			{"type": "item", "id": "apothecary_counter", "count": 1},
 			{"type": "item", "id": "drying_rack", "count": 1},
-			{"type": "item", "id": "skull_candle", "count": 2},
 			{"type": "total", "count": 12},
 			{"type": "no_overlap"},
 		],
@@ -1515,9 +1488,9 @@ const HOUSES: Array[Dictionary] = [
 		"map": {"pos": Vector2(10, -27), "rot": 0.0},
 		"style": {"kind": "manor", "body": Color(0.46, 0.40, 0.48), "roof": Color(0.22, 0.16, 0.26), "size": Vector3(7.0, 5.2, 6.5)},
 		"requirements": [
-			{"type": "item", "id": "high_back_chair", "count": 2},
+			{"type": "seats", "count": 2},
+			{"type": "lights", "count": 2},
 			{"type": "item", "id": "black_mirror", "count": 1},
-			{"type": "item", "id": "candelabra", "count": 2},
 			{"type": "wall_color", "names": ["Ink", "Storm", "Slate"]},
 			{"type": "total", "count": 13},
 			{"type": "no_overlap"},
@@ -1565,9 +1538,10 @@ const HOUSES: Array[Dictionary] = [
 		"map": {"pos": Vector2(-34, 27), "rot": 180.0},
 		"style": {"kind": "manor", "body": Color(0.36, 0.36, 0.42), "roof": Color(0.16, 0.16, 0.22), "size": Vector3(7.0, 5.8, 6.5)},
 		"requirements": [
+			{"type": "surfaces", "count": 1},
+			{"type": "storage", "count": 1},
 			{"type": "item", "id": "raven_perch", "count": 2},
 			{"type": "item", "id": "gargoyle_statue", "count": 1},
-			{"type": "item", "id": "grimoire_case", "count": 2},
 			{"type": "categories", "count": 4},
 			{"type": "total", "count": 16},
 			{"type": "no_overlap"},
@@ -1588,10 +1562,9 @@ const HOUSES: Array[Dictionary] = [
 		"map": {"pos": Vector2(-22, 27), "rot": 180.0},
 		"style": {"kind": "manor", "body": Color(0.44, 0.38, 0.46), "roof": Color(0.22, 0.16, 0.24), "size": Vector3(7.0, 5.4, 6.5)},
 		"requirements": [
+			{"type": "lights", "count": 2},
 			{"type": "category", "category": "Dining", "count": 2},
 			{"type": "item", "id": "crystal_ball", "count": 1},
-			{"type": "item", "id": "candelabra", "count": 2},
-			{"type": "item", "id": "skull_candle", "count": 2},
 			{"type": "total", "count": 17},
 			{"type": "no_overlap"},
 		],
@@ -1985,6 +1958,42 @@ func minimum_outlay(house_id: String) -> int:
 ## Everything the brief calls for, as item id -> count, ignoring what the
 ## player already owns. Open-ended lines (a plain count of pieces, or a spread
 ## across shops) are filled with the cheapest thing that satisfies them.
+static func _still_short(left: Dictionary) -> bool:
+	for kind: String in left:
+		if int(left[kind]) > 0:
+			return true
+	return false
+
+
+## The piece that covers the most of what a room still needs, out of what this
+## house's quarter and the first one will actually sell you. Cheapest breaks a
+## tie, which is what keeps the suggestion inside the client's budget.
+func _covers_most(left: Dictionary, house_id: String) -> String:
+	var home := district_of(house_id)
+	var gate := int(get_job(house_id).get("level", 1))
+	var best := ""
+	var best_cover := 0
+	var best_price := 1 << 30
+	for id in Catalog.ids():
+		var where := Catalog.district_of(id)
+		if where != "" and where != home and where != str(DISTRICTS[0]["id"]):
+			continue
+		# Nothing the client could not have been shown: a brief that suggests
+		# stock two quarters and ten levels away is not a suggestion.
+		if Catalog.effective_unlock_level(id) > gate:
+			continue
+		var cover := 0
+		for kind: String in left:
+			cover += mini(Catalog.does(id, kind), maxi(int(left[kind]), 0))
+		if cover <= 0:
+			continue
+		if cover > best_cover or (cover == best_cover and Catalog.price(id) < best_price):
+			best_cover = cover
+			best_price = Catalog.price(id)
+			best = id
+	return best
+
+
 func _needed_pieces(house_id: String) -> Dictionary:
 	var job := get_job(house_id)
 	if job.is_empty():
@@ -2008,6 +2017,51 @@ func _needed_pieces(house_id: String) -> Dictionary:
 					if missing > 0:
 						wanted[pick] = int(wanted.get(pick, 0)) + missing
 					categories_used[category] = true
+
+	# What the room has to be able to do. A capability line names no product, so
+	# the list suggests a way to answer it — and it is only ever a suggestion;
+	# anything that does the same job will do.
+	#
+	# Answered a room at a time rather than a line at a time, because the lines
+	# in a room overlap: a study wanting three surfaces and three places to put
+	# things away wants three bookshelves, not three side tables and three
+	# laundry baskets. Taking the piece that covers the most of what is left
+	# each time finds that, keeps the basket small enough to fit on the floor,
+	# and stays inside the client's budget by preferring the cheapest of equals.
+	var short_by_room: Dictionary = {}
+	for req: Dictionary in job["requirements"]:
+		var kind := str(req.get("type", ""))
+		if not Catalog.TRAITS.has(kind):
+			continue
+		var scope := str(req.get("room", ""))
+		if not short_by_room.has(scope):
+			short_by_room[scope] = {}
+		var room_needs: Dictionary = short_by_room[scope]
+		room_needs[kind] = int(room_needs.get(kind, 0)) + int(req.get("count", 1))
+	# A named piece the brief already asks for in that room counts towards it.
+	for req: Dictionary in job["requirements"]:
+		if str(req.get("type", "")) != "item":
+			continue
+		var scope := str(req.get("room", ""))
+		if not short_by_room.has(scope):
+			continue
+		var room_needs: Dictionary = short_by_room[scope]
+		for kind: String in room_needs:
+			room_needs[kind] = int(room_needs[kind]) \
+				- Catalog.does(str(req["id"]), kind) * int(req.get("count", 1))
+
+	for scope: String in short_by_room:
+		var left: Dictionary = short_by_room[scope]
+		var guard := 0
+		while _still_short(left) and guard < 40:
+			var pick := _covers_most(left, house_id)
+			if pick == "":
+				break
+			wanted[pick] = int(wanted.get(pick, 0)) + 1
+			categories_used[Catalog.category_of(pick)] = true
+			for kind: String in left:
+				left[kind] = int(left[kind]) - Catalog.does(pick, kind)
+			guard += 1
 
 	# "Buy from N different shops" — add a cheap piece from categories not yet
 	# represented until enough of them are.
@@ -2147,6 +2201,29 @@ func evaluate(house_id: String, context: Dictionary) -> Array[Dictionary]:
 	return out
 
 
+## How each of those reads on a brief. A client says what they want the room
+## to do, in the words somebody would actually use.
+static func _asking_for(kind: String, need: int) -> String:
+	var many := need != 1
+	match kind:
+		"seats":
+			return "Seating for %d" % need
+		"sleeps":
+			return "Somewhere for %d to sleep" % need if many \
+				else "Somewhere to sleep"
+		"surfaces":
+			return "%d surfaces to put things down on" % need if many \
+				else "A surface to put things down on"
+		"storage":
+			return "%d places to put things away" % need if many \
+				else "Somewhere to put things away"
+		"lights":
+			return "%d lights to read by" % need if many else "A light to read by"
+		"greenery":
+			return "%d bits of green" % need if many else "Something green"
+	return kind
+
+
 static func all_met(results: Array[Dictionary]) -> bool:
 	for result in results:
 		if not result["met"]:
@@ -2194,6 +2271,15 @@ func _check(req: Dictionary, context: Dictionary) -> Dictionary:
 			var piece := Catalog.display_name(wanted)
 			label = "Fit %s %s%s" % [_article(piece), piece, where] if need == 1 \
 				else "Fit %d × %s%s" % [need, piece, where]
+
+		# What the room has to be able to *do*, rather than what it has to
+		# contain. The player picks how to answer it out of the whole
+		# catalogue, which is the difference between a brief and a docket.
+		"seats", "sleeps", "surfaces", "storage", "lights", "greenery":
+			for entry: Dictionary in items:
+				have += Catalog.does(str(entry["id"]), kind)
+			met = have >= need
+			label = _asking_for(kind, need) + where
 
 		"category":
 			var category: String = str(req["category"])
