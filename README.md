@@ -218,6 +218,13 @@ The Colour House works the same way, except its floor is racks of tins rather th
 furniture. Tap a tin to see the shade and its price; a colour is bought once and is then
 yours to use in every room forever.
 
+**Yardley & Sons** — the builders' merchant, on the same parade from level 3 — is the one
+shop that sells nothing you can put in a room. Its floor is four pallets of trade material:
+lumber, bolt cloth, steel section and sheet glass, each priced by the unit. Tap a pallet and
+the card gives the price, how much of it is in your store and buttons for one, ten or fifty.
+That material is not for a room; it is for the workshop out of town, which is where it turns
+into furniture. Like everything else, it sells back for exactly what it cost.
+
 Anything you own can be sold straight back at the price you paid, either off the shop floor
 or from **Stock** in the top bar.
 
@@ -376,19 +383,19 @@ room hide themselves as you orbit, and a piece that overlaps another glows red.
 
 ### Out of town
 
-Two roads lead out of the city, and the top bar opens them when you are ready: **Estate** at
-level 3 and **Works** at level 5.
-
 Everything below is on **one map out of town**, reached by the **Estate** button in the top
 bar from level 3. It used to be two screens — the ground on one and the works on the other —
 which meant the half that grows things and the half that makes things were never in front of
 you at once, and the growing half had nothing to decide once the ground was bought. One road
-runs the length of it now: holdings down the west end, works down the east, and the bench at
-the end of the road.
+runs the length of it now: holdings down the west end, works down the east, and the workshop
+at the end of the road.
 
 **The holdings** are eight plots either side of that road — two woods, two fields, two
-hills and two dunes — and each of them yields one of the four raw materials: timber, cotton,
-iron ore and silica sand. Tap unworked ground to see what it would hand you and what the
+hills and two dunes — and each of them yields one of the four raw materials. These are the
+fine stuff, and they are deliberately nothing like what the merchant sells: figured walnut
+by the boule, raw silk by the hank, wrought iron by the billet, lead crystal by the batch.
+Nothing off your own land ever makes an ordinary piece of furniture — it only makes one
+*better*. Tap unworked ground to see what it would hand you and what the
 agent wants for it. Buy it and a camp goes up: a hut, a yard, a cart, logs stacked by the
 track. Buy it again to work it up, twice more, and the camp grows each time while the rate
 rises with it.
@@ -407,18 +414,21 @@ handed. Cart a holding off into a full yard and it takes what it can; the rest s
 ground until there is room.
 
 **The works** are the east end of the same road: a sawmill, a weaving shed, a foundry and a glasshouse
-standing along it, with the finishing bench at the end. Each plant takes three of one
-material and turns it into one finished good — hardwood board, a bolt of cloth, a steel fitting,
-a glass pane. **A run takes real time**: fifteen minutes at the sawmill up to forty at the
+standing along it, with the workshop at the end. Each plant takes three of one
+material and turns it into one finished good — a burr panel, a bolt of silk, a forged fitting,
+a crystal pane. **A run takes real time**: fifteen minutes at the sawmill up to forty at the
 glasshouse. The material goes in when you put the run on — it is in the machine, not in the
 yard — and the goods come off when it is done. Building a plant up puts one more through the
 same run rather than making the run quicker, so a tier-3 sawmill makes three boards in the
 same fifteen minutes. Each works has a store of its own, and a full store will not take a run.
 
-**The finishing bench** stands where the road stops, and is where the goods go into the
-furniture. It lists everything in your
+**The workshop** stands where the road stops, and it does the two things a workshop does.
+The sheet has a tab for each.
+
+**Improve** is where the goods go into the furniture. It lists everything in your
 warehouse with what the next step up would take, and improving a piece lifts **every one of
-that kind you own** — and everything of that kind you buy afterwards. There are three steps:
+that kind you own** — and everything of that kind you come by afterwards. There are three
+steps:
 
 | Step | Goods | Bench fee |
 |---|---|---|
@@ -427,11 +437,40 @@ that kind you own** — and everything of that kind you buy afterwards. There ar
 | Master | 7 | the price again |
 
 Which good a piece wants is decided by what it is actually built from, weighed by area: a
-sofa with four small wooden feet still wants cloth, a bookshelf wants board, a floor lamp
-wants fittings, a mirror-fronted cabinet wants panes.
+sofa with four small wooden feet still wants silk, a bookshelf wants panel, a floor lamp
+wants fittings, a mirror-fronted cabinet wants crystal.
 
-No part of it costs money to run: the land and the plant are bought once each, and after that
-a run costs material and a wait, never cash. The only repeating charge is the bench fee.
+**Make** is the other half, and it runs on the merchant's trade material rather than
+anything off your own land — the two never meet, which is the point of them being two
+different things. Pick a category, and every piece the shops would sell you today is listed
+with what it takes to build and what building it saves:
+
+- **The bill** comes from the piece itself. What it is made of comes off the part list —
+  one material role per part, already there for the modelling — and how much of it comes off
+  the price, because volume alone is hopeless: a sofa's body is bulkier than a wardrobe and
+  it is not a hundred bolts of cloth. So the proportions are the model's and the total is
+  the price's, and all 167 pieces are in the same economy without a line of it being written
+  by hand.
+- **The saving is the same for everything.** Material comes to between half and two thirds
+  of the shelf price whatever the piece is. Getting there means costing the *mix* first:
+  glass is nearly twice the price of timber, so handing out a flat number of units per
+  dollar had a glazed cabinet cost four fifths of its price to make and a wooden one a
+  third. The units are worked back from what they cost instead, and handed out by largest
+  remainder so the bill comes to exactly the count that was costed.
+- **Making takes real time**, on the same wall clock as everything else out here: four
+  minutes for a chair up to three quarters of an hour for the dearest thing in the city.
+  One piece at a time; start a second and it queues behind the first.
+- The material goes in **when you start**, not when you collect — it is in the piece, not in
+  the store. What comes off the bench goes straight into the warehouse, and **making
+  something teaches you as much as fitting it does**, so the workshop is experience as well
+  as money.
+
+The trade store has no cap and does not fill on its own — it is a lorry from the merchant,
+not a crop — so it sits apart from the yard tally along the top of the map.
+
+No part of the estate costs money to run: the land and the plant are bought once each, and
+after that a run costs material and a wait, never cash. The repeating charges are the bench
+fee and whatever you spend at the merchant.
 
 The point of all of it is the hand-over. Every improved piece standing in a finished room
 adds 6 % per step to the fee **and** to the experience, averaged across everything in the
@@ -621,16 +660,17 @@ scripts/
   title_screen.gd        The front page: menu, save summary, and a furnished
                          room turning behind it
   data/
-    catalog.gd           Autoload. Every model and price, and the twenty-five
-                         shops, with the quarter and level each one opens at
+    catalog.gd           Autoload. Every model and price, the twenty-six shops
+                         with the quarter and level each one opens at, and the
+                         bill of materials every piece is worked out to take
     jobs.gd              Autoload. The six quarters and the 56 houses in them,
                          the requirement evaluator, the shopping list a brief
                          needs, and the generator for repeat contracts
     game_state.gd        Autoload. Money, XP, levels, the warehouse, the
-                         quarters bought, the estate, the yard and the saved
-                         profile
+                         quarters bought, the estate, the yard, the trade store,
+                         the workshop bench and the saved profile
     industry.gd          Autoload. The eight holdings, the four works and the
-                         bench: what everything yields, what it costs, and
+                         workshop: what everything yields, what it costs, and
                          which good a piece of furniture wants
     room_review.gd       The five things a client notices, scored out of three
     layout_store.gd      Free-build save files under user://
@@ -643,8 +683,8 @@ scripts/
                          switches
   shop/
     shop_floor.gd        The inside of a shop: fittings welded into a batch,
-                         the stock standing on the floor as real pieces, and
-                         the tins for the Colour House
+                         the stock standing on the floor as real pieces, the
+                         tins for the Colour House and the pallets for the yard
     shop_ui.gd           The wallet, and the card for whatever was tapped
   city/
     city_view.gd         The six procedural quarters, their house archetypes,
@@ -659,7 +699,7 @@ scripts/
   estate/
     estate_view.gd       The map out of town: the holdings and what grows or is
                          dug on them, the works and their chimneys, and the
-                         bench at the end of the road
+                         workshop at the end of the road
     estate_ui.gd         The yard tally, and the sheet for whichever plot was
                          tapped
   design/
@@ -796,7 +836,12 @@ survives a save and reload, that every catalogue entry is priced, stocked and
 physically sane, that wall snap lands flush and stacking finds the right height, that undo and redo
 keep the room and the warehouse in step, that a properly arranged room really does reach
 three stars, that a generated repeat contract can be shopped for and finished, and that the
-tray starts closed and can tell a drag along the row from a tap on a piece, that the
+tray starts closed and can tell a drag along the row from a tap on a piece, that every
+piece in the catalogue is worth making and worth about as much to make as every other piece
+is — material between a third and three quarters of the shelf price for all 167 of them —
+and that trade material bought at the merchant goes into a piece when it is started rather
+than when it is collected, comes off the bench only when its time is up, and queues one at a
+time behind whatever is already on it, that the
 app opens on the title screen with its buttons wired to the right places, that both
 changes of screen are covered end to end by a loading screen whose bar runs from one end to
 the other, that a brief lists every missing piece under the counter that sells it without

@@ -14,6 +14,8 @@ signal run_works(works_id: String)
 signal collect_site(site_id: String)
 signal collect_batch(works_id: String)
 signal improve_item(item_id: String)
+signal make_item(item_id: String)
+signal collect_made()
 
 var _root: Control
 var _blockers: Array[Control] = []
@@ -31,6 +33,9 @@ var _toast_timer: Timer
 var _tick := 0.0
 ## What the sheet is showing, so a purchase can redraw it in place.
 var _showing: Dictionary = {}
+## Which half of the workshop is open, and which tray of it.
+var _bench_tab := "make"
+var _make_category := Catalog.CATEGORIES[0]
 
 
 func _ready() -> void:
@@ -74,11 +79,13 @@ func _watching_a_clock() -> bool:
 		return false
 	if str(_showing.get("kind", "")) == "works":
 		return Game.batch_left(str(_showing["id"])) >= 0.0
+	if str(_showing.get("kind", "")) == "bench":
+		return not Game.making.is_empty()
 	return str(_showing.get("kind", "")) == "site"
 
 
 func configure() -> void:
-	_hint.text = "Holdings fill on their own clock, open or not. Cart one off, run it through a works, then take it to the bench."
+	_hint.text = "Holdings fill on their own clock, open or not. Cart one off, run it through a works, then take it to the workshop."
 	refresh()
 
 
@@ -219,6 +226,28 @@ func refresh() -> void:
 		elif held <= 0:
 			tone = UIKit.MUTED
 		var count := UIKit.label("%d/%d" % [held, cap], 16, tone)
+		count.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		cell.add_child(count)
+		_yard.add_child(cell)
+
+	# And then the trade store, which is the other thing the workshop eats. It
+	# has no cap and comes off a lorry rather than out of the ground, so it is
+	# set apart rather than run in with the rest.
+	var rule := ColorRect.new()
+	rule.color = Color(1, 1, 1, 0.16)
+	rule.custom_minimum_size = Vector2(1, 22)
+	_yard.add_child(rule)
+	for entry: Dictionary in Catalog.trade():
+		var held: int = Game.supply_count(str(entry["id"]))
+		var cell := HBoxContainer.new()
+		cell.add_theme_constant_override("separation", 5)
+		var chip := ColorRect.new()
+		chip.color = entry["color"]
+		chip.custom_minimum_size = Vector2(12, 22)
+		chip.tooltip_text = str(entry["name"])
+		cell.add_child(chip)
+		var count := UIKit.label("%d" % held, 16,
+			UIKit.TEXT if held > 0 else UIKit.MUTED)
 		count.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		cell.add_child(count)
 		_yard.add_child(cell)
@@ -402,19 +431,161 @@ func _show_works(id: String) -> void:
 	_sheet_actions.add_child(build)
 
 
-# ------------------------------------------------------------------ the bench
+# --------------------------------------------------------------- the workshop
 
-## Everything you own that could be improved, and what it would take. Pieces
-## already at the top are listed last so the work to do is at the front.
+## The workshop does the two jobs a workshop does. **Make** turns trade material
+## bought at the yard into furniture, which is cheaper than buying it finished
+## and pays in experience as well. **Improve** spends the fine stuff off your own
+## land to lift a pattern you already own. The two never share a material.
 func _show_bench() -> void:
 	_begin(str(Industry.BENCH["name"]), str(Industry.BENCH["blurb"]))
 
+	var tabs := HBoxContainer.new()
+	tabs.add_theme_constant_override("separation", 8)
+	for pair: Array in [["make", "Make"], ["improve", "Improve"]]:
+		var key := str(pair[0])
+		# The open tab is the accented one. Greying it out would be truer to the
+		# fact that pressing it does nothing, and would read as unavailable.
+		var button: Button = (UIKit.make_primary_button(str(pair[1]))
+			if _bench_tab == key else UIKit.make_button(str(pair[1])))
+		button.pressed.connect(func() -> void:
+			_bench_tab = key
+			_redraw())
+		tabs.add_child(button)
+	tabs.add_child(UIKit.spacer())
+	_sheet_body.add_child(tabs)
+	_divider()
+
+	if _bench_tab == "make":
+		_show_making()
+	else:
+		_show_improving()
+
+
+## What is on the bench now, then the tray of what could go on it next.
+func _show_making() -> void:
+	_bench_queue()
+
+	var picker := HBoxContainer.new()
+	picker.add_theme_constant_override("separation", 4)
+	var wrap := HFlowContainer.new()
+	wrap.add_theme_constant_override("h_separation", 4)
+	wrap.add_theme_constant_override("v_separation", 4)
+	wrap.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	for category in Catalog.CATEGORIES:
+		var button: Button = (UIKit.make_primary_button(category)
+			if _make_category == category else UIKit.make_button(category))
+		button.pressed.connect(func() -> void:
+			_make_category = category
+			_redraw())
+		wrap.add_child(button)
+	picker.add_child(wrap)
+	_sheet_body.add_child(picker)
+	_divider()
+
+	# Only what the shops would sell you today, so the tray never teases with a
+	# piece from a quarter you do not own.
+	var open: Array[String] = []
+	for item_id in Catalog.ids_in(_make_category):
+		if Game.is_item_unlocked(item_id) and not Catalog.bill_of(item_id).is_empty():
+			open.append(item_id)
+	if open.is_empty():
+		_sheet_body.add_child(UIKit.wrapped_label(
+			"Nothing in this line has opened up yet. Take on more work, or buy the "
+			+ "quarter it is sold in.", 420, UIKit.MUTED))
+		return
+
+	# What you could start right now comes first, then the dearest — the pieces
+	# where making rather than buying saves the most.
+	open.sort_custom(func(a: String, b: String) -> bool:
+		var ready_a := Game.can_make(a)
+		var ready_b := Game.can_make(b)
+		if ready_a != ready_b:
+			return ready_a
+		return Catalog.price(a) > Catalog.price(b))
+
+	var first := true
+	for item_id in open:
+		if not first:
+			_divider()
+		first = false
+		_sheet_body.add_child(_make_row(item_id))
+
+
+## The bench itself: what is under the clamps, and anything finished waiting to
+## be carried to the warehouse.
+func _bench_queue() -> void:
+	var waiting := Game.made_waiting()
+	if waiting > 0:
+		var done := HBoxContainer.new()
+		var label := UIKit.label("%d finished and waiting" % waiting, 17, UIKit.GOOD)
+		label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		done.add_child(label)
+		var take := UIKit.make_primary_button("Take them off")
+		take.pressed.connect(func() -> void: collect_made.emit())
+		done.add_child(take)
+		_sheet_body.add_child(done)
+
+	var left := Game.making_left()
+	if left >= 0.0:
+		var queued := Game.making.size() - waiting
+		_row("On the bench", "%d piece%s" % [queued, "" if queued == 1 else "s"])
+		_row("Next one off", Game.spell_out(left), UIKit.GOLD)
+	if waiting > 0 or left >= 0.0:
+		_divider()
+
+
+## One line a piece: what it is, then the bill and the button. The bill is the
+## whole argument for making it, so it sits where the price would be.
+func _make_row(item_id: String) -> Control:
+	var block := VBoxContainer.new()
+	block.add_theme_constant_override("separation", 1)
+	block.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+
+	var head := HBoxContainer.new()
+	var title := UIKit.label(Catalog.display_name(item_id), 17)
+	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	title.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	head.add_child(title)
+	var shelf := Catalog.price(item_id)
+	var bill := Catalog.bill_of(item_id)
+	var cost := Catalog.bill_cost(bill)
+	head.add_child(UIKit.label("%s off %s" % [
+		UIKit.money(shelf - cost), UIKit.money(shelf)], 14, UIKit.GOLD))
+	block.add_child(head)
+
+	var short := Game.short_for(item_id)
+	var parts: Array[String] = []
+	for material: String in bill:
+		parts.append("%d %s" % [int(bill[material]), Catalog.trade_name(material)])
+	var need := UIKit.label(" + ".join(parts), 15,
+		UIKit.BAD if not short.is_empty() else UIKit.GOOD)
+	need.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	need.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	need.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+
+	var foot := HBoxContainer.new()
+	foot.add_child(need)
+	var button := UIKit.make_button("Make  %s" % Game.spell_out(
+		Catalog.make_seconds(item_id)))
+	button.disabled = not Game.can_make(item_id)
+	button.pressed.connect(func() -> void: make_item.emit(item_id))
+	foot.add_child(button)
+	block.add_child(foot)
+	return block
+
+
+## Everything you own that could be improved, and what it would take. Pieces
+## already at the top are listed last so the work to do is at the front.
+func _show_improving() -> void:
 	var owned := Game.owned_item_ids()
 	if owned.is_empty():
 		_sheet_body.add_child(UIKit.wrapped_label(
-			"Nothing in stock to work on. Buy furniture at the shops first — the "
-			+ "bench improves the pattern, so every piece of that kind you own "
-			+ "or buy later comes off it improved.", 420, UIKit.TEXT))
+			"Nothing in stock to work on. Buy furniture at the shops first, or make "
+			+ "some next door — the bench improves the pattern, so every piece of "
+			+ "that kind you own or come by later is improved with it.",
+			420, UIKit.TEXT))
 		return
 
 	_sheet_body.add_child(UIKit.wrapped_label(

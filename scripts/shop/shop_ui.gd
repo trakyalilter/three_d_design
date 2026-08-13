@@ -11,6 +11,8 @@ signal leave_requested()
 signal buy_requested(item_id: String)
 signal sell_requested(item_id: String)
 signal buy_paint_requested(surface: String, entry: Dictionary)
+signal buy_supply_requested(supply_id: String, count: int)
+signal sell_supply_requested(supply_id: String, count: int)
 
 var _root: Control
 var _blockers: Array[Control] = []
@@ -25,6 +27,7 @@ var _toast_timer: Timer
 var _shown_item := ""
 var _shown_paint: Dictionary = {}
 var _shown_surface := ""
+var _shown_supply := ""
 
 
 func _ready() -> void:
@@ -142,6 +145,8 @@ func refresh() -> void:
 		show_item(_shown_item)
 	elif not _shown_paint.is_empty():
 		show_paint(_shown_surface, _shown_paint)
+	elif _shown_supply != "":
+		show_supply(_shown_supply)
 
 
 ## The card for a piece of furniture: a picture of it, what it is, what it
@@ -150,6 +155,7 @@ func show_item(item_id: String) -> void:
 	_shown_item = item_id
 	_shown_paint = {}
 	_shown_surface = ""
+	_shown_supply = ""
 	_clear_card()
 	_card.visible = true
 
@@ -218,6 +224,7 @@ func show_paint(surface: String, entry: Dictionary) -> void:
 	_shown_item = ""
 	_shown_paint = entry
 	_shown_surface = surface
+	_shown_supply = ""
 	_clear_card()
 	_card.visible = true
 
@@ -265,10 +272,73 @@ func show_paint(surface: String, entry: Dictionary) -> void:
 	actions.add_child(buy)
 
 
+## The card for a pallet of trade material. This is the only place in the game
+## where you buy something that is not finished, so it says what it is for.
+func show_supply(supply_id: String) -> void:
+	_shown_item = ""
+	_shown_paint = {}
+	_shown_surface = ""
+	_shown_supply = supply_id
+	_clear_card()
+	_card.visible = true
+
+	var entry := Catalog.get_trade(supply_id)
+	if entry.is_empty():
+		return
+	var price := int(entry["price"])
+	var held := Game.supply_count(supply_id)
+
+	var head := HBoxContainer.new()
+	head.add_theme_constant_override("separation", 12)
+	_card_body.add_child(head)
+
+	var swatch := PanelContainer.new()
+	swatch.custom_minimum_size = Vector2(76, 76)
+	swatch.add_theme_stylebox_override("panel", UIKit.panel_box(entry["color"], 10))
+	head.add_child(swatch)
+
+	var titles := VBoxContainer.new()
+	titles.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	titles.add_theme_constant_override("separation", 2)
+	head.add_child(titles)
+	titles.add_child(UIKit.label(str(entry["name"]), 22))
+	titles.add_child(UIKit.label("Sold by the unit", 16, UIKit.MUTED))
+
+	_card_body.add_child(UIKit.wrapped_label(str(entry["blurb"]), 360, UIKit.MUTED))
+	_row("A unit", UIKit.money(price), UIKit.GOLD if Game.can_afford(price) else UIKit.BAD)
+	_row("In the store", "%d %s" % [held, entry["unit"]],
+		UIKit.GOOD if held > 0 else UIKit.MUTED)
+
+	if held > 0:
+		var back := HBoxContainer.new()
+		back.alignment = BoxContainer.ALIGNMENT_END
+		_card_body.add_child(back)
+		var sell := UIKit.make_button("Sell one back", "Get %s back" % UIKit.money(price))
+		sell.pressed.connect(func() -> void: sell_supply_requested.emit(supply_id, 1))
+		back.add_child(sell)
+
+	# A wardrobe takes a hundred boards, so the merchant sells by the lorry as
+	# well as by the unit. The bill is what it is; tapping it out one at a time
+	# would be the only hard part of the whole game.
+	var actions := HBoxContainer.new()
+	actions.alignment = BoxContainer.ALIGNMENT_END
+	actions.add_theme_constant_override("separation", 6)
+	_card_body.add_child(actions)
+	actions.add_child(UIKit.label("Buy", 18, UIKit.MUTED))
+	for count in [1, 10, 50]:
+		var lot: int = count
+		var button: Button = (UIKit.make_primary_button("%d" % lot) if lot == 10
+			else UIKit.make_button("%d" % lot, UIKit.money(price * lot)))
+		button.disabled = not Game.can_afford(price * lot)
+		button.pressed.connect(func() -> void: buy_supply_requested.emit(supply_id, lot))
+		actions.add_child(button)
+
+
 func close_card() -> void:
 	_shown_item = ""
 	_shown_paint = {}
 	_shown_surface = ""
+	_shown_supply = ""
 	_card.visible = false
 
 

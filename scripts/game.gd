@@ -174,12 +174,15 @@ func enter_shop(shop_id: String) -> void:
 
 	shop.picked.connect(shop_ui.show_item)
 	shop.picked_paint.connect(shop_ui.show_paint)
+	shop.picked_supply.connect(shop_ui.show_supply)
 	shop.nothing_picked.connect(shop_ui.close_card)
 
 	shop_ui.leave_requested.connect(func() -> void: enter_city(from_house))
 	shop_ui.buy_requested.connect(_buy_in_shop)
 	shop_ui.sell_requested.connect(_sell_in_shop)
 	shop_ui.buy_paint_requested.connect(_buy_paint_in_shop)
+	shop_ui.buy_supply_requested.connect(_buy_supply_in_shop)
+	shop_ui.sell_supply_requested.connect(_sell_supply_in_shop)
 
 	await _uncover(screen)
 
@@ -205,6 +208,27 @@ func _sell_in_shop(item_id: String) -> void:
 	shop_ui.toast("Sold back — %d left" % Game.stock_of(item_id), 1.6)
 	shop.restock()
 	shop.reselect(item_id)
+
+
+func _buy_supply_in_shop(supply_id: String, count: int) -> void:
+	if not Game.buy_supply(supply_id, count):
+		Audio.play("deny")
+		shop_ui.toast("Not enough money")
+		return
+	Audio.play("buy")
+	shop_ui.toast("%s — %d %s in the store" % [
+		Catalog.trade_name(supply_id), Game.supply_count(supply_id),
+		Catalog.get_trade(supply_id).get("unit", "units")], 1.6)
+	shop_ui.show_supply(supply_id)
+
+
+func _sell_supply_in_shop(supply_id: String, count: int) -> void:
+	if Game.sell_supply(supply_id, count) <= 0:
+		Audio.play("deny")
+		return
+	Audio.play("sell")
+	shop_ui.toast("Sold back — %d left" % Game.supply_count(supply_id), 1.6)
+	shop_ui.show_supply(supply_id)
 
 
 func _buy_paint_in_shop(surface: String, entry: Dictionary) -> void:
@@ -253,6 +277,8 @@ func enter_estate() -> void:
 	estate_ui.collect_site.connect(_collect_site)
 	estate_ui.collect_batch.connect(_collect_batch)
 	estate_ui.improve_item.connect(_improve_item)
+	estate_ui.make_item.connect(_make_item)
+	estate_ui.collect_made.connect(_collect_made)
 
 	await _uncover(screen)
 
@@ -327,6 +353,31 @@ func _improve_item(item_id: String) -> void:
 	Audio.play("levelup")
 	estate_ui.toast("%s is now %s" % [
 		Catalog.display_name(item_id), str(cost["name"]).to_lower()], 2.2)
+
+
+func _make_item(item_id: String) -> void:
+	if not Game.start_making(item_id):
+		Audio.play("deny")
+		var short := Game.short_for(item_id)
+		var parts: Array[String] = []
+		for material: String in short:
+			parts.append("%d %s" % [int(short[material]), Catalog.trade_name(material)])
+		estate_ui.toast("Short %s — buy it at the yard" % " and ".join(parts))
+		return
+	Audio.play("buy")
+	estate_ui.toast("%s on the bench, ready in %s" % [
+		Catalog.display_name(item_id),
+		Game.spell_out(Catalog.make_seconds(item_id))], 2.4)
+
+
+func _collect_made() -> void:
+	var taken := Game.collect_made()
+	if taken <= 0:
+		Audio.play("deny")
+		return
+	Audio.play("levelup")
+	estate_ui.toast("%d piece%s off the bench and into the warehouse" % [
+		taken, "" if taken == 1 else "s"], 2.2)
 
 
 # ------------------------------------------------------------- the changeover

@@ -14,6 +14,7 @@ extends Node3D
 signal left()
 signal picked(item_id: String)
 signal picked_paint(surface: String, entry: Dictionary)
+signal picked_supply(supply_id: String)
 signal nothing_picked()
 
 ## Aisle layout. Stock stands in rows across the floor, front to back, and the
@@ -39,6 +40,8 @@ const CARD_TILT := 32.0
 ## being in the way. The depth is whatever the stock turns out to need.
 const WIDTH := 11.0
 const MIN_DEPTH := 12.0
+## How far apart the merchant's pallets stand.
+const YARD_STEP := 2.55
 const HEIGHT := 3.4
 
 var depth := MIN_DEPTH
@@ -104,6 +107,12 @@ func is_paint_shop() -> bool:
 	return str(shop.get("id", "")) == "paint"
 
 
+## The builders' merchant. Like the Colour House it sells nothing you can put
+## in a room, so its floor is stacks of material rather than rows of furniture.
+func is_yard() -> bool:
+	return str(shop.get("id", "")) == "yard"
+
+
 # ------------------------------------------------------------------ the shell
 
 func _build_shell() -> void:
@@ -134,7 +143,9 @@ func _build_shell() -> void:
 	rig.name = "CameraRig"
 	rig.yaw = -14.0
 	rig.pitch = -25.0
-	rig.distance = 12.6
+	# The merchant is one row of pallets rather than a showroom, so the camera
+	# starts in closer — the showroom distance leaves it stranded in a field.
+	rig.distance = 9.8 if is_yard() else 12.6
 	rig.min_distance = 4.5
 	rig.max_distance = 18.0
 	rig.pan_limit = Vector2(WIDTH * 0.5, depth * 0.5)
@@ -149,6 +160,12 @@ func _plan_floor() -> void:
 	_spots = []
 	depth = MIN_DEPTH
 	if is_paint_shop():
+		return
+	if is_yard():
+		# Four pallets and nothing else, so the merchant is a shorter unit than a
+		# showroom. Anything deeper is a hall with a stack in the middle of it.
+		depth = 10.0
+		_stock_half_w = YARD_STEP * 1.5 + 0.9
 		return
 
 	var ids := Catalog.shop_stock(str(shop.get("id", "")))
@@ -464,6 +481,9 @@ func _stock_the_floor() -> void:
 	if is_paint_shop():
 		_stock_paint()
 		return
+	if is_yard():
+		_stock_yard()
+		return
 
 	for spot: Dictionary in _spots:
 		var id := str(spot["id"])
@@ -560,6 +580,72 @@ static func _matte(colour: Color) -> StandardMaterial3D:
 	material.albedo_color = colour
 	material.roughness = 0.9
 	return material
+
+
+## Four stacks of trade material across the middle of the yard, each on a pallet
+## with its price standing over it.
+func _stock_yard() -> void:
+	var trade := Catalog.trade()
+	for i in trade.size():
+		var entry: Dictionary = trade[i]
+		_pallet(entry, Vector3(
+			(float(i) - float(trade.size() - 1) * 0.5) * YARD_STEP, 0.0, 1.6))
+
+
+## One stack, pickable in its own right.
+func _pallet(entry: Dictionary, at: Vector3) -> void:
+	var id := str(entry["id"])
+	var available := Game.level >= int(shop.get("level", 1))
+	var colour: Color = entry["color"]
+	if not available:
+		colour = colour.lerp(Color(0.60, 0.60, 0.58), 0.7)
+
+	var holder := Node3D.new()
+	holder.name = "Pallet_%s" % id
+	holder.position = at
+	holder.set_meta("supply", id)
+	_tins.add_child(holder)
+
+	var pallet := Color(0.56, 0.44, 0.30)
+	holder.add_child(_solid(Vector3(1.9, 0.10, 1.35), pallet, Vector3(0, 0.05, 0)))
+	for sx in [-0.62, 0.0, 0.62]:
+		holder.add_child(_solid(Vector3(0.22, 0.14, 1.35), pallet.darkened(0.18),
+			Vector3(float(sx), 0.17, 0)))
+	holder.add_child(_solid(Vector3(1.9, 0.08, 1.35), pallet, Vector3(0, 0.28, 0)))
+
+	# The stack itself, laid in courses turned a quarter each time so it reads as
+	# material stacked rather than as one painted block.
+	for course in 7:
+		var wide: float = 1.66 - float(course) * 0.05
+		var turn: bool = course % 2 == 1
+		holder.add_child(_solid(
+			Vector3(wide if not turn else 1.12, 0.19, 1.12 if not turn else wide),
+			colour.darkened(0.035 * float(course)),
+			Vector3(0, 0.42 + float(course) * 0.20, 0)))
+
+	var text := Label3D.new()
+	text.text = "%s\n%s a %s" % [entry["name"], UIKit.money(int(entry["price"])),
+		str(entry["unit"]).trim_suffix("s")]
+	text.font_size = 40
+	text.pixel_size = 0.0044
+	text.position = Vector3(0, 2.30, 0)
+	text.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	text.modulate = Color(0.96, 0.96, 0.98) if available else Color(0.92, 0.64, 0.62)
+	text.outline_size = 20
+	text.outline_modulate = Color(0.06, 0.07, 0.10, 0.92)
+	holder.add_child(text)
+
+	var pick := StaticBody3D.new()
+	pick.collision_layer = FurnitureItem.PICK_LAYER
+	pick.collision_mask = 0
+	pick.set_meta("pallet", holder)
+	var shape := CollisionShape3D.new()
+	var volume := BoxShape3D.new()
+	volume.size = Vector3(2.0, 1.9, 1.45)
+	shape.shape = volume
+	shape.position = Vector3(0, 0.95, 0)
+	pick.add_child(shape)
+	holder.add_child(pick)
 
 
 ## The Colour House sells shades rather than furniture, so its floor is racks
@@ -745,6 +831,11 @@ func _pick(at: Vector2) -> void:
 		return
 
 	var collider: Object = hit["collider"]
+	if collider.has_meta("pallet"):
+		var stack: Node3D = collider.get_meta("pallet")
+		_select_tin(stack)
+		picked_supply.emit(str(stack.get_meta("supply")))
+		return
 	if collider.has_meta("tin"):
 		_select_tin(collider.get_meta("tin"))
 		var holder: Node3D = collider.get_meta("tin")

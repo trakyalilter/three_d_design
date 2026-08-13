@@ -616,6 +616,10 @@ func _process(delta: float) -> void:
 	if _pip_tick > 0.0:
 		return
 	_pip_tick = 1.0
+	# The map is built in stages behind the loading screen, so the first frames
+	# arrive before there is a camera to measure the plates against.
+	if rig == null:
+		return
 
 	# Thirteen name plates across one map will not all fit at arm's length, so
 	# they shrink as the camera pulls back and drop the tier off the end. Close

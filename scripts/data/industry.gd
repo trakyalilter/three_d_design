@@ -11,22 +11,26 @@ extends Node
 ## which is where everything the land gives and everything the works make
 ## finally comes together.
 
-## The four things that come out of the ground.
+## The four things that come out of your own ground. These are the fine stuff —
+## the timber with a figure in it, the silk off the reel — and they exist only
+## to make furniture *better*. Nothing here is ever used to make an ordinary
+## piece: that is what the merchant's trade stock is for, and the two never
+## meet. See Catalog.TRADE.
 const MATERIALS: Array[Dictionary] = [
 	{
-		"id": "timber", "name": "Timber", "unit": "logs",
+		"id": "timber", "name": "Figured Walnut", "unit": "boules",
 		"color": Color(0.55, 0.38, 0.24),
 	},
 	{
-		"id": "cotton", "name": "Cotton", "unit": "bales",
+		"id": "cotton", "name": "Raw Silk", "unit": "hanks",
 		"color": Color(0.92, 0.90, 0.86),
 	},
 	{
-		"id": "iron", "name": "Iron Ore", "unit": "loads",
+		"id": "iron", "name": "Wrought Iron", "unit": "billets",
 		"color": Color(0.52, 0.54, 0.58),
 	},
 	{
-		"id": "sand", "name": "Silica Sand", "unit": "loads",
+		"id": "sand", "name": "Lead Crystal", "unit": "batches",
 		"color": Color(0.86, 0.78, 0.56),
 	},
 ]
@@ -35,22 +39,22 @@ const MATERIALS: Array[Dictionary] = [
 ## piece of furniture wants, decided by what the piece is actually built from.
 const GOODS: Array[Dictionary] = [
 	{
-		"id": "board", "name": "Hardwood Board",
+		"id": "board", "name": "Burr Panel",
 		"from": "timber", "takes": 3,
 		"color": Color(0.62, 0.44, 0.28),
 	},
 	{
-		"id": "cloth", "name": "Bolt of Cloth",
+		"id": "cloth", "name": "Bolt of Silk",
 		"from": "cotton", "takes": 3,
 		"color": Color(0.84, 0.72, 0.70),
 	},
 	{
-		"id": "fitting", "name": "Steel Fitting",
+		"id": "fitting", "name": "Forged Fitting",
 		"from": "iron", "takes": 3,
 		"color": Color(0.72, 0.75, 0.80),
 	},
 	{
-		"id": "pane", "name": "Glass Pane",
+		"id": "pane", "name": "Crystal Pane",
 		"from": "sand", "takes": 3,
 		"color": Color(0.66, 0.82, 0.86),
 	},
@@ -147,9 +151,10 @@ const WORKS: Array[Dictionary] = [
 ## The bench where goods go into furniture. It stands at the end of the road
 ## and costs nothing — the goods are the price.
 const BENCH := {
-	"id": "bench", "name": "The Finishing Bench",
+	"id": "bench", "name": "The Workshop",
 	"at": Vector2(52, 0), "level": 5,
-	"blurb": "Where a piece off the shop floor becomes something better.",
+	"blurb": "Trade material in one end, furniture out the other — and a finishing "
+		+ "bench along the wall for the pieces you already own.",
 }
 
 # ------------------------------------------------------------------ the clock

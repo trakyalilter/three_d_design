@@ -61,6 +61,12 @@ var site_stock: Dictionary = {}
 var site_since: Dictionary = {}
 ## works id -> {"made": how many are in the run, "ready_at": when it comes off}.
 var batches: Dictionary = {}
+## trade material id -> how many units are in the workshop store. Bought with
+## money at the merchant, and the only thing an ordinary piece is ever made of.
+var supplies: Dictionary = {}
+## What is on the workshop bench, as [{"id", "ready_at"}]. Made in the order it
+## was put on, one at a time.
+var making: Array = []
 ## Pushed forward by the test harness so a week can pass in a frame. Zero in
 ## anything a player runs.
 var clock_offset: float = 0.0
@@ -548,6 +554,128 @@ func collect_site(site_id: String) -> int:
 	return taken
 
 
+# ------------------------------------------------------------ the merchant
+
+func supply_count(id: String) -> int:
+	return int(supplies.get(id, 0))
+
+
+## Buys trade material by the unit. All or nothing, like everything else.
+func buy_supply(id: String, count: int = 1) -> bool:
+	if count <= 0 or Catalog.get_trade(id).is_empty():
+		return false
+	if not spend(Catalog.trade_price(id) * count):
+		return false
+	supplies[id] = supply_count(id) + count
+	save_profile()
+	estate_changed.emit()
+	return true
+
+
+## Sells it back at what it cost, so a mistake at the merchant costs nothing —
+## the same deal the furniture shops give.
+func sell_supply(id: String, count: int = 1) -> int:
+	var sellable: int = mini(count, supply_count(id))
+	if sellable <= 0:
+		return 0
+	supplies[id] = supply_count(id) - sellable
+	earn(Catalog.trade_price(id) * sellable)
+	save_profile()
+	estate_changed.emit()
+	return sellable
+
+
+# ------------------------------------------------------------- the workshop
+
+## Whether the store holds everything one of these would take.
+func can_make(item_id: String) -> bool:
+	if not is_item_unlocked(item_id):
+		return false
+	var bill := Catalog.bill_of(item_id)
+	if bill.is_empty():
+		return false
+	for material: String in bill:
+		if supply_count(material) < int(bill[material]):
+			return false
+	return true
+
+
+## What is still short, as material id -> units, for a piece you cannot make.
+func short_for(item_id: String) -> Dictionary:
+	var short: Dictionary = {}
+	for material: String in Catalog.bill_of(item_id):
+		var gap: int = int(Catalog.bill_of(item_id)[material]) - supply_count(material)
+		if gap > 0:
+			short[material] = gap
+	return short
+
+
+## Puts a piece on the bench. The materials go in now — they are in the piece,
+## not in the store — and it comes off finished when its time is up.
+func start_making(item_id: String) -> bool:
+	if not can_make(item_id):
+		return false
+	var bill := Catalog.bill_of(item_id)
+	for material: String in bill:
+		supplies[material] = supply_count(material) - int(bill[material])
+	# One at a time: the queue starts when whatever is in front of it finishes.
+	var free_at := now()
+	for entry: Variant in making:
+		free_at = maxf(free_at, float((entry as Dictionary)["ready_at"]))
+	making.append({
+		"id": item_id,
+		"ready_at": free_at + Catalog.make_seconds(item_id),
+	})
+	save_profile()
+	estate_changed.emit()
+	stock_changed.emit()
+	return true
+
+
+## Everything on the bench that is finished, moved into the warehouse. Making
+## something teaches you as much as fitting it does.
+func collect_made() -> int:
+	var when := now()
+	var taken := 0
+	var still: Array = []
+	for entry: Variant in making:
+		var job: Dictionary = entry
+		if float(job["ready_at"]) > when:
+			still.append(job)
+			continue
+		var item_id := str(job["id"])
+		inventory[item_id] = stock_of(item_id) + 1
+		add_xp(Catalog.make_xp(item_id))
+		taken += 1
+	making = still
+	if taken > 0:
+		save_profile()
+		estate_changed.emit()
+		stock_changed.emit()
+	return taken
+
+
+## How many are finished and waiting to be taken off.
+func made_waiting() -> int:
+	var when := now()
+	var ready := 0
+	for entry: Variant in making:
+		if float((entry as Dictionary)["ready_at"]) <= when:
+			ready += 1
+	return ready
+
+
+## Seconds until the next one comes off, or -1.0 when the bench is clear.
+func making_left() -> float:
+	var soonest := -1.0
+	var when := now()
+	for entry: Variant in making:
+		var left: float = float((entry as Dictionary)["ready_at"]) - when
+		if left > 0.0 and (soonest < 0.0 or left < soonest):
+			soonest = left
+	return soonest
+
+
 # --------------------------------------------------------------- the works
 
 ## How many a works could put through in one run right now: one per tier, and
@@ -692,6 +820,8 @@ func reset() -> void:
 	site_stock.clear()
 	site_since.clear()
 	batches.clear()
+	supplies.clear()
+	making.clear()
 	_grant_starter_paints()
 	_grant_free_districts()
 	save_profile()
@@ -706,7 +836,7 @@ func save_profile() -> void:
 		push_warning("Could not save the profile (%d)" % FileAccess.get_open_error())
 		return
 	file.store_string(JSON.stringify({
-		"version": 5,
+		"version": 6,
 		"money": money,
 		"xp": xp,
 		"level": level,
@@ -725,6 +855,8 @@ func save_profile() -> void:
 		"site_stock": site_stock,
 		"site_since": site_since,
 		"batches": batches,
+		"supplies": supplies,
+		"making": making,
 	}, "\t"))
 	file.close()
 
@@ -764,6 +896,8 @@ func load_profile() -> void:
 	site_stock = data.get("site_stock", {})
 	site_since = data.get("site_since", {})
 	batches = data.get("batches", {})
+	supplies = data.get("supplies", {})
+	making = data.get("making", [])
 	var opened := now()
 	for site: Dictionary in Industry.sites():
 		var site_id := str(site["id"])

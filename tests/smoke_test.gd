@@ -731,6 +731,8 @@ func _check_estate() -> void:
 	_expect(Game.money == money - int(cost["money"]), "the bench did not charge its fee")
 	_expect(not Game.can_improve("sofa"), "the sofa can be improved again with an empty yard")
 
+	await _check_workshop()
+
 	main.enter_city()
 	await _settle()
 
@@ -738,6 +740,122 @@ func _check_estate() -> void:
 		% [site_id, int(Industry.yield_per_hour(site, 2)), Industry.hold_cap(site, 2),
 		works_id, Game.spell_out(Industry.batch_seconds(works_id))])
 	await _check_craft_pays()
+
+
+## Making furniture out of trade material. The point of the whole thing is that
+## it comes out cheaper than the shelf and teaches you something on the way, so
+## that is what is checked — on every piece in the catalogue, not one of them.
+func _check_workshop() -> void:
+	var main = get_tree().current_scene
+
+	# Every piece has to be worth making, and worth about as much as every other
+	# piece is — a glazed cabinet that costs four fifths of its shelf price in
+	# material while a wooden one costs a third would be two different games.
+	var thickest := 0.0
+	var thinnest := 1.0
+	for item_id in Catalog.ids():
+		var bill := Catalog.bill_of(item_id)
+		if bill.is_empty():
+			_failures.append("%s has no bill of materials, so it can never be made"
+				% item_id)
+			continue
+		var shelf := Catalog.price(item_id)
+		var cost := Catalog.bill_cost(bill)
+		var share := float(cost) / float(shelf)
+		if share > 0.75:
+			_failures.append("%s saves too little to be worth making (%d of %d)"
+				% [item_id, cost, shelf])
+		if share < 0.35:
+			_failures.append("%s is nearly free to make (%d of %d)"
+				% [item_id, cost, shelf])
+		thickest = maxf(thickest, share)
+		thinnest = minf(thinnest, share)
+		for material: String in bill:
+			if Catalog.get_trade(material).is_empty():
+				_failures.append("%s calls for '%s', which the yard does not sell"
+					% [item_id, material])
+
+	# The merchant's floor, and a pallet picked off it.
+	main.enter_shop("yard")
+	await _settle()
+	var floor_view = main.shop
+	_expect(floor_view != null and floor_view.is_yard(), "the yard did not open")
+	if floor_view != null:
+		var pallets := 0
+		for child in floor_view.get_node("Tins").get_children():
+			if (child as Node).has_meta("supply"):
+				pallets += 1
+		_expect(pallets == Catalog.trade().size(),
+			"the yard put out %d pallets for the %d things it sells"
+				% [pallets, Catalog.trade().size()])
+
+	# Buying by the unit, through the card's own buttons.
+	var money := Game.money
+	main.shop_ui.buy_supply_requested.emit("lumber", 10)
+	await get_tree().process_frame
+	_expect(Game.supply_count("lumber") == 10, "ten boards did not land in the store")
+	_expect(Game.money == money - Catalog.trade_price("lumber") * 10,
+		"the yard did not charge for ten boards")
+	main.shop_ui.sell_supply_requested.emit("lumber", 4)
+	await get_tree().process_frame
+	_expect(Game.supply_count("lumber") == 6, "selling four boards back left the wrong count")
+	_expect(Game.money == money - Catalog.trade_price("lumber") * 6,
+		"selling back at the yard did not refund what it cost")
+
+	main.enter_estate()
+	await _settle()
+
+	# A chair off the bench. Its bill is bought, it is started, and it is not
+	# there until its time is up.
+	var made_id := "chair"
+	Game.supplies = {}
+	for material: String in Catalog.bill_of(made_id):
+		Game.buy_supply(material, int(Catalog.bill_of(made_id)[material]))
+	_expect(Game.can_make(made_id), "the store holds a chair's bill and still cannot make one")
+
+	var held := Game.stock_of(made_id)
+	var xp := Game.xp
+	main.estate_ui.make_item.emit(made_id)
+	await get_tree().process_frame
+	_expect(Game.making.size() == 1, "starting a chair put nothing on the bench")
+	_expect(Game.stock_of(made_id) == held, "a chair appeared before it was made")
+	for material: String in Catalog.bill_of(made_id):
+		_expect(Game.supply_count(material) == 0,
+			"making a chair left its %s in the store" % material)
+	_expect(not Game.can_make(made_id), "a second chair could be started out of thin air")
+
+	main.estate_ui.collect_made.emit()
+	await get_tree().process_frame
+	_expect(Game.stock_of(made_id) == held, "an unfinished chair came off the bench")
+
+	Game.clock_offset += Catalog.make_seconds(made_id) + 1.0
+	_expect(Game.made_waiting() == 1, "the chair never finished")
+	main.estate_ui.collect_made.emit()
+	await get_tree().process_frame
+	_expect(Game.stock_of(made_id) == held + 1, "the finished chair never reached the warehouse")
+	_expect(Game.making.is_empty(), "the finished chair stayed on the bench")
+	_expect(Game.xp > xp or Game.level == Game.MAX_LEVEL,
+		"making a chair taught nothing")
+
+	# A queue runs one at a time, so two started together do not finish together.
+	Game.supplies = {}
+	for material: String in Catalog.bill_of(made_id):
+		Game.buy_supply(material, int(Catalog.bill_of(made_id)[material]) * 2)
+	Game.start_making(made_id)
+	Game.start_making(made_id)
+	_expect(Game.making.size() == 2, "the bench would not take a second piece")
+	Game.clock_offset += Catalog.make_seconds(made_id) + 1.0
+	_expect(Game.made_waiting() == 1,
+		"both pieces came off the bench in the time one of them takes")
+	Game.clock_offset += Catalog.make_seconds(made_id) + 1.0
+	_expect(Game.made_waiting() == 2, "the second piece never came off")
+	Game.collect_made()
+
+	print("workshop        material is %.0f%%–%.0f%% of the shelf price; a chair "
+		% [thinnest * 100.0, thickest * 100.0]
+		+ "takes %s and %s of timber"
+			% [Game.spell_out(Catalog.make_seconds(made_id)),
+			UIKit.money(Catalog.bill_cost(Catalog.bill_of(made_id)))])
 
 
 ## Improving furniture is meant to lift the fee and the experience of the room

@@ -72,6 +72,11 @@ const SHOPS: Array[Dictionary] = [
 		"tagline": "Floors and walls, priced by the square metre.",
 		"color": Color(0.82, 0.40, 0.68),
 	},
+	{
+		"id": "yard", "name": "Yardley & Sons", "category": "", "district": "maple", "level": 3,
+		"tagline": "Timber, cloth, steel and glass, sold by the unit.",
+		"color": Color(0.72, 0.58, 0.34),
+	},
 
 	{
 		"id": "attic", "name": "Attic & Loft", "category": "Storage",
@@ -1241,6 +1246,7 @@ func _add(def: Dictionary) -> void:
 		"catalogue already has a piece called '%s'" % def["id"])
 	def["extents"] = _measure(def["parts"])
 	def["does"] = _traits_for(def)
+	def["bill"] = _bill_for(def)
 	def["level"] = def.get("level", 1)
 	def["price"] = def.get("price", 100)
 	def["shop"] = str(def.get("shop", _shop_for_category(def["category"])))
@@ -1384,6 +1390,179 @@ func shop_district(shop_id: String) -> String:
 
 func district_of(id: String) -> String:
 	return shop_district(shop_of(id))
+
+
+# ------------------------------------------------------------- trade materials
+
+## What ordinary furniture is made of, bought by the unit at the merchant.
+##
+## This is the other half of the supply side and it never touches the first: the
+## fine stuff off your own land makes furniture *better* at the bench, and this
+## makes furniture *at all* at the workshop. You cannot upholster a plain chair
+## in raw silk, and you cannot make a Master sofa out of a bolt off the shelf.
+const TRADE: Array[Dictionary] = [
+	{
+		"id": "lumber", "name": "Lumber", "unit": "boards", "price": 8,
+		"color": Color(0.60, 0.44, 0.28),
+		"blurb": "Sawn, seasoned and stacked by the yard gate.",
+	},
+	{
+		"id": "bolt", "name": "Bolt Cloth", "unit": "bolts", "price": 12,
+		"color": Color(0.80, 0.74, 0.68),
+		"blurb": "Trade weight. Hard wearing, and nobody writes home about it.",
+	},
+	{
+		"id": "section", "name": "Steel Section", "unit": "lengths", "price": 13,
+		"color": Color(0.66, 0.69, 0.74),
+		"blurb": "Tube, angle and flat bar, cut to whatever you are making.",
+	},
+	{
+		"id": "sheet", "name": "Sheet Glass", "unit": "sheets", "price": 15,
+		"color": Color(0.68, 0.82, 0.86),
+		"blurb": "Float glass by the crate, and mind the edges.",
+	},
+]
+
+## Which trade material a part is made from. A tinted part is the piece's own
+## upholstery or paint and follows whatever else the piece is mostly built of.
+const TRADE_BY_ROLE := {
+	"wood": "lumber", "wood_dark": "lumber", "wood_light": "lumber", "dark": "lumber",
+	"steel": "section", "metal": "section",
+	"white": "bolt", "towel": "bolt", "leaf": "bolt", "soil": "bolt",
+	"glass": "sheet", "porcelain": "sheet", "screen": "sheet", "mirror": "sheet",
+}
+
+## How much of a piece's shelf price the materials come to. The rest is the
+## making of it, which is what you save by doing it yourself.
+const MAKE_SHARE := 0.57
+
+## How long a piece takes to make, and what making it teaches you.
+const MAKE_SECONDS_PER_DOLLAR := 60.0 / 25.0
+const MAKE_SECONDS_MIN := 240.0
+const MAKE_SECONDS_MAX := 2700.0
+const MAKE_XP_PER_DOLLAR := 1.0 / 60.0
+
+
+func trade() -> Array[Dictionary]:
+	return TRADE
+
+
+func get_trade(id: String) -> Dictionary:
+	for entry in TRADE:
+		if str(entry["id"]) == id:
+			return entry
+	return {}
+
+
+func trade_name(id: String) -> String:
+	return str(get_trade(id).get("name", id))
+
+
+func trade_price(id: String) -> int:
+	return int(get_trade(id).get("price", 20))
+
+
+## What it takes to make one of these, as trade material id -> units.
+func bill_of(id: String) -> Dictionary:
+	return _items.get(id, {}).get("bill", {})
+
+
+func bill_cost(bill: Dictionary) -> int:
+	var total := 0
+	for material: String in bill:
+		total += trade_price(material) * int(bill[material])
+	return total
+
+
+## How long one takes to make, and what it teaches.
+func make_seconds(id: String) -> float:
+	return clampf(float(price(id)) * MAKE_SECONDS_PER_DOLLAR,
+		MAKE_SECONDS_MIN, MAKE_SECONDS_MAX)
+
+
+func make_xp(id: String) -> int:
+	return maxi(int(round(float(price(id)) * MAKE_XP_PER_DOLLAR)), 1)
+
+
+## The bill for a piece, worked out from the piece itself.
+##
+## What it is made of comes from the part list — that is already there, one
+## material role per part. How *much* comes from the price, because volume alone
+## is hopeless: a sofa's body is bulkier than a wardrobe and it is not a hundred
+## bolts of cloth. So the proportions are the model's and the total is the
+## price's, which keeps every one of the 167 pieces in the same economy without
+## a line of data being written by hand.
+func _bill_for(def: Dictionary) -> Dictionary:
+	var volume: Dictionary = {}
+	var tinted := 0.0
+	for part: Variant in def.get("parts", []):
+		var p: Dictionary = part
+		var size: Vector3 = p["size"]
+		var litres: float = absf(size.x * size.y * size.z) * 1000.0
+		# A cylinder or a sphere in its bounding box is a little over half of it.
+		if str(p.get("shape", "box")) != "box":
+			litres *= 0.55
+		var role := str(p.get("mat", "white"))
+		if role == "tint":
+			tinted += litres
+			continue
+		var material := str(TRADE_BY_ROLE.get(role, "lumber"))
+		volume[material] = float(volume.get(material, 0.0)) + litres
+
+	var order: Array[String] = []
+	for material: String in volume:
+		order.append(material)
+	if order.is_empty():
+		# Nothing but tinted parts: it is made of whatever it is painted on.
+		volume["lumber"] = maxf(tinted, 1.0)
+		order.append("lumber")
+	order.sort_custom(func(a: String, b: String) -> bool:
+		return float(volume[a]) > float(volume[b]))
+	if tinted > 0.0:
+		volume[order[0]] = float(volume[order[0]]) + tinted
+
+	var sum := 0.0
+	for material: String in volume:
+		sum += float(volume[material])
+
+	# How many units, worked back from what they cost rather than counted flat.
+	# Glass is nearly twice the price of timber, so a fixed unit count per dollar
+	# would have a glazed cabinet cost four fifths of its shelf price to make and
+	# a wooden one a third — the same piece of furniture, two different games.
+	# Pricing the mix first and then buying MAKE_SHARE of the shelf price of it
+	# puts every piece on the same footing.
+	var per_unit := 0.0
+	for material: String in volume:
+		per_unit += float(trade_price(material)) * float(volume[material]) / maxf(sum, 0.001)
+	var units: int = maxi(int(round(float(def.get("price", 100)) * MAKE_SHARE
+		/ maxf(per_unit, 1.0))), 1)
+
+	# Hand the units out by largest remainder, so what is left over after the
+	# whole numbers goes to whichever material was rounded down hardest and the
+	# bill comes to exactly the count that was costed. Rounding each material on
+	# its own instead would quietly add a unit per material, which is most of the
+	# bill on a cheap piece made of two things.
+	var bill: Dictionary = {}
+	var handed := 0
+	var remainders: Array = []
+	for material: String in order:
+		var exact: float = float(units) * float(volume[material]) / maxf(sum, 0.001)
+		var take := int(floor(exact))
+		if take > 0:
+			bill[material] = take
+			handed += take
+		remainders.append([exact - floor(exact), material])
+	remainders.sort_custom(func(a: Array, b: Array) -> bool: return float(a[0]) > float(b[0]))
+	var spare := units - handed
+	for pair: Array in remainders:
+		if spare <= 0:
+			break
+		var material := str(pair[1])
+		bill[material] = int(bill.get(material, 0)) + 1
+		spare -= 1
+	if spare > 0:
+		bill[order[0]] = int(bill.get(order[0], 0)) + spare
+	return bill
 
 
 # ---------------------------------------------------------------- what it does
