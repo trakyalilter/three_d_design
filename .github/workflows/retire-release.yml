@@ -145,18 +145,30 @@ jobs:
           KEEP_TAG: ${{ inputs.keep_tag }}
         run: |
           set -euo pipefail
-          LEFT=""
 
-          if gh release view "$TAG" -R "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
-            LEFT="the release"
-          fi
-          if [ "$KEEP_TAG" != "true" ] \
-              && gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$TAG" > /dev/null 2>&1; then
-            LEFT="${LEFT:+$LEFT and }the tag"
-          fi
+          # GitHub goes on answering for a ref for a moment after it has gone,
+          # so asking once, immediately, reports a tag that is already deleted —
+          # which marked the run that deleted v1.36.0 as a failure. Ask until it
+          # agrees with itself, and only then call it a failure.
+          LEFT="not checked yet"
+          for attempt in 1 2 3 4 5 6; do
+            LEFT=""
+            if gh release view "$TAG" -R "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+              LEFT="the release"
+            fi
+            if [ "$KEEP_TAG" != "true" ] \
+                && gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$TAG" > /dev/null 2>&1; then
+              LEFT="${LEFT:+$LEFT and }the tag"
+            fi
+            if [ -z "$LEFT" ]; then
+              break
+            fi
+            echo "$LEFT still showing on attempt $attempt; giving GitHub a moment."
+            sleep 5
+          done
 
           if [ -n "$LEFT" ]; then
-            echo "::error::$LEFT for $TAG is still there. Nothing else was changed."
+            echo "::error::$LEFT for $TAG is still there half a minute later."
             exit 1
           fi
 
