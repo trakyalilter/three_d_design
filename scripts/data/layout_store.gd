@@ -67,14 +67,37 @@ static func load_autosave() -> Dictionary:
 	return _read(AUTOSAVE)
 
 
+## Writes one layout beside itself and then moves it into place.
+##
+## Opening the file itself empties it first, so an app killed part way through
+## a write leaves half a layout — and half a layout is not JSON, so the room is
+## gone. The autosave is written on every change to a free-build room, which
+## makes that a matter of time rather than bad luck.
+##
+## The profile keeps a spare of the save it replaces; this does not. One move
+## rather than two leaves no moment with no file at all, and a sandbox room is
+## one room to build again rather than a career — worth not losing to a torn
+## write, not worth keeping two of.
 static func _write(path: String, data: Dictionary) -> bool:
 	data["version"] = FORMAT_VERSION
-	var file := FileAccess.open(path, FileAccess.WRITE)
+	var temp := path + ".tmp"
+	var file := FileAccess.open(temp, FileAccess.WRITE)
 	if file == null:
 		push_warning("Could not write %s (%d)" % [path, FileAccess.get_open_error()])
 		return false
 	file.store_string(JSON.stringify(data, "\t"))
+	# A disk with no room left fails out here, beside the layout rather than
+	# through it, so whatever was saved before is still whole.
+	var wrote := file.get_error()
 	file.close()
+	if wrote != OK:
+		push_warning("Could not write %s (%d); the last save is untouched" % [path, wrote])
+		DirAccess.remove_absolute(temp)
+		return false
+	if DirAccess.rename_absolute(temp, path) != OK:
+		push_warning("Could not move %s into place" % path)
+		DirAccess.remove_absolute(temp)
+		return false
 	return true
 
 

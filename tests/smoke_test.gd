@@ -21,6 +21,7 @@ func _ready() -> void:
 
 	print("=== the save ===")
 	_check_profile()
+	_check_layout_store()
 
 	print("=== the front page ===")
 	await _check_title()
@@ -233,6 +234,69 @@ func _check_brief_sheet() -> void:
 ## Everything a panel says, however it is drawn. A line the player can act on is
 ## a button rather than a label — the shopping list in a shop is half of each —
 ## and the checks below care what the panel says, not which it used.
+# ------------------------------------------------------------- free-build saves
+
+## The sandbox's own save files, which had no check on them at all.
+##
+## Lower stakes than the career — a room to build again rather than a city — but
+## the same failure: the autosave is written on every change to a free-build
+## room, so a write interrupted half way through used to leave a file that would
+## not parse and a room that was gone.
+func _check_layout_store() -> void:
+	var name := "smoke test room"
+	var room := {"room": {"w": 5.0, "d": 4.0, "h": 2.6}, "items": [{"id": "chair"}]}
+
+	_expect(LayoutStore.save_layout(name, room), "the layout would not save")
+	_expect(LayoutStore.exists(name), "the saved layout is not there")
+	_expect(LayoutStore.list_layouts().has(LayoutStore.sanitize(name)),
+		"the saved layout is missing from the list")
+
+	var back := LayoutStore.load_layout(name)
+	_expect(int(back.get("version", 0)) == LayoutStore.FORMAT_VERSION,
+		"the layout came back without its format version")
+	_expect(back.get("items", []).size() == 1, "the layout came back without its furniture")
+
+	# Nothing may be left lying beside it: a half-written file that survived
+	# would show up in the player's own list of rooms.
+	var path := "%s/%s.json" % [LayoutStore.DIR, LayoutStore.sanitize(name)]
+	_expect(not FileAccess.file_exists(path + ".tmp"),
+		"a half-written file was left beside the layout")
+
+	# What a killed write leaves behind now: a torn file beside the room rather
+	# than in place of it. The room still opens, and the wreckage is not offered
+	# to the player as something to load.
+	var torn := FileAccess.open(path + ".tmp", FileAccess.WRITE)
+	torn.store_string('{"room": {"w": 5.0, "d": 4.')
+	torn.close()
+	_expect(LayoutStore.load_layout(name).get("items", []).size() == 1,
+		"a torn write took the room with it")
+	_expect(not LayoutStore.list_layouts().has(LayoutStore.sanitize(name) + ".json"),
+		"the half-written file was offered as a room to load")
+	DirAccess.remove_absolute(path + ".tmp")
+
+	# The part that only holds because the write goes somewhere else first: a
+	# save that fails leaves the room exactly as it was. A directory standing
+	# where the working file wants to be is a write that cannot start, and the
+	# old code — which opened the room's own file and emptied it before finding
+	# out whether the rest would work — would have taken the room with it.
+	DirAccess.make_dir_absolute(path + ".tmp")
+	_expect(not LayoutStore.save_layout(name, {"room": {}, "items": []}),
+		"a save that could not be written reported success")
+	_expect(LayoutStore.load_layout(name).get("items", []).size() == 1,
+		"a failed save emptied the room it was replacing")
+	DirAccess.remove_absolute(path + ".tmp")
+
+	# The autosave goes through the same door.
+	_expect(LayoutStore.save_autosave(room), "the autosave would not write")
+	_expect(LayoutStore.load_autosave().get("items", []).size() == 1,
+		"the autosave came back empty")
+
+	LayoutStore.delete_layout(name)
+	_expect(not LayoutStore.exists(name), "deleting the layout left it behind")
+	DirAccess.remove_absolute(LayoutStore.AUTOSAVE)
+	print("free build      saves, lists, reloads and survives a torn write")
+
+
 # -------------------------------------------------------------------- the save
 
 ## The career has to survive the app being killed while it is being written.

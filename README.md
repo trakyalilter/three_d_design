@@ -981,7 +981,10 @@ godot --headless -- --smoke
 It first checks the one failure a player could never come back from: that a save
 interrupted half way through — which is what an Android app being killed while paused
 leaves behind — does not cost them the career. It tears a profile in half, loads it, and
-expects the money and the level to still be there, off the save kept behind it.
+expects the money and the level to still be there, off the save kept behind it. The
+free-build saves go through the same door and get the same going over: a room saves, lists,
+reloads, survives a torn write beside it, and — the part that only holds because the write
+goes somewhere else first — is left exactly as it was by a save that could not be written.
 
 Then it resets the profile and plays the whole city: all 40 jobs, quarter by quarter, buying
 each quarter out of the money it has actually earned — taking repeat contracts at the
