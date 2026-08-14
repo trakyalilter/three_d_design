@@ -899,13 +899,18 @@ func _check_showroom() -> void:
 	_expect(designer.costs_stock(), "the showroom is furnished out of thin air")
 	_expect(not designer.ui._finish_button.visible,
 		"the showroom offered to hand itself over to somebody")
-	_expect(not designer.ui._brief_button.visible, "the showroom came with a brief")
+	# No brief to tick — but the same six things anybody notices walking in, now
+	# that the floor is paid on them.
+	_expect(designer.ui._brief_button.text == "Verdict",
+		"the showroom came with a brief")
 
 	for item_id in kit:
 		designer._on_place_item(item_id)
 	_expect(Game.total_stock() == warehouse - kit.size(),
 		"dressing the floor did not take the furniture out of the warehouse")
 	var rating: Dictionary = designer.showroom_rating()
+	_expect((rating.get("notes", []) as Array).size() >= 5,
+		"the floor is rated without saying why")
 	_expect(int(rating["pieces"]) == kit.size(),
 		"the floor counted %d pieces of the %d standing on it"
 			% [rating["pieces"], kit.size()])
@@ -1903,7 +1908,28 @@ func _check_three_stars() -> void:
 	_expect(int(review["stars"]) == 3,
 		"a tidy, wall-hugging room scored %d stars, not 3 (%s)"
 			% [review["stars"], _failed_notes(review)])
-	print("review          a properly arranged room scores %s"
+
+	# The same verdict is on the bar while the room is being worked on, not only
+	# once it has been handed over and can no longer be changed. It has to be
+	# the same verdict — one that flatters you while you work and marks you down
+	# at the door would be worse than none.
+	var live: Dictionary = designer.verdict()
+	_expect(int(live["stars"]) == int(review["stars"]),
+		"the room reads as %d stars while you work and %d at the door"
+			% [live["stars"], review["stars"]])
+	_expect((live.get("notes", []) as Array).size() == (review["notes"] as Array).size(),
+		"the live verdict and the hand-over notice different things")
+
+	# And it moves with the room. Pushing everything into one corner breaks the
+	# line about the big pieces standing against the walls.
+	var before := int(designer.verdict()["stars"])
+	for item in designer._items():
+		item.global_position = Vector3(0.0, item.global_position.y, 0.0)
+	designer._update_overlaps()
+	_expect(int(designer.verdict()["stars"]) < before,
+		"heaping the whole room in the middle did not move the verdict")
+
+	print("review          a properly arranged room scores %s, and says so while you work"
 		% RoomReview.stars_text(int(review["stars"])))
 	_check_style()
 

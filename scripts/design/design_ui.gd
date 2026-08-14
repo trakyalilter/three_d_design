@@ -50,6 +50,10 @@ var _new_button: Button
 
 var _brief_sheet: PanelContainer
 var _brief_list: VBoxContainer
+## The last reading taken, kept so opening the sheet can draw it without waiting
+## for the room to change again.
+var _last_results: Array[Dictionary] = []
+var _last_review: Dictionary = {}
 
 var _selection_bar: PanelContainer
 var _selection_label: Label
@@ -202,7 +206,10 @@ func configure(job: Dictionary, showroom: bool = false) -> void:
 	# sandbox is. What it does not have is a brief or a hand-over.
 	_job_label.visible = job_mode or showroom_mode
 	_bill_label.visible = job_mode or showroom_mode
-	_brief_button.visible = job_mode
+	_brief_button.visible = job_mode or showroom_mode
+	_brief_button.text = "Brief" if job_mode else "Verdict"
+	_brief_button.tooltip_text = "What the client asked for" if job_mode \
+		else "What anybody walking in would notice"
 	_finish_button.visible = job_mode
 	_money_label.visible = job_mode or showroom_mode
 	for button in _free_buttons:
@@ -218,12 +225,16 @@ func configure(job: Dictionary, showroom: bool = false) -> void:
 	refresh_stock()
 
 
-func refresh_bill(installed: int) -> void:
+func refresh_bill(installed: int, stars: int = -1) -> void:
 	_money_label.text = UIKit.money(Game.money)
 	if not job_mode:
 		return
 	var budget := int(_job.get("budget", 0))
 	_bill_label.text = "   fitted %s of %s budget" % [UIKit.money(installed), UIKit.money(budget)]
+	# What the room reads as right now, next to what it has cost. Two numbers
+	# that pull against each other, which is the job.
+	if stars >= 0:
+		_bill_label.text += "   ·   %s" % RoomReview.stars_text(stars)
 	_bill_label.add_theme_color_override(
 		"font_color", UIKit.MUTED if installed <= budget else UIKit.BAD)
 
@@ -617,37 +628,87 @@ func _build_brief_sheet() -> void:
 
 func _toggle_brief() -> void:
 	_brief_sheet.visible = not _brief_sheet.visible
+	if _brief_sheet.visible:
+		_redraw_brief()
 
 
-## Redraws the checklist from a fresh evaluation of the brief.
-func set_requirements(results: Array[Dictionary]) -> void:
-	if not job_mode:
+## Takes a fresh reading of the brief and the verdict. The sheet itself is only
+## rebuilt when somebody is looking at it — this runs after every change to the
+## room, and throwing a panel of Controls away and building it again for a sheet
+## that is closed is the one thing here that is genuinely not free.
+func set_requirements(results: Array[Dictionary], review: Dictionary = {}) -> void:
+	if not job_mode and not showroom_mode:
 		return
+	_last_results = results
+	_last_review = review
+	if job_mode:
+		_brief_button.text = "Brief  %d/%d" % [Jobs.met_count(results), results.size()]
+		_finish_button.disabled = not Jobs.all_met(results)
+		_finish_button.tooltip_text = "" if not _finish_button.disabled \
+			else "Tick every line of the brief first"
+	if _brief_sheet.visible:
+		_redraw_brief()
+
+
+func _redraw_brief() -> void:
+	var results := _last_results
+	var review := _last_review
 	for child in _brief_list.get_children():
 		_brief_list.remove_child(child)
 		child.queue_free()
 
-	_brief_button.text = "Brief  %d/%d" % [Jobs.met_count(results), results.size()]
+	if job_mode:
+		_brief_list.add_child(UIKit.label(str(_job.get("name", "")), 21))
+		_brief_list.add_child(UIKit.wrapped_label("“%s”" % _job.get("brief", ""), 400))
 
-	_brief_list.add_child(UIKit.label(str(_job.get("name", "")), 21))
-	_brief_list.add_child(UIKit.wrapped_label("“%s”" % _job.get("brief", ""), 400))
+		for result: Dictionary in results:
+			var row := HBoxContainer.new()
+			var done: bool = result["met"]
+			row.add_child(UIKit.label("✓" if done else "○", 19,
+				UIKit.GOOD if done else UIKit.MUTED))
+			var text := UIKit.label(str(result["label"]), 17,
+				UIKit.TEXT if done else UIKit.MUTED)
+			text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			text.custom_minimum_size = Vector2(320, 0)
+			row.add_child(text)
+			if int(result["need"]) > 1:
+				row.add_child(UIKit.spacer())
+				row.add_child(UIKit.label("%d/%d" % [result["have"], result["need"]],
+					16, UIKit.MUTED))
+			_brief_list.add_child(row)
 
-	for result: Dictionary in results:
+	# The verdict, live. The brief is a checklist and can be finished; this can
+	# only be got better at, so it sits under the brief rather than beside it.
+	if review.is_empty():
+		return
+	var stars := int(review["stars"])
+	var head := HBoxContainer.new()
+	head.add_child(UIKit.section_label(
+		"What they will notice" if job_mode else "How the floor reads"))
+	head.add_child(UIKit.spacer())
+	var score := UIKit.label(RoomReview.stars_text(stars), 19, UIKit.GOLD)
+	score.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	head.add_child(score)
+	_brief_list.add_child(head)
+
+	for note: Dictionary in review.get("notes", []):
 		var row := HBoxContainer.new()
-		var done: bool = result["met"]
-		row.add_child(UIKit.label("✓" if done else "○", 19, UIKit.GOOD if done else UIKit.MUTED))
-		var text := UIKit.label(str(result["label"]), 17, UIKit.TEXT if done else UIKit.MUTED)
+		var good: bool = note["good"]
+		row.add_child(UIKit.label("✓" if good else "·", 19,
+			UIKit.GOOD if good else UIKit.BAD))
+		var text := UIKit.label(str(note["label"]), 16,
+			UIKit.TEXT if good else UIKit.MUTED)
 		text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		text.custom_minimum_size = Vector2(320, 0)
 		row.add_child(text)
-		if int(result["need"]) > 1:
-			row.add_child(UIKit.spacer())
-			row.add_child(UIKit.label("%d/%d" % [result["have"], result["need"]], 16, UIKit.MUTED))
 		_brief_list.add_child(row)
 
-	_finish_button.disabled = not Jobs.all_met(results)
-	_finish_button.tooltip_text = "" if not _finish_button.disabled \
-		else "Tick every line of the brief first"
+	if job_mode:
+		var rate := float(review["bonus_rate"])
+		_brief_list.add_child(UIKit.label(
+			"Worth %s on the fee as it stands." % ("nothing" if rate <= 0.0
+				else "%d%%" % int(round(rate * 100.0))),
+			15, UIKit.GOLD if rate > 0.0 else UIKit.MUTED))
 
 
 # ----------------------------------------------------------- colour swatches

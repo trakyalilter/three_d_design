@@ -796,7 +796,7 @@ func _on_finish() -> void:
 	# stays with the client.
 	var installed := installed_value()
 	var payout := int(job["payout"])
-	var review := RoomReview.score(_review_entries(), room.area(), installed, int(job["budget"]))
+	var review := verdict(installed)
 
 	# Furniture that has been through the bench is worth more to the client
 	# than the same piece off the shop floor, and teaches you more fitting it.
@@ -1070,12 +1070,30 @@ func _context() -> Dictionary:
 
 func _evaluate() -> void:
 	if showroom_mode():
-		ui.refresh_takings(showroom_rating())
+		var rating := showroom_rating()
+		ui.refresh_takings(rating)
+		ui.set_requirements([], rating)
 		return
 	if not job_mode():
 		return
-	ui.set_requirements(Jobs.evaluate(house_id, _context()))
-	ui.refresh_bill(installed_value())
+	# The brief and the verdict, both live. The brief says what has to be in the
+	# room; the verdict says whether it is any good — and it used to arrive only
+	# once the job had been handed over and could no longer be changed. Every one
+	# of its six criteria is mechanical and knowable, so keeping them until the
+	# end did not make the room harder to design, only harder to read.
+	var installed := installed_value()
+	var review := verdict(installed)
+	ui.set_requirements(Jobs.evaluate(house_id, _context()), review)
+	ui.refresh_bill(installed, int(review["stars"]))
+
+
+## What the client would say about the room as it stands. One call, used by the
+## bar while you work and by the hand-over when you stop, so the two can never
+## tell you different things about the same room.
+func verdict(installed: int = -1) -> Dictionary:
+	return RoomReview.score(_review_entries(), room.area(),
+		installed_value() if installed < 0 else installed,
+		int(job.get("budget", 0)))
 
 
 ## Everything that has to happen after the room changes in any way.
