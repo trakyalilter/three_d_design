@@ -742,12 +742,11 @@ const HOUSES: Array[Dictionary] = [
 		"map": {"pos": Vector2(-34, 27), "rot": 180.0},
 		"style": {"body": Color(0.68, 0.72, 0.74), "roof": Color(0.28, 0.32, 0.38), "size": Vector3(7.5, 4.4, 6.5)},
 		"requirements": [
-			{"type": "item", "id": "corner_sofa", "count": 1, "room": "living"},
-			{"type": "item", "id": "girder_shelf", "count": 1, "room": "living"},
-			{"type": "item", "id": "cask_stand", "count": 1, "room": "kitchen"},
-			{"type": "item", "id": "counter", "count": 2, "room": "kitchen"},
-			{"type": "item", "id": "range_hood", "count": 1, "room": "kitchen"},
-			{"type": "item", "id": "galley_shelf", "count": 1, "room": "kitchen"},
+			{"type": "seats", "count": 4, "room": "living"},
+			{"type": "surfaces", "count": 2, "room": "living"},
+			{"type": "storage", "count": 1, "room": "living"},
+			{"type": "category", "category": "Kitchen", "count": 4, "room": "kitchen"},
+			{"type": "surfaces", "count": 1, "room": "kitchen"},
 			{"type": "floor_color", "names": ["Concrete", "Slate"], "room": "kitchen"},
 			{"type": "wall_color", "names": ["Harbour", "Storm"], "room": "living"},
 			{"type": "total", "count": 18},
@@ -772,8 +771,6 @@ const HOUSES: Array[Dictionary] = [
 			{"type": "surfaces", "count": 2},
 			{"type": "storage", "count": 2},
 			{"type": "lights", "count": 1},
-			{"type": "item", "id": "play_mat", "count": 1},
-			{"type": "item", "id": "rocking_horse", "count": 1},
 			{"type": "total", "count": 13},
 			{"type": "no_overlap"},
 		],
@@ -796,7 +793,6 @@ const HOUSES: Array[Dictionary] = [
 			{"type": "seats", "count": 2},
 			{"type": "surfaces", "count": 1},
 			{"type": "greenery", "count": 1},
-			{"type": "item", "id": "fireside_set", "count": 1},
 			{"type": "wall_color", "names": ["Sage", "Linen", "Blush"]},
 			{"type": "total", "count": 11},
 			{"type": "no_overlap"},
@@ -822,15 +818,12 @@ const HOUSES: Array[Dictionary] = [
 		"map": {"pos": Vector2(-10, 27), "rot": 180.0},
 		"style": {"body": Color(0.82, 0.78, 0.72), "roof": Color(0.38, 0.32, 0.28), "size": Vector3(8.0, 5.0, 6.5)},
 		"requirements": [
-			{"type": "item", "id": "bed_king", "count": 1, "room": "bedroom"},
-			{"type": "item", "id": "wardrobe", "count": 1, "room": "bedroom"},
-			{"type": "item", "id": "bedside_shelf", "count": 2, "room": "bedroom"},
-			{"type": "item", "id": "bunk_bed", "count": 1, "room": "nursery"},
-			{"type": "item", "id": "toy_chest", "count": 1, "room": "nursery"},
-			{"type": "item", "id": "bookcase_low", "count": 1, "room": "nursery"},
-			{"type": "item", "id": "bathtub", "count": 1, "room": "bathroom"},
-			{"type": "item", "id": "basin", "count": 1, "room": "bathroom"},
-			{"type": "item", "id": "bath_screen", "count": 1, "room": "bathroom"},
+			{"type": "sleeps", "count": 2, "room": "bedroom"},
+			{"type": "storage", "count": 2, "room": "bedroom"},
+			{"type": "surfaces", "count": 2, "room": "bedroom"},
+			{"type": "sleeps", "count": 1, "room": "nursery"},
+			{"type": "storage", "count": 2, "room": "nursery"},
+			{"type": "category", "category": "Bathroom", "count": 3, "room": "bathroom"},
 			{"type": "wall_color", "names": ["Blush", "Sage"], "room": "nursery"},
 			{"type": "floor_color", "names": ["Chalk", "Concrete"], "room": "bathroom"},
 			{"type": "total", "count": 24},
@@ -857,7 +850,6 @@ const HOUSES: Array[Dictionary] = [
 			{"type": "surfaces", "count": 1},
 			{"type": "storage", "count": 1},
 			{"type": "lights", "count": 1},
-			{"type": "item", "id": "crystal_bowl", "count": 1},
 			{"type": "categories", "count": 4},
 			{"type": "total", "count": 12},
 			{"type": "no_overlap"},
@@ -882,9 +874,6 @@ const HOUSES: Array[Dictionary] = [
 			{"type": "surfaces", "count": 2},
 			{"type": "storage", "count": 2},
 			{"type": "lights", "count": 2},
-			{"type": "item", "id": "pedestal_vase", "count": 2},
-			{"type": "item", "id": "art_easel", "count": 1},
-			{"type": "item", "id": "mirror_wall", "count": 1},
 			{"type": "categories", "count": 4},
 			{"type": "total", "count": 18},
 			{"type": "no_overlap"},
@@ -909,14 +898,11 @@ const HOUSES: Array[Dictionary] = [
 		"map": {"pos": Vector2(-34, 27), "rot": 180.0},
 		"style": {"body": Color(0.74, 0.80, 0.84), "roof": Color(0.24, 0.36, 0.44), "size": Vector3(7.5, 6.4, 6.5)},
 		"requirements": [
-			{"type": "item", "id": "bed_king", "count": 1, "room": "bedroom"},
-			{"type": "item", "id": "wing_chair", "count": 1, "room": "bedroom"},
-			{"type": "item", "id": "mirror_wall", "count": 1, "room": "bedroom"},
-			{"type": "item", "id": "bedside_shelf", "count": 2, "room": "bedroom"},
-			{"type": "item", "id": "bathtub", "count": 1, "room": "bathroom"},
-			{"type": "item", "id": "corner_shower", "count": 1, "room": "bathroom"},
-			{"type": "item", "id": "vanity_unit", "count": 1, "room": "bathroom"},
-			{"type": "item", "id": "bathroom_cabinet", "count": 1, "room": "bathroom"},
+			{"type": "sleeps", "count": 2, "room": "bedroom"},
+			{"type": "seats", "count": 1, "room": "bedroom"},
+			{"type": "surfaces", "count": 2, "room": "bedroom"},
+			{"type": "lights", "count": 1, "room": "bedroom"},
+			{"type": "category", "category": "Bathroom", "count": 4, "room": "bathroom"},
 			{"type": "floor_color", "names": ["Chalk", "Sandstone"], "room": "bathroom"},
 			{"type": "wall_color", "names": ["Ink", "Storm", "Harbour"], "room": "bedroom"},
 			{"type": "total", "count": 22},
@@ -944,16 +930,16 @@ const HOUSES: Array[Dictionary] = [
 		"map": {"pos": Vector2(10, 27), "rot": 180.0},
 		"style": {"body": Color(0.86, 0.84, 0.88), "roof": Color(0.32, 0.24, 0.38), "size": Vector3(8.5, 7.8, 7.0)},
 		"requirements": [
-			{"type": "item", "id": "corner_sofa", "count": 1, "room": "living"},
-			{"type": "item", "id": "tv_large", "count": 1, "room": "living"},
-			{"type": "item", "id": "light_column", "count": 2, "room": "living"},
-			{"type": "item", "id": "marble_table", "count": 1, "room": "dining"},
-			{"type": "item", "id": "chair", "count": 6, "room": "dining"},
-			{"type": "item", "id": "glass_case", "count": 1, "room": "dining"},
-			{"type": "item", "id": "bed_king", "count": 1, "room": "bedroom"},
-			{"type": "item", "id": "mirror_wall", "count": 1, "room": "bedroom"},
-			{"type": "item", "id": "marble_console", "count": 1, "room": "study"},
-			{"type": "item", "id": "art_easel", "count": 1, "room": "study"},
+			{"type": "seats", "count": 5, "room": "living"},
+			{"type": "surfaces", "count": 2, "room": "living"},
+			{"type": "lights", "count": 2, "room": "living"},
+			{"type": "seats", "count": 6, "room": "dining"},
+			{"type": "surfaces", "count": 2, "room": "dining"},
+			{"type": "storage", "count": 1, "room": "dining"},
+			{"type": "sleeps", "count": 2, "room": "bedroom"},
+			{"type": "storage", "count": 2, "room": "bedroom"},
+			{"type": "surfaces", "count": 2, "room": "study"},
+			{"type": "storage", "count": 2, "room": "study"},
 			{"type": "categories", "count": 7},
 			{"type": "total", "count": 36},
 			{"type": "no_overlap"},
@@ -985,12 +971,10 @@ const HOUSES: Array[Dictionary] = [
 		"map": {"pos": Vector2(22, 27), "rot": 180.0},
 		"style": {"body": Color(0.84, 0.86, 0.78), "roof": Color(0.36, 0.40, 0.30), "size": Vector3(7.0, 3.4, 5.5)},
 		"requirements": [
-			{"type": "item", "id": "sofa", "count": 1, "room": "living"},
-			{"type": "item", "id": "coffee_table", "count": 1, "room": "living"},
-			{"type": "item", "id": "bed_single", "count": 1, "room": "bedroom"},
-			{"type": "item", "id": "wardrobe", "count": 1, "room": "bedroom"},
-			{"type": "item", "id": "bedside_shelf", "count": 1, "room": "bedroom"},
-			{"type": "item", "id": "umbrella_stand", "count": 1, "room": "living"},
+			{"type": "seats", "count": 2, "room": "living"},
+			{"type": "surfaces", "count": 1, "room": "living"},
+			{"type": "sleeps", "count": 1, "room": "bedroom"},
+			{"type": "storage", "count": 2, "room": "bedroom"},
 			{"type": "total", "count": 12},
 			{"type": "no_overlap"},
 		],
@@ -1014,13 +998,12 @@ const HOUSES: Array[Dictionary] = [
 		"map": {"pos": Vector2(-34, -27), "rot": 0.0},
 		"style": {"body": Color(0.76, 0.70, 0.62), "roof": Color(0.36, 0.32, 0.30), "size": Vector3(7.5, 4.4, 6.0)},
 		"requirements": [
-			{"type": "item", "id": "sofa", "count": 1, "room": "living"},
-			{"type": "item", "id": "television", "count": 1, "room": "living"},
-			{"type": "item", "id": "tv_stand", "count": 1, "room": "living"},
-			{"type": "item", "id": "bed_double", "count": 1, "room": "bedroom"},
-			{"type": "item", "id": "nightstand", "count": 2, "room": "bedroom"},
-			{"type": "item", "id": "pipe_rack", "count": 1, "room": "bedroom"},
-			{"type": "item", "id": "barrel_table", "count": 1, "room": "living"},
+			{"type": "seats", "count": 3, "room": "living"},
+			{"type": "surfaces", "count": 2, "room": "living"},
+			{"type": "category", "category": "Electronics", "count": 1, "room": "living"},
+			{"type": "sleeps", "count": 2, "room": "bedroom"},
+			{"type": "surfaces", "count": 2, "room": "bedroom"},
+			{"type": "storage", "count": 1, "room": "bedroom"},
 			{"type": "total", "count": 16},
 			{"type": "no_overlap"},
 		],
@@ -1045,16 +1028,11 @@ const HOUSES: Array[Dictionary] = [
 		"map": {"pos": Vector2(34, -27), "rot": 0.0},
 		"style": {"body": Color(0.70, 0.74, 0.80), "roof": Color(0.26, 0.30, 0.38), "size": Vector3(8.0, 5.0, 6.5)},
 		"requirements": [
-			{"type": "item", "id": "sofa", "count": 1, "room": "living"},
-			{"type": "item", "id": "bookshelf", "count": 2, "room": "living"},
-			{"type": "item", "id": "deck_chair", "count": 2, "room": "living"},
-			{"type": "item", "id": "counter", "count": 2, "room": "kitchen"},
-			{"type": "item", "id": "galley_shelf", "count": 1, "room": "kitchen"},
-			{"type": "item", "id": "girder_shelf", "count": 1, "room": "living"},
-			{"type": "item", "id": "fridge", "count": 1, "room": "kitchen"},
-			{"type": "item", "id": "toilet", "count": 1, "room": "bathroom"},
-			{"type": "item", "id": "basin", "count": 1, "room": "bathroom"},
-			{"type": "item", "id": "shower", "count": 1, "room": "bathroom"},
+			{"type": "seats", "count": 4, "room": "living"},
+			{"type": "surfaces", "count": 1, "room": "living"},
+			{"type": "storage", "count": 2, "room": "living"},
+			{"type": "category", "category": "Kitchen", "count": 4, "room": "kitchen"},
+			{"type": "category", "category": "Bathroom", "count": 3, "room": "bathroom"},
 			{"type": "floor_color", "names": ["Concrete", "Slate", "Chalk"], "room": "bathroom"},
 			{"type": "total", "count": 20},
 			{"type": "no_overlap"},
@@ -1080,16 +1058,14 @@ const HOUSES: Array[Dictionary] = [
 		"map": {"pos": Vector2(-34, -27), "rot": 0.0},
 		"style": {"body": Color(0.88, 0.80, 0.66), "roof": Color(0.48, 0.32, 0.24), "size": Vector3(8.5, 4.4, 7.0)},
 		"requirements": [
-			{"type": "item", "id": "sofa", "count": 1, "room": "living"},
-			{"type": "item", "id": "armchair", "count": 2, "room": "living"},
-			{"type": "item", "id": "window_seat", "count": 1, "room": "living"},
-			{"type": "item", "id": "planter_box", "count": 1, "room": "kitchen"},
-			{"type": "item", "id": "stove", "count": 1, "room": "kitchen"},
-			{"type": "item", "id": "sink_unit", "count": 1, "room": "kitchen"},
-			{"type": "item", "id": "dining_table", "count": 1, "room": "kitchen"},
-			{"type": "item", "id": "bed_double", "count": 1, "room": "bedroom"},
-			{"type": "item", "id": "dresser", "count": 1, "room": "bedroom"},
-			{"type": "item", "id": "tall_planter", "count": 1, "room": "living"},
+			{"type": "seats", "count": 4, "room": "living"},
+			{"type": "surfaces", "count": 1, "room": "living"},
+			{"type": "greenery", "count": 2, "room": "living"},
+			{"type": "category", "category": "Kitchen", "count": 3, "room": "kitchen"},
+			{"type": "seats", "count": 2, "room": "kitchen"},
+			{"type": "surfaces", "count": 1, "room": "kitchen"},
+			{"type": "sleeps", "count": 2, "room": "bedroom"},
+			{"type": "storage", "count": 2, "room": "bedroom"},
 			{"type": "categories", "count": 5},
 			{"type": "total", "count": 24},
 			{"type": "no_overlap"},
@@ -1116,17 +1092,15 @@ const HOUSES: Array[Dictionary] = [
 		"map": {"pos": Vector2(34, -27), "rot": 0.0},
 		"style": {"body": Color(0.80, 0.76, 0.70), "roof": Color(0.34, 0.30, 0.28), "size": Vector3(8.5, 5.6, 7.0)},
 		"requirements": [
-			{"type": "item", "id": "sofa", "count": 1, "room": "living"},
-			{"type": "item", "id": "television", "count": 1, "room": "living"},
-			{"type": "item", "id": "dining_table", "count": 1, "room": "dining"},
-			{"type": "item", "id": "chair", "count": 4, "room": "dining"},
-			{"type": "item", "id": "sideboard", "count": 1, "room": "dining"},
-			{"type": "item", "id": "garden_bench", "count": 1, "room": "living"},
-			{"type": "item", "id": "bed_double", "count": 1, "room": "bedroom"},
-			{"type": "item", "id": "wardrobe", "count": 1, "room": "bedroom"},
-			{"type": "item", "id": "bathtub", "count": 1, "room": "bathroom"},
-			{"type": "item", "id": "toilet", "count": 1, "room": "bathroom"},
-			{"type": "item", "id": "basin", "count": 1, "room": "bathroom"},
+			{"type": "seats", "count": 3, "room": "living"},
+			{"type": "surfaces", "count": 1, "room": "living"},
+			{"type": "category", "category": "Electronics", "count": 1, "room": "living"},
+			{"type": "seats", "count": 4, "room": "dining"},
+			{"type": "surfaces", "count": 1, "room": "dining"},
+			{"type": "storage", "count": 1, "room": "dining"},
+			{"type": "sleeps", "count": 2, "room": "bedroom"},
+			{"type": "storage", "count": 2, "room": "bedroom"},
+			{"type": "category", "category": "Bathroom", "count": 3, "room": "bathroom"},
 			{"type": "total", "count": 28},
 			{"type": "no_overlap"},
 		],
@@ -1152,19 +1126,16 @@ const HOUSES: Array[Dictionary] = [
 		"map": {"pos": Vector2(-34, -27), "rot": 0.0},
 		"style": {"body": Color(0.66, 0.68, 0.78), "roof": Color(0.22, 0.24, 0.36), "size": Vector3(8.5, 7.4, 7.0)},
 		"requirements": [
-			{"type": "item", "id": "sofa", "count": 2, "room": "living"},
-			{"type": "item", "id": "designer_sofa", "count": 1, "room": "living"},
-			{"type": "item", "id": "projector", "count": 1, "room": "living"},
-			{"type": "item", "id": "kitchen_island", "count": 1, "room": "kitchen"},
-			{"type": "item", "id": "fridge", "count": 1, "room": "kitchen"},
-			{"type": "item", "id": "dishwasher", "count": 1, "room": "kitchen"},
-			{"type": "item", "id": "bed_double", "count": 1, "room": "bedroom"},
-			{"type": "item", "id": "wardrobe", "count": 2, "room": "bedroom"},
-			{"type": "item", "id": "bed_king", "count": 1, "room": "bedroom"},
-			{"type": "item", "id": "glass_case", "count": 1, "room": "study"},
-			{"type": "item", "id": "desk", "count": 1, "room": "study"},
-			{"type": "item", "id": "computer", "count": 1, "room": "study"},
-			{"type": "item", "id": "bookshelf", "count": 2, "room": "study"},
+			{"type": "seats", "count": 6, "room": "living"},
+			{"type": "surfaces", "count": 2, "room": "living"},
+			{"type": "category", "category": "Electronics", "count": 1, "room": "living"},
+			{"type": "category", "category": "Kitchen", "count": 4, "room": "kitchen"},
+			{"type": "surfaces", "count": 1, "room": "kitchen"},
+			{"type": "sleeps", "count": 3, "room": "bedroom"},
+			{"type": "storage", "count": 3, "room": "bedroom"},
+			{"type": "surfaces", "count": 2, "room": "study"},
+			{"type": "storage", "count": 2, "room": "study"},
+			{"type": "category", "category": "Electronics", "count": 1, "room": "study"},
 			{"type": "categories", "count": 6},
 			{"type": "total", "count": 34},
 			{"type": "no_overlap"},
@@ -1192,25 +1163,18 @@ const HOUSES: Array[Dictionary] = [
 		"map": {"pos": Vector2(34, -27), "rot": 0.0},
 		"style": {"body": Color(0.90, 0.88, 0.84), "roof": Color(0.40, 0.20, 0.26), "size": Vector3(9.0, 8.4, 7.5)},
 		"requirements": [
-			{"type": "item", "id": "sofa", "count": 2, "room": "living"},
-			{"type": "item", "id": "tv_large", "count": 1, "room": "living"},
-			{"type": "item", "id": "speaker_tower", "count": 2, "room": "living"},
-			{"type": "item", "id": "designer_sofa", "count": 1, "room": "living"},
-			{"type": "item", "id": "marble_table", "count": 1, "room": "dining"},
-			{"type": "item", "id": "drinks_cabinet", "count": 1, "room": "dining"},
-			{"type": "item", "id": "smart_panel", "count": 1, "room": "study"},
-			{"type": "item", "id": "mirror_wall", "count": 1, "room": "bedroom"},
-			{"type": "item", "id": "crystal_bowl", "count": 2, "room": "dining"},
-			{"type": "item", "id": "dining_table", "count": 1, "room": "dining"},
-			{"type": "item", "id": "chair", "count": 6, "room": "dining"},
-			{"type": "item", "id": "display_cabinet", "count": 1, "room": "dining"},
-			{"type": "item", "id": "bed_double", "count": 1, "room": "bedroom"},
-			{"type": "item", "id": "wardrobe", "count": 2, "room": "bedroom"},
-			{"type": "item", "id": "dressing_table", "count": 1, "room": "bedroom"},
-			{"type": "item", "id": "bathtub", "count": 1, "room": "bathroom"},
-			{"type": "item", "id": "toilet", "count": 1, "room": "bathroom"},
-			{"type": "item", "id": "desk", "count": 1, "room": "study"},
-			{"type": "item", "id": "bookshelf", "count": 2, "room": "study"},
+			{"type": "seats", "count": 6, "room": "living"},
+			{"type": "surfaces", "count": 2, "room": "living"},
+			{"type": "category", "category": "Electronics", "count": 2, "room": "living"},
+			{"type": "seats", "count": 6, "room": "dining"},
+			{"type": "surfaces", "count": 2, "room": "dining"},
+			{"type": "storage", "count": 2, "room": "dining"},
+			{"type": "sleeps", "count": 2, "room": "bedroom"},
+			{"type": "storage", "count": 3, "room": "bedroom"},
+			{"type": "surfaces", "count": 1, "room": "bedroom"},
+			{"type": "category", "category": "Bathroom", "count": 3, "room": "bathroom"},
+			{"type": "surfaces", "count": 1, "room": "study"},
+			{"type": "storage", "count": 2, "room": "study"},
 			{"type": "categories", "count": 7},
 			{"type": "wall_color", "names": ["Harbour", "Storm", "Ink", "Sage", "Linen"]},
 			{"type": "total", "count": 42},
@@ -1236,7 +1200,6 @@ const HOUSES: Array[Dictionary] = [
 		"requirements": [
 			{"type": "seats", "count": 3},
 			{"type": "surfaces", "count": 1},
-			{"type": "item", "id": "tatami_mat", "count": 4},
 			{"type": "total", "count": 10},
 			{"type": "no_overlap"},
 		],
@@ -1260,7 +1223,6 @@ const HOUSES: Array[Dictionary] = [
 			{"type": "surfaces", "count": 1},
 			{"type": "storage", "count": 2},
 			{"type": "lights", "count": 1},
-			{"type": "item", "id": "tatami_mat", "count": 3},
 			{"type": "total", "count": 9},
 			{"type": "no_overlap"},
 		],
@@ -1282,8 +1244,6 @@ const HOUSES: Array[Dictionary] = [
 		"requirements": [
 			{"type": "surfaces", "count": 1},
 			{"type": "greenery", "count": 1},
-			{"type": "item", "id": "shoji_screen", "count": 2},
-			{"type": "category", "category": "Storage", "count": 1},
 			{"type": "total", "count": 11},
 			{"type": "no_overlap"},
 		],
@@ -1307,10 +1267,11 @@ const HOUSES: Array[Dictionary] = [
 		"map": {"pos": Vector2(22, -27), "rot": 0.0},
 		"style": {"kind": "machiya", "body": Color(0.86, 0.82, 0.74), "roof": Color(0.26, 0.28, 0.32), "size": Vector3(8.0, 3.4, 6.5)},
 		"requirements": [
-			{"type": "item", "id": "tatami_mat", "count": 3, "room": "front"},
-			{"type": "item", "id": "zabuton", "count": 3, "room": "front"},
-			{"type": "item", "id": "kotatsu", "count": 1, "room": "back"},
-			{"type": "item", "id": "tansu", "count": 1, "room": "back"},
+			{"type": "style", "style": "japandi", "count": 4, "room": "front"},
+			{"type": "seats", "count": 3, "room": "front"},
+			{"type": "style", "style": "japandi", "count": 3, "room": "back"},
+			{"type": "surfaces", "count": 2, "room": "back"},
+			{"type": "storage", "count": 1, "room": "back"},
 			{"type": "floor_color", "names": ["Pale Oak", "Sandstone"]},
 			{"type": "total", "count": 15},
 			{"type": "no_overlap"},
@@ -1332,8 +1293,6 @@ const HOUSES: Array[Dictionary] = [
 		"style": {"kind": "machiya", "body": Color(0.92, 0.88, 0.80), "roof": Color(0.22, 0.24, 0.28), "size": Vector3(7.5, 3.6, 6.5)},
 		"requirements": [
 			{"type": "lights", "count": 2},
-			{"type": "item", "id": "shoji_screen", "count": 2},
-			{"type": "item", "id": "byobu", "count": 1},
 			{"type": "categories", "count": 4},
 			{"type": "total", "count": 14},
 			{"type": "no_overlap"},
@@ -1355,8 +1314,6 @@ const HOUSES: Array[Dictionary] = [
 		"style": {"kind": "machiya", "body": Color(0.80, 0.80, 0.76), "roof": Color(0.30, 0.32, 0.34), "size": Vector3(6.0, 3.2, 6.0)},
 		"requirements": [
 			{"type": "greenery", "count": 1},
-			{"type": "category", "category": "Bathroom", "count": 3},
-			{"type": "item", "id": "tsukubai", "count": 1},
 			{"type": "wall_color", "names": ["Sage", "Cotton", "Morning"]},
 			{"type": "total", "count": 12},
 			{"type": "no_overlap"},
@@ -1382,12 +1339,12 @@ const HOUSES: Array[Dictionary] = [
 		"map": {"pos": Vector2(-10, 27), "rot": 180.0},
 		"style": {"kind": "machiya", "body": Color(0.82, 0.76, 0.66), "roof": Color(0.24, 0.26, 0.30), "size": Vector3(8.5, 5.6, 6.5)},
 		"requirements": [
-			{"type": "item", "id": "futon_roll", "count": 1, "room": "sleep"},
-			{"type": "item", "id": "tatami_mat", "count": 2, "room": "sleep"},
-			{"type": "item", "id": "chabudai", "count": 1, "room": "eat"},
-			{"type": "item", "id": "zabuton", "count": 4, "room": "eat"},
-			{"type": "item", "id": "kaidan_dansu", "count": 1, "room": "store"},
-			{"type": "item", "id": "getabako", "count": 1, "room": "store"},
+			{"type": "style", "style": "japandi", "count": 3, "room": "sleep"},
+			{"type": "sleeps", "count": 1, "room": "sleep"},
+			{"type": "style", "style": "japandi", "count": 4, "room": "eat"},
+			{"type": "seats", "count": 4, "room": "eat"},
+			{"type": "surfaces", "count": 1, "room": "eat"},
+			{"type": "storage", "count": 3, "room": "store"},
 			{"type": "total", "count": 20},
 			{"type": "no_overlap"},
 		],
@@ -1413,14 +1370,15 @@ const HOUSES: Array[Dictionary] = [
 		"map": {"pos": Vector2(22, 27), "rot": 180.0},
 		"style": {"kind": "machiya", "body": Color(0.88, 0.84, 0.74), "roof": Color(0.20, 0.22, 0.26), "size": Vector3(9.5, 4.2, 7.5)},
 		"requirements": [
-			{"type": "item", "id": "tatami_mat", "count": 4, "room": "tea"},
-			{"type": "item", "id": "chabudai", "count": 1, "room": "tea"},
-			{"type": "item", "id": "futon_roll", "count": 1, "room": "sleep"},
-			{"type": "item", "id": "tansu", "count": 1, "room": "sleep"},
-			{"type": "item", "id": "kotatsu", "count": 1, "room": "living"},
-			{"type": "item", "id": "byobu", "count": 1, "room": "living"},
-			{"type": "item", "id": "shoji_screen", "count": 1, "room": "study"},
-			{"type": "item", "id": "bonsai", "count": 1, "room": "study"},
+			{"type": "style", "style": "japandi", "count": 5, "room": "tea"},
+			{"type": "seats", "count": 4, "room": "tea"},
+			{"type": "style", "style": "japandi", "count": 2, "room": "sleep"},
+			{"type": "sleeps", "count": 1, "room": "sleep"},
+			{"type": "storage", "count": 1, "room": "sleep"},
+			{"type": "style", "style": "japandi", "count": 2, "room": "living"},
+			{"type": "surfaces", "count": 1, "room": "living"},
+			{"type": "style", "style": "japandi", "count": 2, "room": "study"},
+			{"type": "greenery", "count": 1, "room": "study"},
 			{"type": "categories", "count": 5},
 			{"type": "total", "count": 30},
 			{"type": "no_overlap"},
@@ -1466,9 +1424,6 @@ const HOUSES: Array[Dictionary] = [
 		"style": {"kind": "manor", "body": Color(0.38, 0.42, 0.38), "roof": Color(0.18, 0.20, 0.22), "size": Vector3(6.5, 4.6, 6.0)},
 		"requirements": [
 			{"type": "lights", "count": 2},
-			{"type": "item", "id": "cauldron_stove", "count": 1},
-			{"type": "item", "id": "apothecary_counter", "count": 1},
-			{"type": "item", "id": "drying_rack", "count": 1},
 			{"type": "total", "count": 12},
 			{"type": "no_overlap"},
 		],
@@ -1490,7 +1445,6 @@ const HOUSES: Array[Dictionary] = [
 		"requirements": [
 			{"type": "seats", "count": 2},
 			{"type": "lights", "count": 2},
-			{"type": "item", "id": "black_mirror", "count": 1},
 			{"type": "wall_color", "names": ["Ink", "Storm", "Slate"]},
 			{"type": "total", "count": 13},
 			{"type": "no_overlap"},
@@ -1515,10 +1469,12 @@ const HOUSES: Array[Dictionary] = [
 		"map": {"pos": Vector2(22, -27), "rot": 0.0},
 		"style": {"kind": "manor", "body": Color(0.40, 0.36, 0.34), "roof": Color(0.20, 0.18, 0.20), "size": Vector3(7.5, 5.0, 6.5)},
 		"requirements": [
-			{"type": "item", "id": "high_back_chair", "count": 2, "room": "den"},
-			{"type": "item", "id": "grimoire_case", "count": 1, "room": "den"},
-			{"type": "item", "id": "four_poster", "count": 1, "room": "sleep"},
-			{"type": "item", "id": "casket_chest", "count": 1, "room": "sleep"},
+			{"type": "style", "style": "gothic", "count": 3, "room": "den"},
+			{"type": "seats", "count": 4, "room": "den"},
+			{"type": "storage", "count": 1, "room": "den"},
+			{"type": "style", "style": "gothic", "count": 2, "room": "sleep"},
+			{"type": "sleeps", "count": 2, "room": "sleep"},
+			{"type": "storage", "count": 1, "room": "sleep"},
 			{"type": "total", "count": 18},
 			{"type": "no_overlap"},
 		],
@@ -1540,8 +1496,6 @@ const HOUSES: Array[Dictionary] = [
 		"requirements": [
 			{"type": "surfaces", "count": 1},
 			{"type": "storage", "count": 1},
-			{"type": "item", "id": "raven_perch", "count": 2},
-			{"type": "item", "id": "gargoyle_statue", "count": 1},
 			{"type": "categories", "count": 4},
 			{"type": "total", "count": 16},
 			{"type": "no_overlap"},
@@ -1563,8 +1517,6 @@ const HOUSES: Array[Dictionary] = [
 		"style": {"kind": "manor", "body": Color(0.44, 0.38, 0.46), "roof": Color(0.22, 0.16, 0.24), "size": Vector3(7.0, 5.4, 6.5)},
 		"requirements": [
 			{"type": "lights", "count": 2},
-			{"type": "category", "category": "Dining", "count": 2},
-			{"type": "item", "id": "crystal_ball", "count": 1},
 			{"type": "total", "count": 17},
 			{"type": "no_overlap"},
 		],
@@ -1589,12 +1541,14 @@ const HOUSES: Array[Dictionary] = [
 		"map": {"pos": Vector2(-10, 27), "rot": 180.0},
 		"style": {"kind": "manor", "body": Color(0.34, 0.34, 0.38), "roof": Color(0.16, 0.14, 0.20), "size": Vector3(8.5, 5.6, 7.0)},
 		"requirements": [
-			{"type": "item", "id": "coffin_bed", "count": 1, "room": "cellar"},
-			{"type": "item", "id": "casket_chest", "count": 1, "room": "cellar"},
-			{"type": "item", "id": "cauldron_stove", "count": 1, "room": "still"},
-			{"type": "item", "id": "apothecary_counter", "count": 1, "room": "still"},
-			{"type": "item", "id": "grimoire_case", "count": 2, "room": "library"},
-			{"type": "item", "id": "candelabra", "count": 2},
+			{"type": "style", "style": "gothic", "count": 2, "room": "cellar"},
+			{"type": "sleeps", "count": 1, "room": "cellar"},
+			{"type": "storage", "count": 1, "room": "cellar"},
+			{"type": "style", "style": "gothic", "count": 2, "room": "still"},
+			{"type": "category", "category": "Kitchen", "count": 2, "room": "still"},
+			{"type": "style", "style": "gothic", "count": 2, "room": "library"},
+			{"type": "storage", "count": 3, "room": "library"},
+			{"type": "lights", "count": 3},
 			{"type": "wall_color", "names": ["Ink", "Storm"]},
 			{"type": "total", "count": 26},
 			{"type": "no_overlap"},
@@ -1621,15 +1575,15 @@ const HOUSES: Array[Dictionary] = [
 		"map": {"pos": Vector2(22, 27), "rot": 180.0},
 		"style": {"kind": "manor", "body": Color(0.38, 0.34, 0.42), "roof": Color(0.18, 0.14, 0.22), "size": Vector3(9.5, 6.6, 7.5)},
 		"requirements": [
-			{"type": "item", "id": "high_back_chair", "count": 2, "room": "hall"},
-			{"type": "item", "id": "black_mirror", "count": 1, "room": "hall"},
-			{"type": "item", "id": "four_poster", "count": 1, "room": "sleep"},
-			{"type": "item", "id": "casket_chest", "count": 1, "room": "sleep"},
-			{"type": "item", "id": "cauldron_stove", "count": 1, "room": "kitchen"},
-			{"type": "item", "id": "drying_rack", "count": 1, "room": "kitchen"},
-			{"type": "item", "id": "grimoire_case", "count": 2, "room": "library"},
-			{"type": "item", "id": "gargoyle_statue", "count": 1},
-			{"type": "item", "id": "candelabra", "count": 3},
+			{"type": "style", "style": "gothic", "count": 3, "room": "hall"},
+			{"type": "seats", "count": 4, "room": "hall"},
+			{"type": "style", "style": "gothic", "count": 2, "room": "sleep"},
+			{"type": "sleeps", "count": 2, "room": "sleep"},
+			{"type": "storage", "count": 2, "room": "sleep"},
+			{"type": "category", "category": "Kitchen", "count": 3, "room": "kitchen"},
+			{"type": "style", "style": "gothic", "count": 2, "room": "library"},
+			{"type": "storage", "count": 3, "room": "library"},
+			{"type": "lights", "count": 3},
 			{"type": "categories", "count": 6},
 			{"type": "total", "count": 38},
 			{"type": "no_overlap"},
@@ -1968,103 +1922,106 @@ static func _still_short(left: Dictionary) -> bool:
 ## The piece that covers the most of what a room still needs, out of what this
 ## house's quarter and the first one will actually sell you. Cheapest breaks a
 ## tie, which is what keeps the suggestion inside the client's budget.
-func _covers_most(left: Dictionary, house_id: String) -> String:
+func _covers_most(left: Dictionary, house_id: String, here: Dictionary = {}) -> String:
 	var home := district_of(house_id)
 	var gate := int(get_job(house_id).get("level", 1))
 	var best := ""
 	var best_cover := 0
 	var best_price := 1 << 30
+	# A piece the room is not already getting wins a tie. Without this the
+	# cheapest answer is suggested over and over — four toasters for a kitchen,
+	# ten umbrella stands for a hallway — which is a legal answer to the line
+	# and a ridiculous one to give a client.
+	var best_fresh := false
 	for id in Catalog.ids():
-		var where := Catalog.district_of(id)
-		if where != "" and where != home and where != str(DISTRICTS[0]["id"]):
-			continue
 		# Nothing the client could not have been shown: a brief that suggests
 		# stock two quarters and ten levels away is not a suggestion.
-		if Catalog.effective_unlock_level(id) > gate:
+		if not _could_show(id, home, gate):
 			continue
 		var cover := 0
-		for kind: String in left:
-			cover += mini(Catalog.does(id, kind), maxi(int(left[kind]), 0))
+		for key: String in left:
+			cover += mini(Catalog.answers(id, key), maxi(int(left[key]), 0))
 		if cover <= 0:
 			continue
-		if cover > best_cover or (cover == best_cover and Catalog.price(id) < best_price):
+		var fresh: bool = not here.has(id)
+		var price := Catalog.price(id)
+		if cover > best_cover \
+				or (cover == best_cover and fresh and not best_fresh) \
+				or (cover == best_cover and fresh == best_fresh and price < best_price):
 			best_cover = cover
-			best_price = Catalog.price(id)
+			best_price = price
+			best_fresh = fresh
 			best = id
 	return best
 
 
-func _needed_pieces(house_id: String) -> Dictionary:
+## Everything the brief calls for, room by room, as {room id -> {item -> count}}.
+## The empty string is the whole floor: a single-room job puts everything there,
+## and so do the lines of a floor plan that name no room.
+##
+## This is the one planner. `shopping_list` sums it into a basket, and the test
+## that plays the career places exactly what it says, in the room it says — so
+## the list and the room can never disagree about which piece was meant to go
+## where. Getting that wrong is subtle and quiet: a shared pool lets one room
+## take the piece another room was going to answer its own line with, and every
+## brief comes up one short in a different place.
+func room_plan(house_id: String) -> Dictionary:
 	var job := get_job(house_id)
 	if job.is_empty():
 		return {}
 
-	var wanted: Dictionary = {}
+	var plan: Dictionary = {}
 	var categories_used: Dictionary = {}
 
+	# Named pieces first: they have one answer each, and they count towards
+	# whatever open asks their room also makes.
 	for req: Dictionary in job["requirements"]:
-		match str(req.get("type", "")):
-			"item":
-				var id: String = str(req["id"])
-				wanted[id] = int(wanted.get(id, 0)) + int(req.get("count", 1))
-				categories_used[Catalog.category_of(id)] = true
-			"category":
-				var category := str(req["category"])
-				var have := _count_in_category(wanted, category)
-				var pick := _cheapest_in(category)
-				if pick != "":
-					var missing: int = maxi(int(req.get("count", 1)) - have, 0)
-					if missing > 0:
-						wanted[pick] = int(wanted.get(pick, 0)) + missing
-					categories_used[category] = true
+		if str(req.get("type", "")) != "item":
+			continue
+		var id: String = str(req["id"])
+		var scope := str(req.get("room", ""))
+		_add_to_plan(plan, scope, id, int(req.get("count", 1)))
+		categories_used[Catalog.category_of(id)] = true
 
-	# What the room has to be able to do. A capability line names no product, so
-	# the list suggests a way to answer it — and it is only ever a suggestion;
-	# anything that does the same job will do.
-	#
-	# Answered a room at a time rather than a line at a time, because the lines
-	# in a room overlap: a study wanting three surfaces and three places to put
-	# things away wants three bookshelves, not three side tables and three
-	# laundry baskets. Taking the piece that covers the most of what is left
-	# each time finds that, keeps the basket small enough to fit on the floor,
-	# and stays inside the client's budget by preferring the cheapest of equals.
+	# Then every open ask, gathered a room at a time rather than a line at a
+	# time — because the lines in a room overlap. A study wanting three surfaces
+	# and three places to put things away wants three bookshelves, not three
+	# side tables and three laundry baskets; a tea room wanting five pieces of
+	# Japandi and seating for four wants five zabuton, not nine objects. Taking
+	# the piece that covers the most of what is left each time finds that, keeps
+	# the basket small enough to fit on the floor, and stays inside the client's
+	# budget by preferring the cheapest of equals.
 	var short_by_room: Dictionary = {}
 	for req: Dictionary in job["requirements"]:
-		var kind := str(req.get("type", ""))
-		if not Catalog.TRAITS.has(kind):
+		var key := Catalog.ask_key(req)
+		if key == "":
 			continue
 		var scope := str(req.get("room", ""))
 		if not short_by_room.has(scope):
 			short_by_room[scope] = {}
 		var room_needs: Dictionary = short_by_room[scope]
-		room_needs[kind] = int(room_needs.get(kind, 0)) + int(req.get("count", 1))
-	# A named piece the brief already asks for in that room counts towards it.
-	for req: Dictionary in job["requirements"]:
-		if str(req.get("type", "")) != "item":
-			continue
-		var scope := str(req.get("room", ""))
-		if not short_by_room.has(scope):
-			continue
-		var room_needs: Dictionary = short_by_room[scope]
-		for kind: String in room_needs:
-			room_needs[kind] = int(room_needs[kind]) \
-				- Catalog.does(str(req["id"]), kind) * int(req.get("count", 1))
+		room_needs[key] = int(room_needs.get(key, 0)) + int(req.get("count", 1))
 
 	for scope: String in short_by_room:
 		var left: Dictionary = short_by_room[scope]
+		for item_id: String in plan.get(scope, {}):
+			var held: int = int((plan[scope] as Dictionary)[item_id])
+			for key: String in left:
+				left[key] = int(left[key]) - Catalog.answers(item_id, key) * held
 		var guard := 0
 		while _still_short(left) and guard < 40:
-			var pick := _covers_most(left, house_id)
+			var pick := _covers_most(left, house_id, plan.get(scope, {}))
 			if pick == "":
 				break
-			wanted[pick] = int(wanted.get(pick, 0)) + 1
+			_add_to_plan(plan, scope, pick, 1)
 			categories_used[Catalog.category_of(pick)] = true
-			for kind: String in left:
-				left[kind] = int(left[kind]) - Catalog.does(pick, kind)
+			for key: String in left:
+				left[key] = int(left[key]) - Catalog.answers(pick, key)
 			guard += 1
 
 	# "Buy from N different shops" — add a cheap piece from categories not yet
-	# represented until enough of them are.
+	# represented until enough of them are. These belong to no room in
+	# particular, so they go wherever there is floor.
 	for req: Dictionary in job["requirements"]:
 		if str(req.get("type", "")) != "categories":
 			continue
@@ -2073,33 +2030,81 @@ func _needed_pieces(house_id: String) -> Dictionary:
 				break
 			if categories_used.has(category):
 				continue
-			var pick := _cheapest_in(category)
+			var pick := _cheapest_in(category, house_id)
 			if pick != "":
-				wanted[pick] = int(wanted.get(pick, 0)) + 1
+				_add_to_plan(plan, "", pick, 1)
 				categories_used[category] = true
 
-	# "Furnish with at least N pieces" — top up with the cheapest decor. A brief
-	# for a flat can ask room by room, and then the whole floor needs at least
-	# the sum of what its rooms were promised.
+	# "Furnish with at least N pieces" — top up with cheap decor, in the room
+	# that asked for the count, spread over as many different pieces as the
+	# quarter sells rather than a dozen of one.
+	var fillers := _fillers_for(house_id)
 	var whole_floor := 0
-	var per_room := 0
 	for req: Dictionary in job["requirements"]:
 		if str(req.get("type", "")) != "total":
 			continue
-		if str(req.get("room", "")) == "":
-			whole_floor = maxi(whole_floor, int(req.get("count", 1)))
-		else:
-			per_room += int(req.get("count", 1))
-
-	var required: int = maxi(whole_floor, per_room)
-	if required > 0:
+		var scope := str(req.get("room", ""))
+		var want := int(req.get("count", 1))
+		if scope == "":
+			whole_floor = maxi(whole_floor, want)
+			continue
+		_top_up(plan, scope, fillers, want - _plan_size(plan, scope))
+	if whole_floor > 0:
 		var placed := 0
-		for count: int in wanted.values():
-			placed += count
-		var filler := _cheapest_in("Decor")
-		if filler != "" and required > placed:
-			wanted[filler] = int(wanted.get(filler, 0)) + (required - placed)
+		for scope: String in plan:
+			placed += _plan_size(plan, scope)
+		_top_up(plan, "", fillers, whole_floor - placed)
 
+	return plan
+
+
+## The cheap odds and ends a brief is padded out with, cheapest first. Decor is
+## what a room is finished with; anything else and the padding starts competing
+## with the pieces the brief actually asked for.
+func _fillers_for(house_id: String) -> Array[String]:
+	var home := district_of(house_id)
+	var gate := int(get_job(house_id).get("level", 1))
+	var out: Array[String] = []
+	for id in Catalog.ids_in("Decor"):
+		if not Catalog.is_stackable(id) and _could_show(id, home, gate):
+			out.append(id)
+	out.sort_custom(func(a: String, b: String) -> bool:
+		return Catalog.price(a) < Catalog.price(b))
+	return out
+
+
+## Pads a room out, dealing round the fillers so the suggestion reads as a room
+## being finished rather than as a job lot of one object.
+func _top_up(plan: Dictionary, scope: String, fillers: Array[String], short: int) -> void:
+	if short <= 0 or fillers.is_empty():
+		return
+	for i in short:
+		_add_to_plan(plan, scope, fillers[i % fillers.size()], 1)
+
+
+func _add_to_plan(plan: Dictionary, scope: String, item_id: String, count: int) -> void:
+	if count <= 0:
+		return
+	if not plan.has(scope):
+		plan[scope] = {}
+	var here: Dictionary = plan[scope]
+	here[item_id] = int(here.get(item_id, 0)) + count
+
+
+func _plan_size(plan: Dictionary, scope: String) -> int:
+	var total := 0
+	for count: int in (plan.get(scope, {}) as Dictionary).values():
+		total += count
+	return total
+
+
+func _needed_pieces(house_id: String) -> Dictionary:
+	var wanted: Dictionary = {}
+	var plan := room_plan(house_id)
+	for scope: String in plan:
+		for item_id: String in plan[scope]:
+			wanted[item_id] = int(wanted.get(item_id, 0)) \
+				+ int((plan[scope] as Dictionary)[item_id])
 	return wanted
 
 
@@ -2116,11 +2121,28 @@ func _count_in_category(wanted: Dictionary, category: String) -> int:
 ## brief asking for another piece of furniture should not be satisfied by a
 ## stack of books left on the boards. Stock behind a quarter the player has not
 ## bought is skipped too, or the shopping list would ask for the unbuyable.
-func _cheapest_in(category: String) -> String:
+## Whether a client could have been shown a piece at all: it is sold in their
+## own quarter or in the one everybody starts with, and it is not gated above
+## the level their own brief opens at.
+##
+## Deliberately about the *house* rather than about the player. Asking what the
+## player has unlocked made the advice drift as the career went on — a Maple
+## client would start suggesting Hanami cushions the week you bought Hanami —
+## and a brief that changes its mind is not a brief.
+func _could_show(id: String, home: String, gate: int) -> bool:
+	var where := Catalog.district_of(id)
+	if where != "" and where != home and where != str(DISTRICTS[0]["id"]):
+		return false
+	return Catalog.effective_unlock_level(id) <= gate
+
+
+func _cheapest_in(category: String, house_id: String) -> String:
+	var home := district_of(house_id)
+	var gate := int(get_job(house_id).get("level", 1))
 	var best := ""
 	var best_price := 1 << 30
 	for id in Catalog.ids_in(category):
-		if Catalog.is_stackable(id) or not Game.is_item_unlocked(id):
+		if Catalog.is_stackable(id) or not _could_show(id, home, gate):
 			continue
 		if Catalog.price(id) < best_price:
 			best_price = Catalog.price(id)
@@ -2258,8 +2280,12 @@ func _check(req: Dictionary, context: Dictionary) -> Dictionary:
 				in_scope.append(entry)
 		items = in_scope
 	var where := ""
+	# The room on its own as well, for the lines that want to name it rather
+	# than tack it on the end: "Fit the kitchen out" reads, "Fit in the kitchen
+	# out" does not.
+	var this_room := str(req.get("room_name", scope)).to_lower()
 	if scope != "":
-		where = " in the %s" % str(req.get("room_name", scope)).to_lower()
+		where = " in the %s" % this_room
 
 	match kind:
 		"item":
@@ -2281,18 +2307,42 @@ func _check(req: Dictionary, context: Dictionary) -> Dictionary:
 			met = have >= need
 			label = _asking_for(kind, need) + where
 
+		# A whole trade rather than a product: what makes a bathroom a bathroom
+		# is bathroom kit, and which bath is yours to pick. This covers the two
+		# rooms the capability words do not reach — nothing in a catalogue of
+		# six traits says "plumbing" or "somewhere to cook".
 		"category":
 			var category: String = str(req["category"])
 			for entry: Dictionary in items:
 				if Catalog.category_of(entry["id"]) == category:
 					have += 1
 			met = have >= need
-			label = "Add %d %s piece%s%s" % [need, category, "" if need == 1 else "s", where]
+			label = "Fit the %s out with %d piece%s of %s kit" % [
+				this_room, need, "" if need == 1 else "s", category.to_lower()] \
+				if scope != "" \
+				else "Add %d %s piece%s" % [need, category, "" if need == 1 else "s"]
 
 		"total":
 			have = items.size()
 			met = have >= need
 			label = "Furnish%s with at least %d pieces" % [where, need]
+
+		# What school the room is furnished in, without naming a single piece of
+		# it. A quarter's own stock is the point of buying that quarter, and a
+		# capability line on its own would let a machiya be furnished out of a
+		# Maple sofa shop — this asks for the *kind* of room and still leaves
+		# every choice inside it to the player.
+		"style":
+			var school := str(req["style"])
+			for entry: Dictionary in items:
+				if Catalog.style_of(str(entry["id"])) == school:
+					have += 1
+			met = have >= need
+			label = "Furnish %s in the %s school — %d piece%s of it" % [
+				this_room, Catalog.style_name(school), need,
+				"" if need == 1 else "s"] if scope != "" \
+				else "Furnish in the %s school — %d piece%s of it" % [
+				Catalog.style_name(school), need, "" if need == 1 else "s"]
 
 		"categories":
 			var seen := {}

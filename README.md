@@ -301,16 +301,29 @@ whether anything can stand on it, and what it is called — with a table for the
 would get right. A bookshelf is a surface **and** somewhere to put things away, so it answers
 two lines with one piece; a corner sofa seats five where a chair seats one.
 
-Some things are still named, because there is no creative substitute for them: plumbing,
-white goods, a television, a particular rug. Thirty-nine of the fifty-six houses ask for what
-they need; the seventeen whole-floor jobs still name their pieces room by room, and that is
-the next thing to convert.
+Two more kinds of line cover what six capability words cannot. **A trade**: *"Fit the
+bathroom out with three pieces of bathroom kit"* — because what makes a bathroom a bathroom
+is bathroom kit, and which bath is yours to pick. And **a school**: *"Furnish the tea room
+in the Japandi school — five pieces of it"* — because a quarter's own stock is the point of
+buying that quarter, and a capability line on its own would let a machiya be furnished out
+of a Maple sofa shop. Both ask for the *kind* of room and leave every choice inside it open.
+
+**All fifty-six houses now ask what the room has to do**, the seventeen whole-floor jobs
+included, and a floor plan asks it room by room: the tea room has to seat four, the store
+room has to put three things away. A handful of named pieces survive where the brief
+genuinely turns on that object — a rocking horse, a play mat — and the smoke test fails if a
+floor plan ever hands out a shopping list again.
 
 The brief sheet still offers a shopping list, but it is now a **suggestion** rather than the
-answer. It works a room at a time and picks whatever covers the most of what is still
-missing, cheapest of equals — which is how it lands on three bookshelves for a study rather
-than three side tables and three laundry baskets. Ignore it and buy something else; the room
-is judged on what it does, not on what you bought.
+answer. One planner works it out, a room at a time, taking whatever covers the most of what
+is still missing and preferring the cheapest of equals and a piece the room is not already
+getting. That is how it lands on three bookshelves for a study rather than three side tables
+and three laundry baskets, on five zabuton for a tea room that wants Japandi *and* seating
+for four rather than nine objects, and on a toaster, a kettle and a trolley for a kitchen
+rather than four toasters. What it suggests depends on the *house* — its quarter and the
+level its own brief opens at — not on how far you have got, so a Maple client never starts
+recommending Hanami cushions the week you buy Hanami. Ignore all of it and buy something
+else; the room is judged on what it does, not on what you bought.
 
 ### The verdict
 
@@ -758,8 +771,9 @@ scripts/
     showroom.gd          What a floor of your own takes an hour: the review, the
                          spread of counters and what is standing on it
     jobs.gd              Autoload. The six quarters and the 56 houses in them,
-                         the requirement evaluator, the shopping list a brief
-                         needs, and the generator for repeat contracts
+                         the requirement evaluator, the one planner that works
+                         out what a brief needs room by room, and the generator
+                         for repeat contracts
     game_state.gd        Autoload. Money, XP, levels, the warehouse, the
                          quarters bought, the estate, the yard, the trade store,
                          the workshop bench, the perks taken, who is on the
@@ -871,11 +885,19 @@ stands, so a new contract is a few lines:
 }
 ```
 
-Supported requirement kinds: `item`, `category`, `total`, `categories` (distinct shops),
-`floor_color`, `wall_color` and `no_overlap`.
+Supported requirement kinds: the six capabilities (`seats`, `sleeps`, `surfaces`, `storage`,
+`lights`, `greenery`), plus `style`, `category`, `item`, `total`, `categories` (distinct
+shops), `floor_color`, `wall_color` and `no_overlap`.
 
-A job with more than one room carries a `rooms` plan instead of a single rectangle, and its
-`item`, `category` and `total` lines can name one of them:
+The first eight are the *open asks* — the ones a player can answer any way they like — and
+they share one vocabulary so the planner can weigh them against each other in a single pass.
+`Catalog.ask_key()` turns a line into a bag key (`"seats"`, `"style:japandi"`,
+`"cat:Bathroom"`) and `Catalog.answers()` scores any piece against any key. That is what
+lets one zabuton answer both halves of *"five pieces of Japandi and seating for four"*
+instead of the plan buying two objects for it.
+
+A job with more than one room carries a `rooms` plan instead of a single rectangle, and any
+line can name one of them:
 
 ```gdscript
 "room": {"h": 3.0},
@@ -947,7 +969,9 @@ features nobody leaves switched off — that the showroom opens as neither a job
 sandbox, takes its furniture out of the warehouse and gives it back, comes with no starter
 room of free furniture, and that a cheap floor arranged well really does out-earn an
 expensive one thrown together, that its till fills on the clock, stops after a trading day
-and pays out once, that every
+and pays out once, that no whole-floor brief hands out a shopping list and that the city as
+a whole asks what a room has to do far more often than it names a product, that nothing any
+brief suggests is gated above the level that brief opens at, that every
 piece in the catalogue is worth making and worth about as much to make as every other piece
 is — material between a third and three quarters of the shelf price for all 167 of them —
 and that trade material bought at the merchant goes into a piece when it is started rather

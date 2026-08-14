@@ -1296,7 +1296,14 @@ func _check_craft_pays() -> void:
 	main.enter_city()
 	await _settle()
 
+	# Everything that rides the fee: the client's own review, the Stager line,
+	# and — now the brief asks what the room has to do rather than naming the
+	# pieces — the chance that the answer landed in the school this client
+	# actually likes.
 	var earned := float(review["bonus_rate"]) + Game.fee_bonus()
+	if str(review["voice"]) == Jobs.taste_of(house_id) \
+			and str(review["voice"]) != Catalog.PLAIN:
+		earned += RoomReview.TASTE_BONUS
 	var plain := payout + int(round(float(payout) * earned))
 	var gross := payout + int(round(float(payout) * (earned + craft)))
 	# What lands in the account is the fee less whatever the books take out of it.
@@ -1626,6 +1633,38 @@ func _check_floor_plan() -> void:
 
 	_expect(plans > 0, "no house in the city is more than one room")
 
+	# The whole city asks what a room has to *do*, not what it has to contain.
+	# A handful of named pieces survive where the brief genuinely turns on that
+	# object — a rocking horse, a play mat — and nothing else does.
+	var named := 0
+	var open_asks := 0
+	for house: Dictionary in Jobs.all():
+		for req: Dictionary in house["requirements"]:
+			if str(req.get("type", "")) == "item":
+				named += 1
+			elif Catalog.ask_key(req) != "":
+				open_asks += 1
+	_expect(open_asks > named * 2,
+		"only %d lines ask what the room has to do against %d that name a product"
+			% [open_asks, named])
+	for house: Dictionary in Jobs.all():
+		if not house.has("rooms"):
+			continue
+		for req: Dictionary in house["requirements"]:
+			_expect(str(req.get("type", "")) != "item",
+				"%s still hands out a shopping list: %s"
+					% [house["id"], req.get("id", "")])
+
+	# And every open ask has to be answerable out of what that client's own
+	# quarter will actually sell, or the brief is a riddle.
+	for house: Dictionary in Jobs.all():
+		var plan := Jobs.room_plan(str(house["id"]))
+		for scope: String in plan:
+			for item_id: String in plan[scope]:
+				_expect(int(house["level"]) >= Catalog.effective_unlock_level(item_id),
+					"%s suggests %s, which does not open until level %d"
+						% [house["id"], item_id, Catalog.effective_unlock_level(item_id)])
+
 	# Then take the biggest one into the designer and check it stands up.
 	var house_id := "the_observatory"
 	var job := Jobs.get_job(house_id)
@@ -1651,20 +1690,21 @@ func _check_floor_plan() -> void:
 		_expect(room.room_id_at(middle) == str(entry["id"]),
 			"the middle of %s reads as %s" % [entry["id"], room.room_id_at(middle)])
 
-	# And the brief means the room it names: a bed in the bathroom is not a bed
-	# in the bedroom.
+	# And the brief means the room it names. The line asks for somewhere to
+	# sleep in the bedroom, so a bed standing in the bathroom does not answer
+	# it — the same bed, two metres away, does.
 	designer._on_place_item("bed_double")
 	var bed = designer.selected
 	var bathroom: Rect2 = room.rect_of("bathroom")
 	var spot := bathroom.position + bathroom.size * 0.5
 	bed.global_position = designer._clamp_to_room(bed, Vector3(spot.x, 0.0, spot.y))
-	_expect(not _line_met(house_id, designer, "bed_double", "bedroom"),
+	_expect(not _room_line_met(house_id, designer, "sleeps", "bedroom"),
 		"a bed left in the bathroom ticked the bedroom's line")
 
 	var bedroom: Rect2 = room.rect_of("bedroom")
 	spot = bedroom.position + bedroom.size * 0.5
 	bed.global_position = designer._clamp_to_room(bed, Vector3(spot.x, 0.0, spot.y))
-	_expect(_line_met(house_id, designer, "bed_double", "bedroom"),
+	_expect(_room_line_met(house_id, designer, "sleeps", "bedroom"),
 		"a bed in the bedroom did not tick the bedroom's line")
 
 	# Paint is per room: a colour laid in one must not spread to the others.
@@ -2133,60 +2173,45 @@ func _unmet(results: Array[Dictionary]) -> String:
 ## Satisfies a brief as plainly as possible, out of stock. Lines pinned to a
 ## room of a flat are placed in that room.
 func _furnish(designer, job: Dictionary) -> void:
-	# The inflexible lines first — a named piece and a painted wall have one
-	# answer each, and a room filled with cushions has nowhere left to put the
-	# sink. Then the open asks, with whatever is left.
-	for pass_named in [true, false]:
-		for req: Dictionary in job["requirements"]:
-			var scope := str(req.get("room", ""))
-			var kind := str(req["type"])
-			# A named piece and a painted wall have one answer each; a capability
-			# and a "buy from N shops" line have many. The rigid ones go down
-			# first or there is nowhere left to put the sink.
-			var rigid: bool = kind == "item" or kind.ends_with("_color")
-			if Catalog.TRAITS.has(kind) or rigid != pass_named:
-				continue
-			match kind:
-				"item":
-					for i in int(req.get("count", 1)):
-						_place(designer, str(req["id"]), scope)
-				"category":
-					for i in int(req.get("count", 1)):
-						var pick := _cheapest_owned_in(str(req["category"]))
-						if pick != "":
-							_place(designer, pick, scope)
-				"categories":
-					var used := 0
-					for category in Catalog.CATEGORIES:
-						if used >= int(req["count"]):
-							break
-						var id := _cheapest_owned_in(category)
-						if id != "":
-							_place(designer, id, scope)
-							used += 1
-				"floor_color":
-					designer._on_paint_target(scope)
-					designer._on_floor_paint(_owned_paint("floor", req["names"]))
-					designer._on_paint_target("")
-				"wall_color":
-					designer._on_paint_target(scope)
-					designer._on_wall_paint(_owned_paint("wall", req["names"]))
-					designer._on_paint_target("")
+	# The paint first: a wall is not in anybody's way, and doing it last means
+	# fighting the selection.
+	for req: Dictionary in job["requirements"]:
+		var scope := str(req.get("room", ""))
+		match str(req["type"]):
+			"floor_color":
+				designer._on_paint_target(scope)
+				designer._on_floor_paint(_owned_paint("floor", req["names"]))
+				designer._on_paint_target("")
+			"wall_color":
+				designer._on_paint_target(scope)
+				designer._on_wall_paint(_owned_paint("wall", req["names"]))
+				designer._on_paint_target("")
 
-	# What each room has to be able to do, answered a room at a time and not a
-	# line at a time — the same way Jobs plans the basket. A study wanting three
-	# surfaces and three places to put things away wants three bookshelves, and
-	# taking them one line at a time fills it with six pieces that do not fit.
+	# Then exactly what the brief's own planner said, in the room it said. A
+	# player is free to answer differently — that is the whole point of a
+	# capability line — but the run has to follow one plan rather than two, or a
+	# room takes the piece another room was going to answer its own line with
+	# and every brief comes up one short somewhere else.
+	var plan: Dictionary = Jobs.room_plan(str(job["id"]))
+	for scope: String in plan:
+		for item_id: String in plan[scope]:
+			for i in int((plan[scope] as Dictionary)[item_id]):
+				if Game.stock_of(item_id) <= 0:
+					break
+				_place(designer, item_id, scope)
+
+	# Anything still short — a piece that would not fit, or stock the run could
+	# not afford — is answered out of whatever is left in the warehouse.
 	var wants: Dictionary = {}
 	for req: Dictionary in job["requirements"]:
-		var kind := str(req["type"])
-		if not Catalog.TRAITS.has(kind):
+		var key := Catalog.ask_key(req)
+		if key == "":
 			continue
 		var scope := str(req.get("room", ""))
 		if not wants.has(scope):
 			wants[scope] = {}
 		var room: Dictionary = wants[scope]
-		room[kind] = int(room.get(kind, 0)) + int(req.get("count", 1))
+		room[key] = int(room.get(key, 0)) + int(req.get("count", 1))
 
 	for scope: String in wants:
 		var guard := 0
@@ -2202,7 +2227,24 @@ func _furnish(designer, job: Dictionary) -> void:
 				break
 			guard += 1
 
-	# Room-by-room piece counts have to be topped up room by room.
+	# Named lines and room-by-room piece counts, topped up the same way.
+	for req: Dictionary in job["requirements"]:
+		var scope := str(req.get("room", ""))
+		match str(req["type"]):
+			"item":
+				var short: int = int(req.get("count", 1)) \
+					- _held_in(designer, str(req["id"]), scope)
+				for i in maxi(short, 0):
+					_place(designer, str(req["id"]), scope)
+			"categories":
+				var used := 0
+				for category in Catalog.CATEGORIES:
+					if used >= int(req["count"]):
+						break
+					var id := _cheapest_owned_in(category)
+					if id != "":
+						_place(designer, id, scope)
+						used += 1
 	for req: Dictionary in job["requirements"]:
 		if str(req["type"]) != "total":
 			continue
@@ -2214,6 +2256,17 @@ func _furnish(designer, job: Dictionary) -> void:
 				break
 			_place(designer, filler, scope)
 			guard += 1
+
+
+## How many of one piece are already standing in a scope.
+func _held_in(designer, item_id: String, scope: String) -> int:
+	var total := 0
+	for item in designer._items():
+		if scope != "" and designer.room.room_id_at(item.footprint_center()) != scope:
+			continue
+		if item.item_id == item_id:
+			total += 1
+	return total
 
 
 func _count_in(designer, scope: String) -> int:
@@ -2252,13 +2305,13 @@ func _place(designer, item_id: String, scope: String) -> void:
 	item.global_position = designer._clamp_to_room(item, Vector3(middle.x, 0.0, middle.y))
 
 
-## How much of one capability the room has so far, in a given scope.
-func _does_in(designer, kind: String, scope: String) -> int:
+## How much of one open ask the room already answers, in a given scope.
+func _does_in(designer, key: String, scope: String) -> int:
 	var total := 0
 	for item in designer._items():
 		if scope != "" and designer.room.room_id_at(item.footprint_center()) != scope:
 			continue
-		total += Catalog.does(item.item_id, kind)
+		total += Catalog.answers(item.item_id, key)
 	return total
 
 
@@ -2296,8 +2349,8 @@ func _owned_that_covers(left: Dictionary) -> String:
 		if Game.stock_of(id) <= 0:
 			continue
 		var cover := 0
-		for kind: String in left:
-			cover += mini(Catalog.does(id, kind), int(left[kind]))
+		for key: String in left:
+			cover += mini(Catalog.answers(id, key), int(left[key]))
 		if cover <= 0:
 			continue
 		if cover > best_cover or (cover == best_cover and Catalog.price(id) < best_price):

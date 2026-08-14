@@ -1625,6 +1625,35 @@ func does(id: String, trait_name: String) -> int:
 	return int((def.get("does", {}) as Dictionary).get(trait_name, 0))
 
 
+## The three kinds of open ask a brief can make, answered by one function.
+##
+## A room's outstanding needs are kept as a bag of keys — "seats", "style:
+## japandi", "cat:Bathroom" — and every piece of the catalogue is scored against
+## the whole bag at once. That matters because the lines overlap: a zabuton is a
+## seat *and* a piece of Japandi, and a plan that answers the two separately
+## buys two objects where the room wanted one. Both the shopping list and the
+## test that plays the career score with this, so they can never disagree about
+## which piece was meant to go where.
+func answers(id: String, key: String) -> int:
+	if key.begins_with("style:"):
+		return 1 if style_of(id) == key.substr(6) else 0
+	if key.begins_with("cat:"):
+		return 1 if category_of(id) == key.substr(4) else 0
+	return does(id, key)
+
+
+## The bag key a requirement line contributes to, or "" if it is not an open ask.
+func ask_key(req: Dictionary) -> String:
+	var kind := str(req.get("type", ""))
+	if TRAITS.has(kind):
+		return kind
+	if kind == "style":
+		return "style:%s" % req.get("style", "")
+	if kind == "category":
+		return "cat:%s" % req.get("category", "")
+	return ""
+
+
 ## Everything a piece does, worked out once when it is added to the catalogue.
 func _traits_for(def: Dictionary) -> Dictionary:
 	var id := str(def["id"])
