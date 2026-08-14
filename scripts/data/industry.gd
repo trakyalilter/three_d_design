@@ -196,6 +196,13 @@ static func yield_per_hour(site: Dictionary, tier: int) -> float:
 	return float(site.get("per_job", 0)) * float(tier)
 
 
+## What a holding actually turns out, once the Grafter line is counted. The cap
+## below is deliberately left on the bare rate: a perk makes the ground come up
+## faster, not the barn bigger, so a full holding still has to be visited.
+func rate_at(site: Dictionary, tier: int) -> float:
+	return yield_per_hour(site, tier) * Game.estate_speed()
+
+
 ## How much a holding will hold before it stops.
 static func hold_cap(site: Dictionary, tier: int) -> int:
 	return int(ceil(yield_per_hour(site, tier) * HOLD_HOURS))
@@ -203,7 +210,7 @@ static func hold_cap(site: Dictionary, tier: int) -> int:
 
 ## How long a run takes at a works, in seconds.
 func batch_seconds(works_id: String) -> float:
-	return float(BATCH_MINUTES.get(works_id, 20.0)) * 60.0
+	return float(BATCH_MINUTES.get(works_id, 20.0)) * 60.0 / Game.estate_speed()
 
 
 ## What each tier of improvement asks for, and what it is worth. The goods are

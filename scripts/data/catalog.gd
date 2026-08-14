@@ -1477,7 +1477,7 @@ func bill_cost(bill: Dictionary) -> int:
 ## How long one takes to make, and what it teaches.
 func make_seconds(id: String) -> float:
 	return clampf(float(price(id)) * MAKE_SECONDS_PER_DOLLAR,
-		MAKE_SECONDS_MIN, MAKE_SECONDS_MAX)
+		MAKE_SECONDS_MIN, MAKE_SECONDS_MAX) / Game.estate_speed()
 
 
 func make_xp(id: String) -> int:

@@ -29,6 +29,7 @@ var _toast_timer: Timer
 var _modal: Control
 var _modal_body: VBoxContainer
 var _stock_button: Button
+var _perks_button: Button
 ## What the side sheet is currently showing, so it can be redrawn after a
 ## purchase without the player losing their place.
 var _current_sheet: Dictionary = {}
@@ -71,6 +72,8 @@ func _redraw_sheet() -> void:
 			show_shop(str(showing["id"]))
 		"stock":
 			show_warehouse()
+		"perks":
+			show_perks()
 		"district":
 			show_district(str(showing["id"]))
 
@@ -121,6 +124,11 @@ func _build_top_bar() -> void:
 	_stock_button.pressed.connect(show_warehouse)
 	row.add_child(_stock_button)
 
+	_perks_button = UIKit.make_button("Trade",
+		"What you have made of yourself: a point for every level, and four lines to spend it on")
+	_perks_button.pressed.connect(show_perks)
+	row.add_child(_perks_button)
+
 	var quarters := UIKit.make_button("City", "The quarters of the city, and what it costs to work in them")
 	quarters.pressed.connect(show_districts)
 	row.add_child(quarters)
@@ -158,6 +166,11 @@ func refresh_hud() -> void:
 	if _stock_button:
 		var held := Game.total_stock()
 		_stock_button.text = "Stock  %d" % held if held > 0 else "Stock"
+	if _perks_button:
+		# A point sitting unspent is the one thing on this bar worth chasing, so
+		# it goes on the button rather than waiting to be found.
+		var spare := Game.perk_points_left()
+		_perks_button.text = "Trade  ●%d" % spare if spare > 0 else "Trade"
 
 
 func _build_hint() -> void:
@@ -425,7 +438,7 @@ func _build_shopping_list(house_id: String) -> void:
 		_sheet_body.add_child(_shop_heading(shop_id))
 		for item_id: String in by_shop[shop_id]:
 			var count := int(missing[item_id])
-			var right := UIKit.money(Catalog.price(item_id) * count)
+			var right := UIKit.money(Game.buy_price(item_id) * count)
 			var tone := UIKit.GOLD
 			if not Game.is_item_unlocked(item_id):
 				right = "Level %d" % Catalog.effective_unlock_level(item_id)
@@ -437,7 +450,7 @@ func _build_shopping_list(house_id: String) -> void:
 		_sheet_body.add_child(_shop_heading("paint"))
 		for paint: Dictionary in paints:
 			var entry: Dictionary = paint["entry"]
-			var price := Catalog.paint_price(entry)
+			var price := Game.paint_price(entry)
 			total += price
 			_sheet_body.add_child(_list_row("%s — %s" % [
 				"Floor" if paint["surface"] == "floor" else "Wall", entry["name"]],
@@ -675,7 +688,7 @@ func _window_stock(shop_id: String) -> void:
 		cell.add_theme_constant_override("separation", 2)
 		cell.add_child(_thumbnail(id, available))
 		var price := UIKit.label(
-			UIKit.money(Catalog.price(id)) if available
+			UIKit.money(Game.buy_price(id)) if available
 				else "Lv %d" % Catalog.effective_unlock_level(id),
 			14, UIKit.GOLD if available else UIKit.BAD)
 		price.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -701,7 +714,7 @@ func _window_paint() -> void:
 			swatch.color = entry["color"] if unlocked else Color(0.30, 0.31, 0.35)
 			swatch.custom_minimum_size = Vector2(46, 40)
 			swatch.tooltip_text = "%s — %s" % [entry["name"],
-				UIKit.money(Catalog.paint_price(entry)) if unlocked
+				UIKit.money(Game.paint_price(entry)) if unlocked
 					else "level %d" % int(entry["level"])]
 			row.add_child(swatch)
 	_divider()
@@ -745,7 +758,7 @@ func _thumbnail(item_id: String, available: bool) -> Control:
 ## Buying happens on a shop floor now, so there is no Buy here.
 func _stock_row(item_id: String) -> HBoxContainer:
 	var row := HBoxContainer.new()
-	var price := Catalog.price(item_id)
+	var price := Game.buy_price(item_id)
 	var held := Game.stock_of(item_id)
 
 	row.add_child(_thumbnail(item_id, true))
@@ -799,6 +812,109 @@ func show_warehouse() -> void:
 	var close := UIKit.make_button("Close")
 	close.pressed.connect(close_sheet)
 	_sheet_actions.add_child(close)
+
+
+# --------------------------------------------------------------- the trade
+
+## What levelling up buys. Four lines, eight steps each, one point a level —
+## thirty-two steps against twenty-nine points, so the last thing this sheet
+## does is make you leave something behind.
+func show_perks() -> void:
+	var spare := Game.perk_points_left()
+	_begin_sheet("Your trade", "%s to spend, %d of %d earned so far." % [
+		"A point" if spare == 1 else "%d points" % spare,
+		Game.perk_points_earned(), Game.MAX_LEVEL - 1])
+	_current_sheet = {"kind": "perks"}
+
+	_sheet_body.add_child(UIKit.wrapped_label(
+		"Every level hands you one point, and a point buys the next step of one "
+		+ "line. There are more steps here than there are levels in a career, so "
+		+ "what you leave out is as much a decision as what you take. Nothing "
+		+ "here can be given back.", 460))
+
+	for line: Dictionary in Perks.lines():
+		_divider()
+		_sheet_body.add_child(_perk_line(line))
+
+	var close := UIKit.make_button("Close")
+	close.pressed.connect(close_sheet)
+	_sheet_actions.add_child(close)
+
+
+## One line: its name and what it is worth now, a row of pips for the eight
+## steps, what the next one is called, and the button that buys it.
+func _perk_line(line: Dictionary) -> Control:
+	var line_id := str(line["id"])
+	var rank := Game.perk_rank(line_id)
+	var tone: Color = line["color"]
+
+	var block := VBoxContainer.new()
+	block.add_theme_constant_override("separation", 3)
+	block.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+
+	var head := HBoxContainer.new()
+	var title := UIKit.label(str(line["name"]), 20, tone)
+	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	head.add_child(title)
+	var worth := UIKit.label("%s %s" % [Perks.value_line(line_id, rank), line["effect"]],
+		15, UIKit.GOOD if rank > 0 else UIKit.MUTED)
+	# Given its own width rather than allowed to ask for one: measured off its
+	# text, a long line here pushed the whole head past the edge of the sheet.
+	worth.clip_text = true
+	worth.custom_minimum_size = Vector2(210, 0)
+	worth.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	worth.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	head.add_child(worth)
+	block.add_child(head)
+
+	# Eight pips, filled to the rank. A bar would say the same thing, but the
+	# steps are bought one at a time and the pips are what you count.
+	var pips := HBoxContainer.new()
+	pips.add_theme_constant_override("separation", 4)
+	for step in Perks.RANKS:
+		var pip := ColorRect.new()
+		pip.custom_minimum_size = Vector2(30, 7)
+		pip.color = tone if step < rank else Color(1, 1, 1, 0.13)
+		pips.add_child(pip)
+	pips.add_child(UIKit.spacer())
+	block.add_child(pips)
+
+	block.add_child(UIKit.wrapped_label(str(line["blurb"]), 460, UIKit.MUTED))
+
+	var foot := HBoxContainer.new()
+	var blocked := Game.perk_blocked(line_id)
+	var next_name := Perks.step_name(line_id, rank + 1)
+	var caption := UIKit.label(
+		"Taken: %s" % Perks.step_name(line_id, rank) if next_name == ""
+			else "Next: %s" % next_name,
+		15, UIKit.GOOD if next_name == "" else UIKit.TEXT)
+	caption.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	caption.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	caption.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	foot.add_child(caption)
+
+	if next_name != "":
+		var take := UIKit.make_primary_button("Take it") if blocked == "" \
+			else UIKit.make_button("Take it", blocked)
+		take.disabled = blocked != ""
+		take.pressed.connect(func() -> void: _take_perk(line_id))
+		foot.add_child(take)
+	block.add_child(foot)
+
+	if blocked != "" and next_name != "":
+		block.add_child(UIKit.label(blocked, 14, UIKit.BAD))
+	return block
+
+
+func _take_perk(line_id: String) -> void:
+	var was := Game.perk_rank(line_id)
+	if not Game.take_perk(line_id):
+		Audio.play("deny")
+		return
+	Audio.play("levelup")
+	toast_message("%s — %s" % [Perks.line_name(line_id),
+		Perks.step_name(line_id, was + 1)], 2.4)
+	show_perks()
 
 
 # -------------------------------------------------------------------- modal

@@ -498,7 +498,7 @@ func _stock_the_floor() -> void:
 
 		_ticket(at + Vector3(0, 0, float(spot["front"])), Catalog.height(id),
 			Catalog.display_name(id),
-			UIKit.money(Catalog.price(id)) if available else _lock_line(id), available)
+			UIKit.money(Game.buy_price(id)) if available else _lock_line(id), available)
 
 
 ## What a locked piece is waiting for: a level, or a quarter of the city.
@@ -624,7 +624,7 @@ func _pallet(entry: Dictionary, at: Vector3) -> void:
 			Vector3(0, 0.42 + float(course) * 0.20, 0)))
 
 	var text := Label3D.new()
-	text.text = "%s\n%s a %s" % [entry["name"], UIKit.money(int(entry["price"])),
+	text.text = "%s\n%s a %s" % [entry["name"], UIKit.money(Game.supply_price(id)),
 		str(entry["unit"]).trim_suffix("s")]
 	text.font_size = 40
 	text.pixel_size = 0.0044
@@ -703,7 +703,7 @@ func _tin(surface: String, entry: Dictionary, at: Vector3) -> void:
 
 	var text := Label3D.new()
 	text.text = "%s\n%s" % [entry["name"],
-		"Owned" if owned else (UIKit.money(Catalog.paint_price(entry))
+		"Owned" if owned else (UIKit.money(Game.paint_price(entry))
 			if available else "Level %d" % int(entry.get("level", 1)))]
 	text.font_size = 34
 	text.pixel_size = 0.0030

@@ -1902,7 +1902,7 @@ func generate_contract(house_id: String, level: int) -> Dictionary:
 		elif id == "counter" or id == "nightstand":
 			count = 1 + random.randi() % 2
 		requirements.append({"type": "item", "id": id, "count": count})
-		outlay += Catalog.price(id) * count
+		outlay += Game.buy_price(id) * count
 
 	# Scaled to the floor the client actually has. A whole-floor job has no
 	# single width and depth, so this asks for the area rather than reading a
@@ -1935,7 +1935,7 @@ func _cheapest_price_in(category: String) -> int:
 	var best := 999999
 	for id in Catalog.ids_in(category):
 		if Game.is_item_unlocked(id):
-			best = mini(best, Catalog.price(id))
+			best = mini(best, Game.buy_price(id))
 	return best if best < 999999 else 100
 
 
@@ -1951,7 +1951,7 @@ func max_bonus_for(house_id: String) -> int:
 func minimum_outlay(house_id: String) -> int:
 	var total := 0
 	for item_id: String in _needed_pieces(house_id):
-		total += Catalog.price(item_id) * int(_needed_pieces(house_id)[item_id])
+		total += Game.buy_price(item_id) * int(_needed_pieces(house_id)[item_id])
 	return total
 
 
@@ -2144,7 +2144,7 @@ func shopping_list(house_id: String, placed: Dictionary = {}) -> Dictionary:
 static func list_cost(list: Dictionary) -> int:
 	var total := 0
 	for item_id: String in list:
-		total += Catalog.price(item_id) * int(list[item_id])
+		total += Game.buy_price(item_id) * int(list[item_id])
 	return total
 
 

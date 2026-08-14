@@ -160,7 +160,7 @@ func show_item(item_id: String) -> void:
 	_card.visible = true
 
 	var available := Game.is_item_unlocked(item_id)
-	var price := Catalog.price(item_id)
+	var price := Game.buy_price(item_id)
 	var held := Game.stock_of(item_id)
 
 	var head := HBoxContainer.new()
@@ -230,7 +230,7 @@ func show_paint(surface: String, entry: Dictionary) -> void:
 
 	var available := Game.is_paint_unlocked(entry)
 	var owned := Game.owns_paint(surface, str(entry["name"]))
-	var price := Catalog.paint_price(entry)
+	var price := Game.paint_price(entry)
 
 	var head := HBoxContainer.new()
 	head.add_theme_constant_override("separation", 12)
@@ -285,7 +285,7 @@ func show_supply(supply_id: String) -> void:
 	var entry := Catalog.get_trade(supply_id)
 	if entry.is_empty():
 		return
-	var price := int(entry["price"])
+	var price := Game.supply_price(supply_id)
 	var held := Game.supply_count(supply_id)
 
 	var head := HBoxContainer.new()

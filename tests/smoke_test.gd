@@ -36,6 +36,9 @@ func _ready() -> void:
 	print("=== districts ===")
 	_check_districts()
 
+	print("=== the trade ===")
+	_check_perks()
+
 	print("=== career ===")
 	# Where the player stood when the last quarter opened. Levelling is meant
 	# to still be running then, not finished a third of the way in.
@@ -587,6 +590,105 @@ func _city_price() -> int:
 ## ground and work it, hand a job over and watch the yard fill, put the material
 ## through a works, and fit the goods into furniture already in stock. Then hand
 ## a room of improved pieces over and check the improvement actually paid.
+## The perk tree. Runs on a fresh career, before a point has been earned, so the
+## gates and the arithmetic can be checked from nothing — then puts the profile
+## back the way it found it and lets the career spend its own points.
+func _check_perks() -> void:
+	var lines := Perks.lines()
+	_expect(lines.size() == 4, "the tree has %d lines, not four" % lines.size())
+
+	# The tree has to be bigger than a career, or there is nothing to choose.
+	var steps: int = lines.size() * Perks.RANKS
+	var points: int = Game.MAX_LEVEL - 1
+	_expect(steps > points,
+		"%d steps against %d points, so a whole career can buy the whole tree"
+			% [steps, points])
+	for line: Dictionary in lines:
+		_expect(int((line["steps"] as Array).size()) == Perks.RANKS,
+			"%s names %d steps for its %d" % [line["id"],
+			(line["steps"] as Array).size(), Perks.RANKS])
+		_expect(Perks.value_at(str(line["id"]), Perks.RANKS) > 0.0,
+			"%s is worth nothing at the top of it" % line["id"])
+	_expect(Perks.level_for_rank(Perks.RANKS) <= Game.MAX_LEVEL,
+		"the last step of a line opens at level %d, above the cap"
+			% Perks.level_for_rank(Perks.RANKS))
+
+	# Nothing is earned at level one, and nothing can be taken.
+	_expect(Game.perk_points_earned() == 0, "a new career started with points in hand")
+	_expect(not Game.can_take_perk("haggler"), "a step could be taken with no points")
+
+	Game.level = 2
+	_expect(Game.perk_points_left() == 1, "the second level did not hand over a point")
+	_expect(Game.take_perk("haggler"), "the first step could not be taken")
+	_expect(Game.perk_rank("haggler") == 1, "taking a step did not raise the rank")
+	_expect(Game.perk_points_left() == 0, "a taken step did not cost its point")
+	_expect(not Game.take_perk("haggler"), "a second step was taken on one point")
+
+	# The level gate, which is what stops one line being finished by level nine.
+	Game.level = Game.MAX_LEVEL
+	_expect(Game.perk_points_left() == Game.MAX_LEVEL - 2,
+		"the levels between did not each hand over a point")
+	Game.perk_ranks["stager"] = Perks.RANKS
+	_expect(not Game.can_take_perk("stager"), "a line went past its last step")
+	Game.perk_ranks["stager"] = 0
+	Game.level = Perks.level_for_rank(3) - 1
+	Game.perk_ranks["scholar"] = 2
+	_expect(not Game.can_take_perk("scholar"),
+		"a step was taken a level before it opens")
+	Game.level = Perks.level_for_rank(3)
+	_expect(Game.can_take_perk("scholar"), "a step did not open at its own level")
+
+	# Haggling. What a shop asks comes down, and what it gives back comes down
+	# with it — so buying and selling is still a wash, whatever the rank.
+	Game.perk_ranks = {}
+	Game.earn(5000)
+	var full := Game.buy_price("sofa")
+	_expect(full == Catalog.price("sofa"), "an unhaggled sofa is not its shelf price")
+	Game.perk_ranks["haggler"] = Perks.RANKS
+	var cut := Game.buy_price("sofa")
+	_expect(cut < full, "the whole Haggler line took nothing off a sofa")
+	_expect(Game.supply_price("lumber") < Catalog.trade_price("lumber"),
+		"haggling does not reach the merchant")
+	var purse := Game.money
+	Game.buy_item("sofa", 1)
+	_expect(Game.money == purse - cut, "a sofa did not cost the haggled price")
+	Game.sell_item("sofa", 1)
+	_expect(Game.money == purse, "selling a haggled sofa back was not a wash")
+
+	# Out of town. Everything on a clock runs quicker, and the bench takes more
+	# under the clamps at once — but a holding still only holds what it held.
+	Game.perk_ranks = {}
+	var slow := Industry.batch_seconds("sawmill")
+	var bare := Industry.hold_cap(Industry.SITES[0], 2)
+	var one := Game.bench_slots()
+	Game.perk_ranks["grafter"] = Perks.RANKS
+	_expect(Industry.batch_seconds("sawmill") < slow, "the works did not speed up")
+	_expect(Industry.rate_at(Industry.SITES[0], 2)
+		> Industry.yield_per_hour(Industry.SITES[0], 2), "the ground did not speed up")
+	_expect(Industry.hold_cap(Industry.SITES[0], 2) == bare,
+		"a perk made the barn bigger as well as the crop faster")
+	_expect(Game.bench_slots() > one, "the bench never took a second piece")
+
+	# Two under the clamps really are made at the same time.
+	Game.supplies = {}
+	for material: String in Catalog.bill_of("chair"):
+		Game.supplies[material] = int(Catalog.bill_of("chair")[material]) * 2
+	Game.making = []
+	Game.start_making("chair")
+	Game.start_making("chair")
+	Game.clock_offset += Catalog.make_seconds("chair") + 1.0
+	_expect(Game.made_waiting() == 2,
+		"a bench with room for two still made them one after the other")
+
+	Game.reset()
+	print("trade           %d steps across %d lines against %d points; %s off, "
+		% [steps, lines.size(), points, Perks.value_line("haggler", Perks.RANKS)]
+		+ "%s on a fee, %s on what it teaches, %s faster out of town"
+			% [Perks.value_line("stager", Perks.RANKS),
+			Perks.value_line("scholar", Perks.RANKS),
+			Perks.value_line("grafter", Perks.RANKS)])
+
+
 func _check_estate() -> void:
 	var main = get_tree().current_scene
 
@@ -642,7 +744,7 @@ func _check_estate() -> void:
 	_expect(Game.waiting_at(site_id) == 0, "%s had a crop before any time passed" % site_id)
 	Game.clock_offset += Industry.HOUR * 2.0
 	Game.settle_estate()
-	var two_hours := int(Industry.yield_per_hour(site, 2) * 2.0)
+	var two_hours := int(Industry.rate_at(site, 2) * 2.0)
 	_expect(Game.waiting_at(site_id) == two_hours,
 		"two hours on %s grew %d, not %d" % [site_id, Game.waiting_at(site_id), two_hours])
 
@@ -794,12 +896,12 @@ func _check_workshop() -> void:
 	main.shop_ui.buy_supply_requested.emit("lumber", 10)
 	await get_tree().process_frame
 	_expect(Game.supply_count("lumber") == 10, "ten boards did not land in the store")
-	_expect(Game.money == money - Catalog.trade_price("lumber") * 10,
+	_expect(Game.money == money - Game.supply_price("lumber") * 10,
 		"the yard did not charge for ten boards")
 	main.shop_ui.sell_supply_requested.emit("lumber", 4)
 	await get_tree().process_frame
 	_expect(Game.supply_count("lumber") == 6, "selling four boards back left the wrong count")
-	_expect(Game.money == money - Catalog.trade_price("lumber") * 6,
+	_expect(Game.money == money - Game.supply_price("lumber") * 6,
 		"selling back at the yard did not refund what it cost")
 
 	main.enter_estate()
@@ -837,18 +939,22 @@ func _check_workshop() -> void:
 	_expect(Game.xp > xp or Game.level == Game.MAX_LEVEL,
 		"making a chair taught nothing")
 
-	# A queue runs one at a time, so two started together do not finish together.
+	# The bench runs as many at once as it has clamps for, and one more than that
+	# waits its turn. How many clamps there are is whatever the Grafter line has
+	# bought, so this is checked against that rather than against a number.
+	var slots := Game.bench_slots()
 	Game.supplies = {}
 	for material: String in Catalog.bill_of(made_id):
-		Game.buy_supply(material, int(Catalog.bill_of(made_id)[material]) * 2)
-	Game.start_making(made_id)
-	Game.start_making(made_id)
-	_expect(Game.making.size() == 2, "the bench would not take a second piece")
+		Game.buy_supply(material, int(Catalog.bill_of(made_id)[material]) * (slots + 1))
+	for i in slots + 1:
+		Game.start_making(made_id)
+	_expect(Game.making.size() == slots + 1, "the bench would not take them all on")
 	Game.clock_offset += Catalog.make_seconds(made_id) + 1.0
-	_expect(Game.made_waiting() == 1,
-		"both pieces came off the bench in the time one of them takes")
+	_expect(Game.made_waiting() == slots,
+		"a bench with %d clamp%s finished %d pieces in the time one of them takes"
+			% [slots, "" if slots == 1 else "s", Game.made_waiting()])
 	Game.clock_offset += Catalog.make_seconds(made_id) + 1.0
-	_expect(Game.made_waiting() == 2, "the second piece never came off")
+	_expect(Game.made_waiting() == slots + 1, "the one that queued never came off")
 	Game.collect_made()
 
 	print("workshop        material is %.0f%%–%.0f%% of the shelf price; a chair "
@@ -909,8 +1015,9 @@ func _check_craft_pays() -> void:
 	main.enter_city()
 	await _settle()
 
-	var plain := payout + int(round(float(payout) * float(review["bonus_rate"])))
-	var withcraft := payout + int(round(float(payout) * (float(review["bonus_rate"]) + craft)))
+	var earned := float(review["bonus_rate"]) + Game.fee_bonus()
+	var plain := payout + int(round(float(payout) * earned))
+	var withcraft := payout + int(round(float(payout) * (earned + craft)))
 	_expect(Game.money - money == withcraft,
 		"%s paid %d, not the %d a room of improved furniture is worth"
 			% [house_id, Game.money - money, withcraft])
@@ -1697,6 +1804,29 @@ func _play(job: Dictionary) -> void:
 
 	if Game.money < money_before:
 		_failures.append("%s left the player poorer (%d -> %d)" % [house_id, money_before, Game.money])
+
+	# A player levels up and spends the point, so the run does too. Anything else
+	# would balance the career against a feature nobody leaves switched off.
+	_spend_points()
+
+
+## Puts whatever points are going spare into the four lines in turn, which is
+## the least clever thing a player could do with them and so the fairest thing
+## to balance the career against.
+func _spend_points() -> void:
+	while Game.perk_points_left() > 0:
+		# Whichever line is furthest behind, so the four come up together.
+		var pick := ""
+		var lowest := Perks.RANKS + 1
+		for line: Dictionary in Perks.lines():
+			var line_id := str(line["id"])
+			if not Game.can_take_perk(line_id):
+				continue
+			if Game.perk_rank(line_id) < lowest:
+				lowest = Game.perk_rank(line_id)
+				pick = line_id
+		if pick == "" or not Game.take_perk(pick):
+			return
 
 
 func _unmet(results: Array[Dictionary]) -> String:

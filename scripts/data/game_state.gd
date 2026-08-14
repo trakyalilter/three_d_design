@@ -17,6 +17,7 @@ signal progress_changed(level: int, xp: int, xp_needed: int)
 signal levelled_up(level: int)
 signal district_unlocked(district_id: String)
 signal estate_changed()
+signal perks_changed()
 
 const PROFILE_PATH := "user://profile.json"
 const STARTING_MONEY := 3000
@@ -71,6 +72,16 @@ var making: Array = []
 ## anything a player runs.
 var clock_offset: float = 0.0
 
+# ------------------------------------------------------------------ the perks
+
+## perk line id -> how many steps of it have been bought, 1 to Perks.RANKS.
+##
+## The points themselves are not stored. One is handed out per level, so what
+## you have earned is the level less one and what you have left is that less
+## what these ranks add up to — three numbers that can never disagree with each
+## other, and a profile written before any of this existed simply has no ranks.
+var perk_ranks: Dictionary = {}
+
 
 func _ready() -> void:
 	load_profile()
@@ -120,7 +131,103 @@ func add_xp(amount: int) -> int:
 	return gained
 
 
+# -------------------------------------------------------------------- perks
+
+func perk_rank(line_id: String) -> int:
+	return int(perk_ranks.get(line_id, 0))
+
+
+## One point a level, from the second one on.
+func perk_points_earned() -> int:
+	return maxi(level - 1, 0)
+
+
+func perk_points_spent() -> int:
+	var spent := 0
+	for line_id: String in perk_ranks:
+		spent += int(perk_ranks[line_id])
+	return spent
+
+
+func perk_points_left() -> int:
+	return maxi(perk_points_earned() - perk_points_spent(), 0)
+
+
+## Why the next step of a line cannot be taken, or "" when it can.
+func perk_blocked(line_id: String) -> String:
+	var rank := perk_rank(line_id)
+	if rank >= Perks.RANKS:
+		return "As far as this one goes."
+	var want := Perks.level_for_rank(rank + 1)
+	if level < want:
+		return "Opens at level %d." % want
+	if perk_points_left() <= 0:
+		return "No points left to spend."
+	return ""
+
+
+func can_take_perk(line_id: String) -> bool:
+	return not Perks.get_line(line_id).is_empty() and perk_blocked(line_id) == ""
+
+
+## Takes the next step of a line. Permanent — there is no refund, which is what
+## makes a tree you cannot finish mean anything.
+func take_perk(line_id: String) -> bool:
+	if not can_take_perk(line_id):
+		return false
+	perk_ranks[line_id] = perk_rank(line_id) + 1
+	save_profile()
+	perks_changed.emit()
+	stock_changed.emit()
+	return true
+
+
+## Off the price of anything bought in a shop.
+func discount() -> float:
+	return Perks.value_at("haggler", perk_rank("haggler"))
+
+
+## On top of the client's own review, on every fee.
+func fee_bonus() -> float:
+	return Perks.value_at("stager", perk_rank("stager"))
+
+
+## On top of what a job already teaches.
+func xp_bonus() -> float:
+	return Perks.value_at("scholar", perk_rank("scholar"))
+
+
+## How much faster the land yields and everything out of town runs.
+func estate_speed() -> float:
+	return 1.0 + Perks.value_at("grafter", perk_rank("grafter"))
+
+
+## How many pieces the workshop can have under the clamps at once.
+func bench_slots() -> int:
+	return Perks.bench_slots(perk_rank("grafter"))
+
+
 # ------------------------------------------------------------------- wallet
+
+## What a shop actually charges: the catalogue price, less whatever the Haggler
+## line has talked off it. Everything bought and sold goes through here so the
+## two can never come apart — what you get back for a piece is exactly what
+## buying it again would cost you.
+func asking_price(amount: int) -> int:
+	return maxi(int(floor(float(amount) * (1.0 - discount()))), 1)
+
+
+func buy_price(item_id: String) -> int:
+	return asking_price(Catalog.price(item_id))
+
+
+func paint_price(entry: Dictionary) -> int:
+	return asking_price(Catalog.paint_price(entry))
+
+
+func supply_price(supply_id: String) -> int:
+	return asking_price(Catalog.trade_price(supply_id))
+
 
 func can_afford(amount: int) -> bool:
 	return money >= amount
@@ -222,7 +329,7 @@ func total_stock() -> int:
 func stock_value() -> int:
 	var total := 0
 	for item_id: String in inventory:
-		total += Catalog.price(item_id) * int(inventory[item_id])
+		total += buy_price(item_id) * int(inventory[item_id])
 	return total
 
 
@@ -238,7 +345,7 @@ func owned_item_ids() -> Array[String]:
 func buy_item(item_id: String, count: int = 1) -> bool:
 	if count <= 0 or not is_item_unlocked(item_id):
 		return false
-	var cost := Catalog.price(item_id) * count
+	var cost := buy_price(item_id) * count
 	if not spend(cost):
 		return false
 	inventory[item_id] = stock_of(item_id) + count
@@ -253,7 +360,7 @@ func sell_item(item_id: String, count: int = 1) -> int:
 	var sellable: int = mini(count, stock_of(item_id))
 	if sellable <= 0:
 		return 0
-	var refund := Catalog.price(item_id) * sellable
+	var refund := buy_price(item_id) * sellable
 	_set_stock(item_id, stock_of(item_id) - sellable)
 	earn(refund)
 	stock_changed.emit()
@@ -315,7 +422,7 @@ func buy_paint(surface: String, entry: Dictionary) -> bool:
 	var paint_name := str(entry["name"])
 	if owns_paint(surface, paint_name):
 		return true
-	if not spend(Catalog.paint_price(entry)):
+	if not spend(paint_price(entry)):
 		return false
 	owned_paints[paint_key(surface, paint_name)] = true
 	stock_changed.emit()
@@ -487,7 +594,7 @@ func settle_estate() -> bool:
 		if held >= cap:
 			continue
 		var grown: float = minf(cap, held + elapsed / Industry.HOUR
-			* Industry.yield_per_hour(site, tier))
+			* Industry.rate_at(site, tier))
 		if grown > held:
 			site_stock[id] = grown
 			moved = true
@@ -564,7 +671,7 @@ func supply_count(id: String) -> int:
 func buy_supply(id: String, count: int = 1) -> bool:
 	if count <= 0 or Catalog.get_trade(id).is_empty():
 		return false
-	if not spend(Catalog.trade_price(id) * count):
+	if not spend(supply_price(id) * count):
 		return false
 	supplies[id] = supply_count(id) + count
 	save_profile()
@@ -579,7 +686,7 @@ func sell_supply(id: String, count: int = 1) -> int:
 	if sellable <= 0:
 		return 0
 	supplies[id] = supply_count(id) - sellable
-	earn(Catalog.trade_price(id) * sellable)
+	earn(supply_price(id) * sellable)
 	save_profile()
 	estate_changed.emit()
 	return sellable
@@ -618,10 +725,20 @@ func start_making(item_id: String) -> bool:
 	var bill := Catalog.bill_of(item_id)
 	for material: String in bill:
 		supplies[material] = supply_count(material) - int(bill[material])
-	# One at a time: the queue starts when whatever is in front of it finishes.
-	var free_at := now()
+	# The bench has room for so many at once, and anything past that queues for
+	# the first one to come free. With one clamp that is a plain queue; the
+	# Grafter line buys a second and a third, and then three are made at a time.
+	var when := now()
+	var busy: Array[float] = []
 	for entry: Variant in making:
-		free_at = maxf(free_at, float((entry as Dictionary)["ready_at"]))
+		var ready := float((entry as Dictionary)["ready_at"])
+		if ready > when:
+			busy.append(ready)
+	busy.sort()
+	var slots := bench_slots()
+	var free_at := when
+	if busy.size() >= slots:
+		free_at = busy[busy.size() - slots]
 	making.append({
 		"id": item_id,
 		"ready_at": free_at + Catalog.make_seconds(item_id),
@@ -822,12 +939,14 @@ func reset() -> void:
 	batches.clear()
 	supplies.clear()
 	making.clear()
+	perk_ranks.clear()
 	_grant_starter_paints()
 	_grant_free_districts()
 	save_profile()
 	money_changed.emit(money)
 	stock_changed.emit()
 	progress_changed.emit(level, xp, xp_needed())
+	perks_changed.emit()
 
 
 func save_profile() -> void:
@@ -836,7 +955,7 @@ func save_profile() -> void:
 		push_warning("Could not save the profile (%d)" % FileAccess.get_open_error())
 		return
 	file.store_string(JSON.stringify({
-		"version": 6,
+		"version": 7,
 		"money": money,
 		"xp": xp,
 		"level": level,
@@ -857,6 +976,7 @@ func save_profile() -> void:
 		"batches": batches,
 		"supplies": supplies,
 		"making": making,
+		"perks": perk_ranks,
 	}, "\t"))
 	file.close()
 
@@ -898,6 +1018,11 @@ func load_profile() -> void:
 	batches = data.get("batches", {})
 	supplies = data.get("supplies", {})
 	making = data.get("making", [])
+	# A profile written before the tree existed has no ranks, so every point its
+	# levels earned is still unspent and waiting to be put somewhere.
+	perk_ranks = {}
+	for line_id: String in data.get("perks", {}):
+		perk_ranks[line_id] = clampi(int(data["perks"][line_id]), 0, Perks.RANKS)
 	var opened := now()
 	for site: Dictionary in Industry.sites():
 		var site_id := str(site["id"])

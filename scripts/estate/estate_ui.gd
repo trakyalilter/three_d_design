@@ -320,7 +320,7 @@ func _show_site(id: String) -> void:
 	var unit := str(Industry.get_material(material)["unit"])
 	if tier > 0:
 		_row("Comes up at", "%d %s an hour" % [
-			int(Industry.yield_per_hour(site, tier)), unit], UIKit.GOOD)
+			int(Industry.rate_at(site, tier)), unit], UIKit.GOOD)
 		var waiting := Game.waiting_at(id)
 		var hold := Industry.hold_cap(site, tier)
 		_row("Standing on the ground", "%d of %d" % [waiting, hold],
@@ -548,9 +548,13 @@ func _make_row(item_id: String) -> Control:
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	title.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	head.add_child(title)
-	var shelf := Catalog.price(item_id)
+	# Both sides at what the merchant and the shop would actually charge you, so
+	# the saving stays true whatever the Haggler line has done to the prices.
+	var shelf := Game.buy_price(item_id)
 	var bill := Catalog.bill_of(item_id)
-	var cost := Catalog.bill_cost(bill)
+	var cost := 0
+	for material: String in bill:
+		cost += Game.supply_price(material) * int(bill[material])
 	head.add_child(UIKit.label("%s off %s" % [
 		UIKit.money(shelf - cost), UIKit.money(shelf)], 14, UIKit.GOLD))
 	block.add_child(head)

@@ -785,10 +785,14 @@ func _on_finish() -> void:
 	if str(review["voice"]) == Jobs.taste_of(house_id) and str(review["voice"]) != Catalog.PLAIN:
 		taste = RoomReview.TASTE_BONUS
 
-	var bonus := int(round(float(payout) * (float(review["bonus_rate"]) + craft + taste)))
+	# And then whatever you have made of yourself: the Stager line is paid on
+	# every fee whether the client liked the room or not, and the Scholar line
+	# rides everything the job teaches.
+	var bonus := int(round(float(payout)
+		* (float(review["bonus_rate"]) + craft + taste + Game.fee_bonus())))
 	# A well-judged room is worth more experience too.
-	var xp_reward := int(round(
-		float(job["xp"]) * (0.8 + 0.2 * float(review["stars"])) * (1.0 + craft)))
+	var xp_reward := int(round(float(job["xp"]) * (0.8 + 0.2 * float(review["stars"]))
+		* (1.0 + craft) * (1.0 + Game.xp_bonus())))
 
 	var result := Game.record_completion(house_id, payout, bonus, xp_reward, installed, int(review["stars"]))
 	result["craft"] = craft
@@ -829,7 +833,7 @@ func _review_entries() -> Array:
 func installed_value() -> int:
 	var total := 0
 	for item in _items():
-		total += Catalog.price(item.item_id)
+		total += Game.buy_price(item.item_id)
 	return total
 
 

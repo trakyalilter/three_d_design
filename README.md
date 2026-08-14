@@ -572,6 +572,35 @@ fresh room in mind — a kitchen, a study, a media room — generated to suit th
 reached, with its own client, brief, budget and fee. That is how you save up for the last
 quarter when the handcrafted work runs dry.
 
+### Your trade
+
+A level used to be a key and nothing else: it unlocked a shop, a quarter, a holding, and
+two players at level 20 had exactly the same business. **Trade** in the top bar is the other
+half of it. Every level hands you one point, and a point buys the next step of one of four
+lines — the four things a person in this trade can be good at:
+
+| Line | Eight steps buy |
+|---|---|
+| **Haggler** | 16 % off everything in the shops — furniture, paint and trade material alike |
+| **Stager** | 12 % on every fee, on top of whatever the client's own review earned |
+| **Scholar** | 24 % more experience from every job |
+| **Grafter** | 32 % faster out of town, and two more places on the workshop bench |
+
+Each line has eight steps and each step has a name, so a decision reads back as one — *A
+trade account*, *A page in the trade press*, *Take an apprentice*, *Three at the bench*.
+Steps have a level of their own as well as a price in points, so no line can be finished
+early: the eighth of anything opens at level 23.
+
+**There are thirty-two steps and twenty-nine levels.** The tree is three short of
+affordable on purpose, and nothing here can be given back — so what you leave out is as
+much a decision as what you take. A run that spreads its points evenly across the four
+finishes the city about $60,000 better off than one that never opens the sheet.
+
+Haggling reaches every price in the game the moment you take a step: the tickets on a shop
+floor, the card for a piece, the basket total under a brief, the yard's pallets, and the
+value of your own warehouse. What you sell back is worth exactly what buying it again would
+cost you, so a mistake at the shop is still free.
+
 **Free Build** on the map opens the old sandbox: no client, no stock to worry about,
 everything unlocked, with its own save and load.
 
@@ -663,12 +692,15 @@ scripts/
     catalog.gd           Autoload. Every model and price, the twenty-six shops
                          with the quarter and level each one opens at, and the
                          bill of materials every piece is worked out to take
+    perks.gd             Autoload. The four lines of the trade, their eight
+                         steps each, and what a step is worth
     jobs.gd              Autoload. The six quarters and the 56 houses in them,
                          the requirement evaluator, the shopping list a brief
                          needs, and the generator for repeat contracts
     game_state.gd        Autoload. Money, XP, levels, the warehouse, the
                          quarters bought, the estate, the yard, the trade store,
-                         the workshop bench and the saved profile
+                         the workshop bench, the perks taken and the saved
+                         profile
     industry.gd          Autoload. The eight holdings, the four works and the
                          workshop: what everything yields, what it costs, and
                          which good a piece of furniture wants
@@ -836,7 +868,14 @@ survives a save and reload, that every catalogue entry is priced, stocked and
 physically sane, that wall snap lands flush and stacking finds the right height, that undo and redo
 keep the room and the warehouse in step, that a properly arranged room really does reach
 three stars, that a generated repeat contract can be shopped for and finished, and that the
-tray starts closed and can tell a drag along the row from a tap on a piece, that every
+tray starts closed and can tell a drag along the row from a tap on a piece, that the perk
+tree is bigger than a career can afford and none of its steps opens above the level cap,
+that a step cannot be taken a level before it opens or without a point in hand, that
+haggling comes off every price and off the refund with it so buying and selling is still a
+wash, that a perk makes the ground yield faster without making the barn bigger, and that a
+bench with room for two really does make two at once — the career itself is played with the
+points spent, four lines abreast, so the whole city is balanced against a feature nobody
+leaves switched off — that every
 piece in the catalogue is worth making and worth about as much to make as every other piece
 is — material between a third and three quarters of the shelf price for all 167 of them —
 and that trade material bought at the merchant goes into a piece when it is started rather

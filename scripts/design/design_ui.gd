@@ -826,7 +826,7 @@ func _paint_section(body: Control, surface: String) -> void:
 
 		if job_mode and not owned:
 			var note := UIKit.label(
-				"Level %d" % int(entry["level"]) if not unlocked else UIKit.money(Catalog.paint_price(entry)),
+				"Level %d" % int(entry["level"]) if not unlocked else UIKit.money(Game.paint_price(entry)),
 				13, UIKit.BAD if not unlocked else UIKit.MUTED)
 			note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 			cell.add_child(note)
@@ -1031,7 +1031,7 @@ func set_selection(item: FurnitureItem) -> void:
 	_selection_bar.visible = true
 	var text := "%s   %d%%" % [Catalog.display_name(item.item_id), roundi(item.scale_factor * 100.0)]
 	if job_mode:
-		text += "   %s fitted" % UIKit.money(Catalog.price(item.item_id))
+		text += "   %s fitted" % UIKit.money(Game.buy_price(item.item_id))
 	_selection_label.text = text
 
 
