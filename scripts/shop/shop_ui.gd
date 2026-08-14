@@ -54,6 +54,12 @@ var _brief_title: Label
 var _brief_subtitle: Label
 var _brief_body: VBoxContainer
 
+## What the brief still wants, read once per refresh and then used by the
+## button, the panel and the totals alike — so they cannot disagree about the
+## list, and so a purchase does not work the same answer out three times over.
+var _missing: Dictionary = {}
+var _paints: Array[Dictionary] = []
+
 
 func _ready() -> void:
 	layer = 10
@@ -80,6 +86,7 @@ func configure(shop: Dictionary, house_id: String = "") -> void:
 	_shop_id = str(shop.get("id", ""))
 	_house = house_id if not Jobs.get_job(house_id).is_empty() else ""
 	_hint.text = "Tap a piece to see what it costs. %s" % shop.get("tagline", "")
+	_read_list()
 	_sync_brief_button()
 	# Open on the way in when this shop actually sells something on the list.
 	# That is the whole point of carrying it: the player came here to buy those
@@ -189,7 +196,9 @@ func refresh() -> void:
 		show_paint(_shown_surface, _shown_paint)
 	elif _shown_supply != "":
 		show_supply(_shown_supply)
-	# Buying something crosses it off the list, so the list is read again.
+	# Buying something crosses it off the list, so the list is read again — once,
+	# here, for everything below that needs it.
+	_read_list()
 	_sync_brief_button()
 	if _brief_sheet != null and _brief_sheet.visible:
 		_redraw_brief()
@@ -447,18 +456,25 @@ func _open_brief(with_sound: bool) -> void:
 	_redraw_brief()
 
 
+## Takes a fresh reading of what the brief still needs.
+func _read_list() -> void:
+	if _house == "":
+		_missing = {}
+		_paints = []
+		return
+	_missing = Jobs.shopping_list(_house, Jobs.placed_counts(_house))
+	_paints = Jobs.missing_paints(_house)
+
+
 ## How many pieces on the list are sold on this floor. It goes on the button,
 ## because a shop with nothing on the list in it is a shop to walk out of.
 func _wanted_here() -> int:
-	if _house == "":
-		return 0
 	var count := 0
-	var missing := Jobs.shopping_list(_house, Jobs.placed_counts(_house))
-	for item_id: String in missing:
+	for item_id: String in _missing:
 		if Catalog.shop_of(item_id) == _shop_id:
-			count += int(missing[item_id])
+			count += int(_missing[item_id])
 	if _shop_id == "paint":
-		count += Jobs.missing_paints(_house).size()
+		count += _paints.size()
 	return count
 
 
@@ -499,7 +515,7 @@ func _redraw_brief() -> void:
 	_brief_body.add_child(UIKit.wrapped_label(
 		Jobs.taste_line(_house), SHEET_TEXT, Catalog.style_color(Jobs.taste_of(_house))))
 
-	_build_brief_list(Jobs.shopping_list(_house, Jobs.placed_counts(_house)))
+	_build_brief_list()
 
 	_brief_divider()
 	_brief_body.add_child(UIKit.section_label("The brief"))
@@ -510,8 +526,9 @@ func _redraw_brief() -> void:
 		_brief_body.add_child(bullet)
 
 
-func _build_brief_list(missing: Dictionary) -> void:
-	var paints := Jobs.missing_paints(_house)
+func _build_brief_list() -> void:
+	var missing := _missing
+	var paints := _paints
 	_brief_divider()
 
 	if missing.is_empty() and paints.is_empty():

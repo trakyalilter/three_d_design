@@ -1965,7 +1965,35 @@ func _covers_most(left: Dictionary, house_id: String, here: Dictionary = {}) -> 
 ## where. Getting that wrong is subtle and quiet: a shared pool lets one room
 ## take the piece another room was going to answer its own line with, and every
 ## brief comes up one short in a different place.
+## Plans already worked out, by house.
+##
+## The planner below is the most expensive thing in this file — 17 ms for the
+## five-room jobs — and its answer depends on nothing but the house's own brief:
+## not the warehouse, not the money, and deliberately not the player's level.
+## So it is worked out once and kept, and thrown away by forget_plan() on the
+## only thing that can change it, which is a house being given a new contract.
+##
+## What made this worth doing is where it is asked from. A shop refreshes on
+## every purchase and asks three times — once for the button, once for the
+## panel, once to mark the tickets — and the map sheet asks again on top.
+var _plans: Dictionary = {}
+
+
 func room_plan(house_id: String) -> Dictionary:
+	if not _plans.has(house_id):
+		_plans[house_id] = _build_plan(house_id)
+	return _plans[house_id]
+
+
+## Drops a kept plan, or every one of them. Called wherever a brief changes.
+func forget_plan(house_id: String = "") -> void:
+	if house_id == "":
+		_plans.clear()
+	else:
+		_plans.erase(house_id)
+
+
+func _build_plan(house_id: String) -> Dictionary:
 	var job := get_job(house_id)
 	if job.is_empty():
 		return {}

@@ -1,7 +1,13 @@
 name: Android Release
 
-# Builds the Android APK on a GitHub-hosted runner using the Android SDK build
-# tools, then publishes it as an asset on a GitHub Release.
+# Plays the whole career headless, and only if that passes builds the Android
+# APK on a GitHub-hosted runner using the Android SDK build tools and publishes
+# it as an asset on a GitHub Release.
+#
+# What gets published depends on where the commit is. The default branch and
+# tags publish a real release at v<version>; any other branch publishes a
+# pre-release at v<version>-<branch>, so a side branch can still be installed
+# from a link without replacing the APK on the release everybody else has.
 
 on:
   push:
@@ -40,9 +46,48 @@ env:
   BUILD_TOOLS: "34.0.0"
 
 jobs:
+  # The smoke test resets the profile and plays all 56 houses, quarter by
+  # quarter, then checks the catalogue, the placement aids, the star review and
+  # the rest. It takes a few minutes and it is the only thing standing between a
+  # bad commit and an APK on the release page, so nothing is built until it
+  # passes. It needs the Godot binary and nothing else — no export templates, no
+  # Android SDK — which is why it is a separate job rather than a step.
+  test:
+    name: Play the career
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Install Godot ${{ env.GODOT_VERSION }}-${{ env.GODOT_RELEASE }}
+        run: |
+          set -euo pipefail
+          BASE="https://github.com/godotengine/godot-builds/releases/download/${GODOT_VERSION}-${GODOT_RELEASE}"
+          NAME="Godot_v${GODOT_VERSION}-${GODOT_RELEASE}"
+          curl -sSfL -o /tmp/godot.zip "${BASE}/${NAME}_linux.x86_64.zip"
+          unzip -q /tmp/godot.zip -d /tmp/godot-bin
+          sudo install -m 0755 "/tmp/godot-bin/${NAME}_linux.x86_64" /usr/local/bin/godot
+          godot --headless --version
+
+      - name: Import project resources
+        run: |
+          set -euo pipefail
+          godot --headless --import || true
+          test -d .godot
+
+      - name: Play the whole career
+        run: |
+          set -euo pipefail
+          # The test prints a line per section and exits non-zero listing
+          # everything that did not hold.
+          godot --headless -- --smoke
+
   build:
     name: Build and publish APK
     runs-on: ubuntu-latest
+    needs: test
 
     steps:
       - name: Check out the repository
@@ -186,6 +231,51 @@ jobs:
           echo "code=$CODE" >> "$GITHUB_OUTPUT"
           echo "Building version $VERSION (versionCode $CODE)"
 
+      - name: Work out which release this is
+        id: release
+        env:
+          INPUT_TAG: ${{ inputs.tag }}
+          INPUT_PRERELEASE: ${{ inputs.prerelease }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+
+          # A tag, the default branch, or somebody pressing the button is the
+          # real thing. Anything else is a side branch, and a side branch must
+          # never take the tag the real release lives on: two branches sitting
+          # at the same version would otherwise take it in turns to overwrite
+          # each other's APK under one release everybody downloads from.
+          if [ "$GITHUB_REF_TYPE" = "tag" ]; then
+            TAG="$GITHUB_REF_NAME"
+            PRERELEASE=false
+            WHY="the tag $GITHUB_REF_NAME"
+          elif [ -n "${INPUT_TAG:-}" ]; then
+            TAG="$INPUT_TAG"
+            PRERELEASE="${INPUT_PRERELEASE:-false}"
+            WHY="a release asked for by hand"
+          elif [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
+            TAG="v$VERSION"
+            PRERELEASE="${INPUT_PRERELEASE:-false}"
+            WHY="a release asked for by hand"
+          elif [ "$GITHUB_REF_NAME" = "$DEFAULT_BRANCH" ]; then
+            TAG="v$VERSION"
+            PRERELEASE=false
+            WHY="the default branch"
+          else
+            # Just the last part of the branch name: claude/shop-brief-xyz is
+            # already long enough without the whole path in a tag.
+            SLUG="$(echo "${GITHUB_REF_NAME##*/}" | tr '[:upper:]' '[:lower:]' | tr -c 'a-z0-9.-' '-' | sed 's/-*$//')"
+            TAG="v$VERSION-$SLUG"
+            PRERELEASE=true
+            WHY="the side branch $GITHUB_REF_NAME"
+          fi
+
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "prerelease=$PRERELEASE" >> "$GITHUB_OUTPUT"
+          echo "why=$WHY" >> "$GITHUB_OUTPUT"
+          echo "Publishing $TAG (prerelease: $PRERELEASE) — $WHY"
+
       - name: Import project resources
         run: |
           set -euo pipefail
@@ -246,8 +336,9 @@ jobs:
       - name: Publish the APK to a GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
-          INPUT_TAG: ${{ inputs.tag }}
-          PRERELEASE: ${{ inputs.prerelease }}
+          TAG: ${{ steps.release.outputs.tag }}
+          PRERELEASE: ${{ steps.release.outputs.prerelease }}
+          WHY: ${{ steps.release.outputs.why }}
           VERSION: ${{ steps.version.outputs.version }}
           BUILD_CODE: ${{ steps.version.outputs.code }}
           APK_SIZE: ${{ steps.verify.outputs.size }}
@@ -256,17 +347,15 @@ jobs:
         run: |
           set -euo pipefail
 
-          TAG="${INPUT_TAG:-}"
-          if [ -z "$TAG" ] && [ "$GITHUB_REF_TYPE" = "tag" ]; then
-            TAG="$GITHUB_REF_NAME"
-          fi
-          if [ -z "$TAG" ]; then
-            TAG="v$VERSION"
-          fi
           echo "Publishing to release $TAG"
 
+          HEADING="**Room Designer 3D $VERSION**"
+          if [ "$PRERELEASE" = "true" ]; then
+            HEADING="**Room Designer 3D $VERSION — a build of \`$GITHUB_REF_NAME\`**"
+          fi
+
           NOTES="$(cat <<EOF
-          **Room Designer 3D $VERSION** — an Android 3D room planner built with Godot ${GODOT_VERSION}.
+          $HEADING — an Android 3D room planner built with Godot ${GODOT_VERSION}.
 
           Download \`$APK_NAME\` below and install it on your device. Android will ask you
           to allow installation from an unknown source the first time.
@@ -277,13 +366,15 @@ jobs:
           | Size | $APK_SIZE |
           | ABIs | \`$APK_ABIS\` |
           | Minimum Android | 7.0 (API 24) |
-          | Built from | \`$GITHUB_SHA\` |
+          | Built from | \`$GITHUB_SHA\` on \`$GITHUB_REF_NAME\` |
+          | Published as | $WHY |
           | Signed with | $SIGNED_WITH |
 
           \`\`\`
           SHA-256  $APK_SHA
           \`\`\`
 
+          The whole career was played headless before this was built.
           Built remotely by the [Android Release workflow](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}).
           EOF
           )"
@@ -293,21 +384,38 @@ jobs:
             PRERELEASE_FLAG="--prerelease"
           fi
 
+          TITLE="Room Designer 3D $VERSION"
+          if [ "$PRERELEASE" = "true" ]; then
+            TITLE="Room Designer 3D $VERSION (${GITHUB_REF_NAME##*/})"
+          fi
+
           if gh release view "$TAG" > /dev/null 2>&1; then
             echo "Release $TAG exists, refreshing its notes and asset."
+            # --prerelease is set either way, so a tag can never keep a flag it
+            # was given by an earlier build that meant something else.
             gh release edit "$TAG" \
-              --title "Room Designer 3D $VERSION" \
-              --notes "$NOTES"
+              --title "$TITLE" \
+              --notes "$NOTES" \
+              --prerelease="$PRERELEASE"
           else
             gh release create "$TAG" \
-              --title "Room Designer 3D $VERSION" \
+              --title "$TITLE" \
               --notes "$NOTES" \
               --target "$GITHUB_SHA" \
               $PRERELEASE_FLAG
           fi
 
+          # Clobbering is right here and only here: a tag now belongs to exactly
+          # one branch, so the only thing this ever replaces is that branch's own
+          # previous build.
           gh release upload "$TAG" "build/$APK_NAME" --clobber
 
-          echo "### APK published" >> "$GITHUB_STEP_SUMMARY"
+          KIND="Release"
+          if [ "$PRERELEASE" = "true" ]; then
+            KIND="Pre-release"
+          fi
+          echo "### $KIND $TAG published" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "From $WHY." >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "[$APK_NAME]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/tag/$TAG) — $APK_SIZE, ABIs \`$APK_ABIS\`" >> "$GITHUB_STEP_SUMMARY"

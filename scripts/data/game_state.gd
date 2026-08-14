@@ -22,6 +22,11 @@ signal staff_changed()
 signal showroom_changed()
 
 const PROFILE_PATH := "user://profile.json"
+## A save is written beside the profile and then moved onto it, and the one it
+## replaces is kept. Between those two moves there is an instant with no profile
+## at all, which is what the spare is for — see save_profile().
+const PROFILE_TEMP := "user://profile.json.tmp"
+const PROFILE_SPARE := "user://profile.json.bak"
 const STARTING_MONEY := 3000
 const MAX_LEVEL := 30
 ## The house id the designer opens the player's own floor under. No real house
@@ -675,6 +680,8 @@ func take_repeat_contract(house_id: String, contract: Dictionary) -> void:
 	active_contracts[house_id] = contract
 	finished_jobs.erase(house_id)
 	saved_jobs.erase(house_id)
+	# A new brief here means the plan worked out for the old one is wrong.
+	Jobs.forget_plan(house_id)
 	save_profile()
 
 
@@ -697,6 +704,9 @@ func record_completion(house_id: String, payout: int, bonus: int, xp_reward: int
 	finished_jobs[house_id] = result
 	repeats[house_id] = repeat_count(house_id) + 1
 	active_contracts.erase(house_id)
+	# The house goes back to its handcrafted brief, so the plan for the repeat
+	# contract it just finished is no longer the right one.
+	Jobs.forget_plan(house_id)
 	save_profile()
 	return result
 
@@ -1236,6 +1246,7 @@ func reset() -> void:
 	finished_jobs.clear()
 	saved_jobs.clear()
 	active_contracts.clear()
+	Jobs.forget_plan()
 	repeats.clear()
 	owned_districts.clear()
 	materials.clear()
@@ -1261,6 +1272,9 @@ func reset() -> void:
 	_grant_starter_paints()
 	_grant_free_districts()
 	save_profile()
+	# The wiped career has just been rotated into the spare, and falling back to
+	# it later would quietly undo a wipe the player asked for twice.
+	DirAccess.remove_absolute(PROFILE_SPARE)
 	money_changed.emit(money)
 	stock_changed.emit()
 	progress_changed.emit(level, xp, xp_needed())
@@ -1269,8 +1283,22 @@ func reset() -> void:
 	showroom_changed.emit()
 
 
+## Writes the career to disk in a way that cannot lose it.
+##
+## Opening the profile itself and writing into it empties the file first, so a
+## process killed part way through leaves half a save — and half a save is not
+## JSON, and a profile that will not parse used to mean a brand new career
+## written straight over the top of a real one. Android kills a paused app
+## whenever it likes and this is called from the pause notification, so that is
+## not a rare crash but a matter of time.
+##
+## So nothing is ever written onto a good save. The new one is written beside it
+## and then moved on top, which the filesystem does in one step, and the save it
+## replaces is kept as a spare. Every way this can be interrupted leaves either
+## the new career or the old one on disk, and load_profile() takes whichever of
+## the two it can read.
 func save_profile() -> void:
-	var file := FileAccess.open(PROFILE_PATH, FileAccess.WRITE)
+	var file := FileAccess.open(PROFILE_TEMP, FileAccess.WRITE)
 	if file == null:
 		push_warning("Could not save the profile (%d)" % FileAccess.get_open_error())
 		return
@@ -1307,27 +1335,60 @@ func save_profile() -> void:
 		"showroom_since": showroom_since,
 		"showroom_till": showroom_till,
 	}, "\t"))
+	# A disk with no room left fails here, beside the profile, rather than half
+	# way through it — so the save already on disk is still whole.
+	var wrote := file.get_error()
 	file.close()
-
-
-func load_profile() -> void:
-	if not FileAccess.file_exists(PROFILE_PATH):
+	if wrote != OK:
+		push_warning("Could not write the profile (%d); the last save is untouched" % wrote)
+		DirAccess.remove_absolute(PROFILE_TEMP)
 		return
-	var file := FileAccess.open(PROFILE_PATH, FileAccess.READ)
+
+	# Both moves, in this order. Nothing is thrown away until what replaces it is
+	# already complete on disk.
+	if FileAccess.file_exists(PROFILE_PATH):
+		DirAccess.remove_absolute(PROFILE_SPARE)
+		DirAccess.rename_absolute(PROFILE_PATH, PROFILE_SPARE)
+	DirAccess.rename_absolute(PROFILE_TEMP, PROFILE_PATH)
+
+
+## One save file, or an empty dictionary for anything that is not one — missing,
+## unreadable, or not JSON — so the caller can go on to try the next.
+static func _read_profile(path: String) -> Dictionary:
+	if not FileAccess.file_exists(path):
+		return {}
+	var file := FileAccess.open(path, FileAccess.READ)
 	if file == null:
-		return
+		return {}
 	var parsed: Variant = JSON.parse_string(file.get_as_text())
 	file.close()
 	if typeof(parsed) != TYPE_DICTIONARY:
-		push_warning("Profile file is malformed; starting a fresh career.")
+		return {}
+	return parsed
+
+
+func load_profile() -> void:
+	var data := _read_profile(PROFILE_PATH)
+	if data.is_empty():
+		# Either a save was interrupted between its two moves, or what is there
+		# is not a profile. The one before it is still whole, and a career one
+		# save out of date is worth immeasurably more than a fresh one.
+		data = _read_profile(PROFILE_SPARE)
+		if not data.is_empty():
+			push_warning("The profile could not be read; the save before it was used instead.")
+	if data.is_empty():
+		if FileAccess.file_exists(PROFILE_PATH) or FileAccess.file_exists(PROFILE_SPARE):
+			push_warning("No readable profile was found; starting a fresh career.")
 		return
-	var data: Dictionary = parsed
 	money = int(data.get("money", STARTING_MONEY))
 	xp = int(data.get("xp", 0))
 	level = clampi(int(data.get("level", 1)), 1, MAX_LEVEL)
 	finished_jobs = data.get("finished", {})
 	saved_jobs = data.get("saved", {})
 	active_contracts = data.get("contracts", {})
+	# Whatever was worked out against the briefs of a moment ago belongs to a
+	# career that is no longer loaded.
+	Jobs.forget_plan()
 	repeats = data.get("repeats", {})
 	# Profiles written before the city had quarters simply own none of them;
 	# _grant_free_districts() hands back the one everybody starts with.

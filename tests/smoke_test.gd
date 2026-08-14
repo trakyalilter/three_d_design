@@ -19,6 +19,9 @@ func _ready() -> void:
 	await get_tree().process_frame
 	Game.reset()
 
+	print("=== the save ===")
+	_check_profile()
+
 	print("=== the front page ===")
 	await _check_title()
 	await _check_loading()
@@ -230,6 +233,58 @@ func _check_brief_sheet() -> void:
 ## Everything a panel says, however it is drawn. A line the player can act on is
 ## a button rather than a label — the shopping list in a shop is half of each —
 ## and the checks below care what the panel says, not which it used.
+# -------------------------------------------------------------------- the save
+
+## The career has to survive the app being killed while it is being written.
+##
+## Android stops a paused app whenever it likes, and the profile is saved from
+## the pause notification, so a torn file is a matter of time rather than a rare
+## crash. What used to happen then was the worst outcome the game has: the file
+## would not parse, the career started again from nothing, and the next purchase
+## wrote that over the top of it.
+func _check_profile() -> void:
+	Game.money = 12345
+	Game.level = 7
+	Game.save_profile()
+	_expect(FileAccess.file_exists(Game.PROFILE_PATH), "the profile was not written")
+	_expect(not FileAccess.file_exists(Game.PROFILE_TEMP),
+		"the half-written file was left lying beside the profile")
+
+	# Save again, so there is a spare, and check it is the save before this one
+	# rather than a copy of it.
+	Game.money = 999
+	Game.save_profile()
+	_expect(FileAccess.file_exists(Game.PROFILE_SPARE), "no spare was kept")
+	var spare: Dictionary = Game._read_profile(Game.PROFILE_SPARE)
+	_expect(int(spare.get("money", 0)) == 12345,
+		"the spare holds %s rather than the save before the last one" % spare.get("money", "nothing"))
+
+	# A profile torn off half way, which is what a kill mid-write leaves.
+	var whole := FileAccess.get_file_as_string(Game.PROFILE_PATH)
+	var torn := FileAccess.open(Game.PROFILE_PATH, FileAccess.WRITE)
+	torn.store_string(whole.substr(0, whole.length() / 2))
+	torn.close()
+	_expect(JSON.parse_string(whole.substr(0, whole.length() / 2)) == null,
+		"half a profile parsed as JSON, so this check is not checking anything")
+
+	Game.money = 0
+	Game.level = 1
+	Game.load_profile()
+	_expect(Game.money == 12345 and Game.level == 7,
+		"a torn profile lost the career: money %d, level %d" % [Game.money, Game.level])
+
+	# And with nothing readable at all it starts fresh rather than refusing to
+	# open, which is the one case where a new career is the right answer.
+	DirAccess.remove_absolute(Game.PROFILE_PATH)
+	DirAccess.remove_absolute(Game.PROFILE_SPARE)
+	Game.reset()
+	_expect(Game.money == Game.STARTING_MONEY and Game.level == 1,
+		"a career with no save behind it did not start clean")
+	_expect(not FileAccess.file_exists(Game.PROFILE_SPARE),
+		"wiping the career left the old one in the spare, where it could come back")
+	print("save            survives a kill mid-write; falls back to the save before it")
+
+
 static func _collect_text(node: Node, into: Array[String]) -> void:
 	if node is Label:
 		into.append((node as Label).text)

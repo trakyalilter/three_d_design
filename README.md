@@ -978,7 +978,12 @@ terrace house for everything else.
 godot --headless -- --smoke
 ```
 
-It resets the profile and plays the whole city: all 40 jobs, quarter by quarter, buying
+It first checks the one failure a player could never come back from: that a save
+interrupted half way through — which is what an Android app being killed while paused
+leaves behind — does not cost them the career. It tears a profile in half, loads it, and
+expects the money and the level to still be there, off the save kept behind it.
+
+Then it resets the profile and plays the whole city: all 40 jobs, quarter by quarter, buying
 each quarter out of the money it has actually earned — taking repeat contracts at the
 houses it has already finished when it is short of money or of levels — shopping for each
 brief, fitting the room from stock and handing it over. Then it checks that every quarter is priced above the one
@@ -1030,11 +1035,21 @@ reports everything that does not hold and exits non-zero.
 ## Building it yourself
 
 The APK is built remotely by [`.github/workflows/android-release.yml`](.github/workflows/android-release.yml)
-on every push and published as a GitHub Release asset. The workflow installs the Android
-SDK build tools, downloads Godot and its export templates, exports a signed release APK,
-verifies the signature, and attaches it to the release tagged `v<config/version>`.
+on every push and published as a GitHub Release asset.
 
-Trigger it by hand from the Actions tab to publish under a different tag.
+**Nothing is built until the whole career has been played.** The first job downloads Godot
+and runs `--smoke` headless; the build job depends on it, so a commit that breaks the game
+never reaches the release page. Only then does the second job install the Android SDK build
+tools, download the export templates, export a signed release APK, verify the signature,
+and attach it.
+
+Where the commit is decides what gets published. The default branch and any `v*` tag
+publish a real release at `v<config/version>`. **Any other branch publishes a pre-release
+tagged `v<config/version>-<branch>`** — so a side branch is still one link away from being
+installed on a phone, but it can never replace the APK on the release everybody else
+downloads, and two branches sitting at the same version cannot overwrite each other.
+
+Trigger it by hand from the Actions tab to publish under a tag of your choosing.
 
 To build locally you need Godot 4.5.1, its export templates, and an Android SDK with
 build-tools installed:
