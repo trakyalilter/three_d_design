@@ -343,6 +343,18 @@ Five out of six is three stars and a 30 % bonus on the fee; three or four is two
 15 %; below that, one star and no bonus. Stars scale the experience too. Following the
 checklist gets you paid — arranging the room properly is what earns the third star.
 
+**The verdict is live.** It used to arrive once, on the hand-over screen, when the room could
+no longer be changed. Every one of the six is mechanical and knowable, so holding them back
+never made a room harder to design — only harder to read. The top bar carries the current
+star rating next to the running bill, two numbers that pull against each other; and the brief
+sheet has a second half, **What they will notice**, listing the six ticked or unticked as you
+work with what the rating is worth on the fee right now. It is the same call the hand-over
+makes, so the bar and the door can never tell you different things about the same room.
+
+The checklist above it can be finished and then forgotten; this can only be got better at, so
+it sits underneath rather than beside. Your own showroom gets the same sheet under a
+**Verdict** button — it matters more there, because the floor's takings are computed from it.
+
 ### What the furniture says
 
 Five of those six lines are about whether the room *works*. The sixth is the only one about
@@ -817,7 +829,7 @@ scripts/
                          overlap tests, hand-over. Runs a client's job, the
                          player's own showroom floor or the free-build sandbox
     design_history.gd    Undo and redo, by snapshot
-    design_ui.gd         Tray, brief checklist, dialogs
+    design_ui.gd         Tray, brief checklist, the live verdict, dialogs
   world/
     furniture_item.gd    A placed piece: one merged mesh, pick body, footprints
     item_icons.gd        Autoload. Renders a thumbnail of each catalogue piece
@@ -954,7 +966,9 @@ room does not tick the right room's line, that paint laid in one room stays ther
 survives a save and reload, that every catalogue entry is priced, stocked and
 physically sane, that wall snap lands flush and stacking finds the right height, that undo and redo
 keep the room and the warehouse in step, that a properly arranged room really does reach
-three stars, that a generated repeat contract can be shopped for and finished, and that the
+three stars and says so on the bar while it is being worked on rather than only at the door,
+that heaping the whole room into one corner moves that verdict, that a generated repeat
+contract can be shopped for and finished, and that the
 tray starts closed and can tell a drag along the row from a tap on a piece, that the perk
 tree is bigger than a career can afford and none of its steps opens above the level cap,
 that a step cannot be taken a level before it opens or without a point in hand, that
