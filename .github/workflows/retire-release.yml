@@ -1,0 +1,168 @@
+name: Retire a release
+
+# Takes a release off the releases page, and its tag with it.
+#
+# The release workflow mints a pre-release per side branch, so they accumulate:
+# one for every branch anybody has ever pushed, still sitting there long after
+# the branch is merged and gone. This is how they are cleared up, and how a
+# release published by mistake is withdrawn.
+#
+# It is never automatic. It runs only when somebody asks for it by hand, and it
+# asks for the tag twice — the second one is the guard, because the whole job of
+# this file is to delete something the public can see.
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag of the release to retire, e.g. v1.36.0"
+        required: true
+        type: string
+      confirm:
+        description: "Type the same tag again to confirm"
+        required: true
+        type: string
+      keep_tag:
+        description: "Keep the git tag and remove only the release"
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: retire-release-${{ inputs.tag }}
+  cancel-in-progress: false
+
+jobs:
+  retire:
+    name: Retire ${{ inputs.tag }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check the tag was typed twice
+        env:
+          TAG: ${{ inputs.tag }}
+          CONFIRM: ${{ inputs.confirm }}
+        run: |
+          set -euo pipefail
+          if [ "$TAG" != "$CONFIRM" ]; then
+            echo "::error::Asked to retire '$TAG' but the confirmation said '$CONFIRM'."
+            echo "::error::Nothing has been touched. Type the same tag in both boxes."
+            exit 1
+          fi
+          echo "Retiring $TAG."
+
+      # Everything below reports what it found before it removes anything, so the
+      # run log is a record of what was on the release page beforehand.
+      - name: Say what is about to go
+        id: found
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+
+          HAS_RELEASE=false
+          if gh release view "$TAG" -R "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            HAS_RELEASE=true
+            echo "### Release $TAG" >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+            gh release view "$TAG" -R "$GITHUB_REPOSITORY" \
+              --json name,tagName,isPrerelease,isLatest,publishedAt,assets \
+              --template '{{.name}} ({{.tagName}}){{"\n"}}prerelease: {{.isPrerelease}}   latest: {{.isLatest}}   published: {{.publishedAt}}{{"\n"}}{{range .assets}}asset: {{.name}} — {{.size}} bytes, {{.downloadCount}} downloads{{"\n"}}{{end}}' \
+              | tee -a "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+            # Worth knowing rather than worth blocking: the download link in the
+            # README follows whatever is latest, so retiring it moves that link.
+            if [ "$(gh release view "$TAG" -R "$GITHUB_REPOSITORY" --json isLatest -q .isLatest)" = "true" ]; then
+              echo "::warning::$TAG is the latest release. Retiring it moves the /releases/latest link to whatever is now newest."
+            fi
+          else
+            echo "No release at $TAG."
+          fi
+
+          HAS_TAG=false
+          if gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$TAG" > /dev/null 2>&1; then
+            HAS_TAG=true
+            SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$TAG" -q .object.sha)"
+            echo "Tag $TAG points at $SHA."
+          else
+            echo "No tag called $TAG."
+          fi
+
+          if [ "$HAS_RELEASE" = "false" ] && [ "$HAS_TAG" = "false" ]; then
+            echo "::error::There is no release and no tag called '$TAG'. Nothing to retire."
+            exit 1
+          fi
+
+          echo "has_release=$HAS_RELEASE" >> "$GITHUB_OUTPUT"
+          echo "has_tag=$HAS_TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Delete the release
+        if: steps.found.outputs.has_release == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag }}
+          KEEP_TAG: ${{ inputs.keep_tag }}
+        run: |
+          set -euo pipefail
+          # --cleanup-tag takes the tag with it, which is what is wanted unless
+          # the tag is being kept as a marker of where the code was.
+          if [ "$KEEP_TAG" = "true" ]; then
+            gh release delete "$TAG" -R "$GITHUB_REPOSITORY" --yes
+            echo "Release deleted; tag $TAG kept."
+          else
+            gh release delete "$TAG" -R "$GITHUB_REPOSITORY" --yes --cleanup-tag
+            echo "Release and tag deleted."
+          fi
+
+      # A tag can outlive its release — deleting a release in the web interface
+      # leaves the tag behind — so this handles the leftover on its own.
+      - name: Delete the tag left behind
+        if: steps.found.outputs.has_release != 'true' && steps.found.outputs.has_tag == 'true' && inputs.keep_tag != true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          gh api -X DELETE "repos/$GITHUB_REPOSITORY/git/refs/tags/$TAG"
+          echo "Tag $TAG deleted."
+
+      - name: Check it is actually gone
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag }}
+          KEEP_TAG: ${{ inputs.keep_tag }}
+        run: |
+          set -euo pipefail
+          LEFT=""
+
+          if gh release view "$TAG" -R "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            LEFT="the release"
+          fi
+          if [ "$KEEP_TAG" != "true" ] \
+              && gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$TAG" > /dev/null 2>&1; then
+            LEFT="${LEFT:+$LEFT and }the tag"
+          fi
+
+          if [ -n "$LEFT" ]; then
+            echo "::error::$LEFT for $TAG is still there. Nothing else was changed."
+            exit 1
+          fi
+
+          {
+            echo ""
+            if [ "$KEEP_TAG" = "true" ]; then
+              echo "**$TAG retired.** The release is gone; the tag was kept."
+            else
+              echo "**$TAG retired.** The release and its tag are both gone."
+            fi
+            echo ""
+            echo "Latest release is now:"
+            echo ""
+            gh release view -R "$GITHUB_REPOSITORY" \
+              --json name,tagName,url -q '"- [\(.name)](\(.url)) — `\(.tagName)`"' || echo "- none"
+          } >> "$GITHUB_STEP_SUMMARY"

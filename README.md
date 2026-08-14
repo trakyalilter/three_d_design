@@ -1051,6 +1051,15 @@ downloads, and two branches sitting at the same version cannot overwrite each ot
 
 Trigger it by hand from the Actions tab to publish under a tag of your choosing.
 
+Pre-releases pile up — one per branch anybody has ever pushed — so
+[`retire-release.yml`](.github/workflows/retire-release.yml) clears them out, and withdraws
+anything published by mistake. Run **Retire a release** from the Actions tab, give it the
+tag twice, and it takes the release and its git tag away together. It never runs on its
+own, it prints what it found before it removes anything, it says so loudly when the release
+you are retiring is the one `/releases/latest` points at, and it will delete a tag left
+behind by a release deleted through the web interface. Tick **Keep the git tag** to withdraw
+the release but leave the tag as a marker of where the code was.
+
 To build locally you need Godot 4.5.1, its export templates, and an Android SDK with
 build-tools installed:
 
