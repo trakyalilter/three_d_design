@@ -18,6 +18,7 @@ signal levelled_up(level: int)
 signal district_unlocked(district_id: String)
 signal estate_changed()
 signal perks_changed()
+signal staff_changed()
 
 const PROFILE_PATH := "user://profile.json"
 const STARTING_MONEY := 3000
@@ -81,6 +82,13 @@ var clock_offset: float = 0.0
 ## what these ranks add up to — three numbers that can never disagree with each
 ## other, and a profile written before any of this existed simply has no ranks.
 var perk_ranks: Dictionary = {}
+
+## role id -> true for everybody on the books. Hiring is a one-off fee and then
+## a share of every fee for as long as they are here; letting somebody go costs
+## nothing and takes effect at once.
+var staff: Dictionary = {}
+## What the workshop bench last had on it, so the joiner knows what to put back.
+var last_made := ""
 
 
 func _ready() -> void:
@@ -205,6 +213,106 @@ func estate_speed() -> float:
 ## How many pieces the workshop can have under the clamps at once.
 func bench_slots() -> int:
 	return Perks.bench_slots(perk_rank("grafter"))
+
+
+# -------------------------------------------------------------------- staff
+
+func is_hired(role_id: String) -> bool:
+	return staff.has(role_id)
+
+
+func hired_ids() -> Array[String]:
+	var out: Array[String] = []
+	for role: Dictionary in Staff.roles():
+		if is_hired(str(role["id"])):
+			out.append(str(role["id"]))
+	return out
+
+
+## Why somebody cannot be taken on, or "" when they can.
+func hire_blocked(role_id: String) -> String:
+	var role := Staff.get_role(role_id)
+	if role.is_empty() or is_hired(role_id):
+		return "Already on the books."
+	if level < int(role["level"]):
+		return "Looking for work from level %d." % int(role["level"])
+	if not can_afford(Staff.joining_fee(level)):
+		return "You cannot cover the joining fee."
+	return ""
+
+
+func can_hire(role_id: String) -> bool:
+	return hire_blocked(role_id) == ""
+
+
+func hire(role_id: String) -> bool:
+	if not can_hire(role_id):
+		return false
+	if not spend(Staff.joining_fee(level)):
+		return false
+	staff[role_id] = true
+	save_profile()
+	staff_changed.emit()
+	stock_changed.emit()
+	return true
+
+
+## Letting somebody go costs nothing, which is what keeps the wage a dial rather
+## than a trap: take the joiner on for a week at the bench and let him go again.
+func let_go(role_id: String) -> bool:
+	if not is_hired(role_id):
+		return false
+	staff.erase(role_id)
+	save_profile()
+	staff_changed.emit()
+	stock_changed.emit()
+	return true
+
+
+## The runner's round: everything a brief still wants, bought in one go.
+##
+## She only ever buys what the brief's own list already says, and she buys it at
+## the same prices as the counters, so this is the walk taken off you and
+## nothing else. Returns how many pieces came back, or -1 if the money was not
+## there — in which case nothing at all is bought, the same as any other
+## purchase in this game.
+func send_the_runner(house_id: String, placed: Dictionary = {}) -> int:
+	if not is_hired("runner"):
+		return -1
+	var missing := Jobs.shopping_list(house_id, placed)
+	var paints := Jobs.missing_paints(house_id)
+	var bill := 0
+	for item_id: String in missing:
+		if not is_item_unlocked(item_id):
+			return -1
+		bill += buy_price(item_id) * int(missing[item_id])
+	for paint: Dictionary in paints:
+		bill += paint_price(paint["entry"])
+	if bill > money:
+		return -1
+
+	var fetched := 0
+	for item_id: String in missing:
+		var count := int(missing[item_id])
+		if buy_item(item_id, count):
+			fetched += count
+	for paint: Dictionary in paints:
+		if buy_paint(str(paint["surface"]), paint["entry"]):
+			fetched += 1
+	return fetched
+
+
+## What everybody on the books takes out of a fee, all told.
+func wage_share() -> float:
+	var total := 0.0
+	for role_id: String in hired_ids():
+		total += Staff.share_of(role_id)
+	return total
+
+
+## And what that is in money, against a fee actually being paid.
+func wages_on(amount: int) -> int:
+	return int(round(float(amount) * wage_share()))
 
 
 # ------------------------------------------------------------------- wallet
@@ -465,10 +573,15 @@ func take_repeat_contract(house_id: String, contract: Dictionary) -> void:
 
 func record_completion(house_id: String, payout: int, bonus: int, xp_reward: int, installed: int, stars: int = 1) -> Dictionary:
 	var levels_gained := add_xp(xp_reward)
-	earn(payout + bonus)
+	# Everyone on the books is paid here and nowhere else. A wage on the wall
+	# clock would mean coming back from a fortnight away to an empty account;
+	# this way employing four people costs nothing until you are actually paid.
+	var wages := wages_on(payout + bonus)
+	earn(payout + bonus - wages)
 	var result := {
 		"payout": payout,
 		"bonus": bonus,
+		"wages": wages,
 		"xp": xp_reward,
 		"installed": installed,
 		"levels": levels_gained,
@@ -589,7 +702,7 @@ func settle_estate() -> bool:
 		site_since[id] = when
 		if elapsed <= 0.0:
 			continue
-		var cap := float(Industry.hold_cap(site, tier))
+		var cap := float(heap_cap(site, tier))
 		var held := float(site_stock.get(id, 0.0))
 		if held >= cap:
 			continue
@@ -598,9 +711,96 @@ func settle_estate() -> bool:
 		if grown > held:
 			site_stock[id] = grown
 			moved = true
+	if _work_the_staff():
+		moved = true
 	if moved:
 		estate_changed.emit()
 	return moved
+
+
+## What the people out of town do, run every time the clock is read. Each is a
+## chore the player would otherwise be tapping through one plot at a time, and
+## each one is skipped entirely unless that person is on the books.
+##
+## They run in the order the material moves: off the ground, through a works,
+## on to the bench. That way one settle carries a holding all the way rather
+## than moving it one stage per visit.
+func _work_the_staff() -> bool:
+	var moved := false
+	if is_hired("hand"):
+		for site: Dictionary in Industry.sites():
+			var id := str(site["id"])
+			if site_tier(id) > 0 and waiting_at(id) > 0 and _cart_in(id) > 0:
+				moved = true
+	if is_hired("millwright"):
+		for plant: Dictionary in Industry.works():
+			var id := str(plant["id"])
+			if batch_ready(id) and collect_batch(id) > 0:
+				moved = true
+			if batches_available(id) > 0 and _put_a_run_on(id) > 0:
+				moved = true
+	if is_hired("joiner") and _keep_the_bench_going():
+		moved = true
+	return moved
+
+
+## The yard hand's cart. The same as collect_site() without the settle it opens
+## with, which would be this function calling the one that called it.
+func _cart_in(site_id: String) -> int:
+	var site: Dictionary = Industry.get_site(site_id)
+	var material := str(site["yields"])
+	var room: int = maxi(material_cap(material) - material_count(material), 0)
+	var taken: int = mini(waiting_at(site_id), room)
+	if taken <= 0:
+		return 0
+	site_stock[site_id] = float(site_stock.get(site_id, 0.0)) - float(taken)
+	materials[material] = material_count(material) + taken
+	return taken
+
+
+## The millwright's run, likewise without the save and the signal — the settle
+## that called this emits once for the lot of it.
+func _put_a_run_on(works_id: String) -> int:
+	var plant: Dictionary = Industry.get_works(works_id)
+	var count := batches_available(works_id)
+	if count <= 0:
+		return 0
+	var good: Dictionary = Industry.get_good(str(plant["makes"]))
+	var material := str(good["from"])
+	materials[material] = material_count(material) - count * int(good["takes"])
+	batches[works_id] = {
+		"made": count,
+		"ready_at": now() + Industry.batch_seconds(works_id),
+	}
+	return count
+
+
+## The joiner: whatever came off the bench last goes back on it, as many times
+## as there are free clamps and the trade store can pay for. He never picks
+## something new — that is a decision, and decisions stay with the player.
+func _keep_the_bench_going() -> bool:
+	if last_made == "" or not is_item_unlocked(last_made):
+		return false
+	var started := false
+	var when := now()
+	var free := bench_slots()
+	for entry: Variant in making:
+		if float((entry as Dictionary)["ready_at"]) > when:
+			free -= 1
+	while free > 0 and can_make(last_made):
+		start_making(last_made)
+		free -= 1
+		started = true
+	return started
+
+
+## What a holding will pile up before the ground stops. Eight hours of it on
+## your own, three times that with somebody working the plot — bounded rather
+## than removed, because the yard's own capacity is the ceiling that is meant
+## to be built rather than hired, and nobody on the books touches that.
+func heap_cap(site: Dictionary, tier: int) -> int:
+	var bare := Industry.hold_cap(site, tier)
+	return int(ceil(float(bare) * Staff.HEAP_MULTIPLE)) if is_hired("hand") else bare
 
 
 ## What is standing at a holding, ready to be carted off.
@@ -614,7 +814,7 @@ func fullness_at(site_id: String) -> float:
 	var tier := site_tier(site_id)
 	if site.is_empty() or tier <= 0:
 		return 0.0
-	var cap := float(Industry.hold_cap(site, tier))
+	var cap := float(heap_cap(site, tier))
 	if cap <= 0.0:
 		return 0.0
 	return clampf(float(site_stock.get(site_id, 0.0)) / cap, 0.0, 1.0)
@@ -743,6 +943,8 @@ func start_making(item_id: String) -> bool:
 		"id": item_id,
 		"ready_at": free_at + Catalog.make_seconds(item_id),
 	})
+	# So the joiner knows what to put back on when it comes off.
+	last_made = item_id
 	save_profile()
 	estate_changed.emit()
 	stock_changed.emit()
@@ -940,6 +1142,8 @@ func reset() -> void:
 	supplies.clear()
 	making.clear()
 	perk_ranks.clear()
+	staff.clear()
+	last_made = ""
 	_grant_starter_paints()
 	_grant_free_districts()
 	save_profile()
@@ -947,6 +1151,7 @@ func reset() -> void:
 	stock_changed.emit()
 	progress_changed.emit(level, xp, xp_needed())
 	perks_changed.emit()
+	staff_changed.emit()
 
 
 func save_profile() -> void:
@@ -955,7 +1160,7 @@ func save_profile() -> void:
 		push_warning("Could not save the profile (%d)" % FileAccess.get_open_error())
 		return
 	file.store_string(JSON.stringify({
-		"version": 7,
+		"version": 8,
 		"money": money,
 		"xp": xp,
 		"level": level,
@@ -977,6 +1182,8 @@ func save_profile() -> void:
 		"supplies": supplies,
 		"making": making,
 		"perks": perk_ranks,
+		"staff": staff,
+		"last_made": last_made,
 	}, "\t"))
 	file.close()
 
@@ -1023,6 +1230,13 @@ func load_profile() -> void:
 	perk_ranks = {}
 	for line_id: String in data.get("perks", {}):
 		perk_ranks[line_id] = clampi(int(data["perks"][line_id]), 0, Perks.RANKS)
+	# Likewise nobody is on the books of a profile written before there was
+	# anybody to hire.
+	staff = {}
+	for role_id: String in data.get("staff", {}):
+		if not Staff.get_role(role_id).is_empty():
+			staff[role_id] = true
+	last_made = str(data.get("last_made", ""))
 	var opened := now()
 	for site: Dictionary in Industry.sites():
 		var site_id := str(site["id"])

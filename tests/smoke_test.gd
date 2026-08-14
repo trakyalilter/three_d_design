@@ -680,6 +680,8 @@ func _check_perks() -> void:
 	_expect(Game.made_waiting() == 2,
 		"a bench with room for two still made them one after the other")
 
+	_check_staff()
+
 	Game.reset()
 	print("trade           %d steps across %d lines against %d points; %s off, "
 		% [steps, lines.size(), points, Perks.value_line("haggler", Perks.RANKS)]
@@ -689,8 +691,171 @@ func _check_perks() -> void:
 			Perks.value_line("grafter", Perks.RANKS)])
 
 
+## The people on the books. Each of the four is checked by doing the chore they
+## are supposed to have taken off you and finding it already done.
+func _check_staff() -> void:
+	var roles := Staff.roles()
+	_expect(roles.size() == 4, "the books have %d roles, not four" % roles.size())
+	var payroll := 0.0
+	for role: Dictionary in roles:
+		_expect(int(role["level"]) <= Game.MAX_LEVEL,
+			"%s only looks for work at level %d, above the cap"
+				% [role["id"], role["level"]])
+		_expect(float(role["share"]) > 0.0, "%s works for nothing" % role["id"])
+		payroll += float(role["share"])
+	# Everybody at once has to be a real bite out of a fee and nowhere near all
+	# of it, or the decision is not one.
+	_expect(payroll > 0.05 and payroll < 0.35,
+		"the whole payroll comes to %.0f%% of a fee" % (payroll * 100.0))
+
+	Game.reset()
+	Game.level = Game.MAX_LEVEL
+	Game.earn(90000)
+
+	# Hiring, the fee for it, and letting somebody go again.
+	_expect(Game.wage_share() == 0.0, "an empty payroll still costs something")
+	var purse := Game.money
+	var fee := Staff.joining_fee(Game.level)
+	_expect(Game.hire("runner"), "nobody could be taken on")
+	_expect(Game.money == purse - fee, "taking somebody on did not cost the joining fee")
+	_expect(Game.is_hired("runner"), "the runner did not go on the books")
+	_expect(is_equal_approx(Game.wage_share(), Staff.share_of("runner")),
+		"one person on the books is not one person's share")
+	_expect(not Game.hire("runner"), "the same person was taken on twice")
+	_expect(Game.let_go("runner"), "nobody could be let go")
+	_expect(Game.wage_share() == 0.0, "letting somebody go did not stop their share")
+	_expect(not Game.let_go("runner"), "somebody was let go twice")
+
+	# Rosa. A brief's whole list, in one go, at the counters' own prices.
+	var house_id := str(Jobs.all()[0]["id"])
+	Game.hire("runner")
+	var basket := Jobs.shopping_list(house_id)
+	var bill := Jobs.list_cost(basket)
+	for paint: Dictionary in Jobs.missing_paints(house_id):
+		bill += Game.paint_price(paint["entry"])
+	purse = Game.money
+	var fetched := Game.send_the_runner(house_id)
+	_expect(fetched > 0, "the runner came back with nothing")
+	_expect(Game.money == purse - bill,
+		"the runner spent %d of the %d the list came to" % [purse - Game.money, bill])
+	for item_id: String in basket:
+		_expect(Game.stock_of(item_id) >= int(basket[item_id]),
+			"the runner did not bring back %s" % item_id)
+	_expect(Jobs.shopping_list(house_id).is_empty(),
+		"the brief still wants something after the runner has been round")
+	# And she cannot spend money that is not there.
+	var broke := Game.money
+	Game.spend(broke)
+	_expect(Game.send_the_runner("the_observatory") == -1,
+		"the runner shopped on an empty account")
+	Game.earn(90000)
+
+	# Tomas. A holding that has filled up is carted in without being tapped.
+	Game.let_go("runner")
+	var site: Dictionary = Industry.sites()[0]
+	var site_id := str(site["id"])
+	Game.sites[site_id] = 2
+	Game.site_since[site_id] = Game.now()
+	Game.clock_offset += Industry.HOUR * 4.0
+	Game.settle_estate()
+	_expect(Game.waiting_at(site_id) > 0, "four hours on a holding grew nothing")
+	Game.hire("hand")
+	Game.settle_estate()
+	_expect(Game.waiting_at(site_id) == 0, "the yard hand left the holding standing")
+	_expect(Game.material_count(str(site["yields"])) > 0,
+		"the yard hand carted it off to nowhere")
+
+	# And a heap he is working runs three times as long before the ground stops.
+	# The yard's own capacity is untouched, which is the ceiling that is meant to
+	# be built rather than hired.
+	var deep := Game.heap_cap(site, 2)
+	var store := Game.material_cap(str(site["yields"]))
+	Game.let_go("hand")
+	_expect(Game.heap_cap(site, 2) == Industry.hold_cap(site, 2),
+		"a holding nobody works still holds more than its own heap")
+	_expect(deep > Game.heap_cap(site, 2),
+		"the yard hand made no difference to how much a holding will pile up")
+	_expect(Game.material_cap(str(site["yields"])) == store,
+		"the yard hand made the yard itself bigger")
+	Game.hire("hand")
+
+	# Ada. A works with the material for a run has one on it without being asked.
+	var works_id := str(Industry.works()[0]["id"])
+	var plant: Dictionary = Industry.get_works(works_id)
+	var good: Dictionary = Industry.get_good(str(plant["makes"]))
+	Game.plants[works_id] = 1
+	Game.materials[str(good["from"])] = int(good["takes"]) * 3
+	Game.settle_estate()
+	_expect(Game.batch_left(works_id) < 0.0,
+		"a works put a run on with nobody employed to do it")
+	Game.hire("millwright")
+	Game.settle_estate()
+	_expect(Game.batch_left(works_id) >= 0.0, "the millwright never put a run on")
+	# And takes the finished run off and puts the next one straight on.
+	Game.clock_offset += Industry.batch_seconds(works_id) + 1.0
+	Game.settle_estate()
+	_expect(Game.good_count(str(good["id"])) > 0,
+		"the millwright left a finished run on the line")
+
+	# Petar. Whatever came off the bench last goes back on it.
+	Game.making = []
+	Game.supplies = {}
+	Game.last_made = ""
+	for material: String in Catalog.bill_of("chair"):
+		Game.supplies[material] = int(Catalog.bill_of("chair")[material]) * 4
+	Game.start_making("chair")
+	_expect(Game.last_made == "chair", "the bench did not remember what was on it")
+	Game.clock_offset += Catalog.make_seconds("chair") + 1.0
+	Game.collect_made()
+	Game.settle_estate()
+	_expect(Game.making.is_empty(),
+		"the bench refilled itself with no joiner on the books")
+	Game.hire("joiner")
+	Game.settle_estate()
+	_expect(Game.making.size() == Game.bench_slots(),
+		"the joiner filled %d of the bench's %d clamps"
+			% [Game.making.size(), Game.bench_slots()])
+	# And stops when the store runs dry rather than making out of thin air.
+	Game.supplies = {}
+	Game.clock_offset += Catalog.make_seconds("chair") + 1.0
+	Game.collect_made()
+	Game.settle_estate()
+	_expect(Game.making.is_empty(), "the joiner made a chair out of nothing")
+
+	# The wage comes out of a fee and out of nothing else.
+	Game.reset()
+	Game.level = Game.MAX_LEVEL
+	Game.earn(90000)
+	var bare := Game.money
+	Game.record_completion("_wages_test", 10000, 2000, 0, 0, 2)
+	var without := Game.money - bare
+	Game.reset()
+	Game.level = Game.MAX_LEVEL
+	Game.earn(90000)
+	for role: Dictionary in roles:
+		Game.hire(str(role["id"]))
+	bare = Game.money
+	var owed := Game.wages_on(12000)
+	Game.record_completion("_wages_test", 10000, 2000, 0, 0, 2)
+	_expect(Game.money - bare == without - owed,
+		"a fee with four on the books paid %d, not the %d it owes them"
+			% [Game.money - bare, without - owed])
+	_expect(owed > 0, "four people on the books were paid nothing")
+
+	print("staff           %d on the books at %d%% of a fee between them; "
+		% [roles.size(), int(round(payroll * 100.0))]
+		+ "joining costs %s at the cap" % UIKit.money(Staff.joining_fee(Game.MAX_LEVEL)))
+
+
 func _check_estate() -> void:
 	var main = get_tree().current_scene
+
+	# Everything below is about what the ground, the works and the bench do on
+	# their own. The career hired the people whose whole job is doing it for
+	# you, so they stand down for this and go back on the books afterwards.
+	var books := Game.hired_ids()
+	for role_id in books:
+		Game.let_go(role_id)
 
 	# Nothing out of town may be gated above the cap, or it could never be had.
 	for entry: Dictionary in Industry.sites():
@@ -841,6 +1006,8 @@ func _check_estate() -> void:
 	print("estate          %s fills at %d an hour and holds %d; %s runs %s a batch"
 		% [site_id, int(Industry.yield_per_hour(site, 2)), Industry.hold_cap(site, 2),
 		works_id, Game.spell_out(Industry.batch_seconds(works_id))])
+	for role_id in books:
+		Game.staff[role_id] = true
 	await _check_craft_pays()
 
 
@@ -1017,18 +1184,20 @@ func _check_craft_pays() -> void:
 
 	var earned := float(review["bonus_rate"]) + Game.fee_bonus()
 	var plain := payout + int(round(float(payout) * earned))
-	var withcraft := payout + int(round(float(payout) * (earned + craft)))
+	var gross := payout + int(round(float(payout) * (earned + craft)))
+	# What lands in the account is the fee less whatever the books take out of it.
+	var withcraft := gross - Game.wages_on(gross)
 	_expect(Game.money - money == withcraft,
 		"%s paid %d, not the %d a room of improved furniture is worth"
 			% [house_id, Game.money - money, withcraft])
-	_expect(withcraft > plain, "the craft bonus added nothing to the fee")
+	_expect(gross > plain, "the craft bonus added nothing to the fee")
 	# The same bonus rides the experience. The career ends pinned at the cap, so
 	# the reward itself is what has to be checked rather than the bar.
 	var taught := float(job["xp"]) * (0.8 + 0.2 * float(review["stars"]))
 	_expect(int(round(taught * (1.0 + craft))) > int(round(taught)),
 		"the craft bonus added nothing to what the job teaches")
 	print("craft           %s paid %s over the plain fee at %.0f%% craft"
-		% [house_id, UIKit.money(withcraft - plain), craft * 100.0])
+		% [house_id, UIKit.money(gross - plain), craft * 100.0])
 
 
 ## Buys a quarter, grinding repeat work at the houses already finished until the
@@ -1808,6 +1977,7 @@ func _play(job: Dictionary) -> void:
 	# A player levels up and spends the point, so the run does too. Anything else
 	# would balance the career against a feature nobody leaves switched off.
 	_spend_points()
+	_take_people_on()
 
 
 ## Puts whatever points are going spare into the four lines in turn, which is
@@ -1827,6 +1997,15 @@ func _spend_points() -> void:
 				pick = line_id
 		if pick == "" or not Game.take_perk(pick):
 			return
+
+
+## And takes everybody on as soon as they will come, so the career is played
+## with 14% coming off every fee rather than with the books empty.
+func _take_people_on() -> void:
+	for role: Dictionary in Staff.roles():
+		var role_id := str(role["id"])
+		if not Game.is_hired(role_id) and Game.can_hire(role_id):
+			Game.hire(role_id)
 
 
 func _unmet(results: Array[Dictionary]) -> String:

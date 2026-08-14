@@ -997,13 +997,22 @@ func show_completion(job: Dictionary, result: Dictionary, review: Dictionary, on
 		row.add_child(text)
 		body.add_child(row)
 
+	var wages := int(result.get("wages", 0))
 	var rows := [
 		["Fee", UIKit.money(int(result["payout"]))],
 		["%d-star bonus" % stars, UIKit.money(int(result["bonus"]))],
-		["Furniture left in the house", "-%s" % UIKit.money(int(result["installed"]))],
-		["Net", UIKit.money(int(result["payout"]) + int(result["bonus"]) - int(result["installed"]))],
-		["Experience", "+%d XP" % int(result["xp"])],
 	]
+	# Everyone on the books is paid out of this job and no other way, so this is
+	# where it has to show up rather than quietly on the wallet.
+	if wages > 0:
+		rows.append(["Wages — %d on the books" % Game.hired_ids().size(),
+			"-%s" % UIKit.money(wages)])
+	rows.append_array([
+		["Furniture left in the house", "-%s" % UIKit.money(int(result["installed"]))],
+		["Net", UIKit.money(int(result["payout"]) + int(result["bonus"])
+			- wages - int(result["installed"]))],
+		["Experience", "+%d XP" % int(result["xp"])],
+	])
 	for entry: Array in rows:
 		var row := HBoxContainer.new()
 		row.add_child(UIKit.label(entry[0], 18, UIKit.MUTED))

@@ -30,6 +30,9 @@ var _modal: Control
 var _modal_body: VBoxContainer
 var _stock_button: Button
 var _perks_button: Button
+## Which half of the Trade sheet is open: what you got good at, or who does
+## the rest.
+var _trade_tab := "you"
 ## What the side sheet is currently showing, so it can be redrawn after a
 ## purchase without the player losing their place.
 var _current_sheet: Dictionary = {}
@@ -463,8 +466,31 @@ func _build_shopping_list(house_id: String) -> void:
 		UIKit.GOLD if Game.can_afford(total) else UIKit.BAD))
 	_sheet_body.add_child(summary)
 
-	_sheet_body.add_child(UIKit.wrapped_label(
-		"Buy these at the counters above before you start.", 520, UIKit.MUTED))
+	# With a runner on the books the whole round is one tap. Without her it is
+	# still a list to shop from rather than a basket, which is the point of it.
+	if Game.is_hired("runner"):
+		var send := HBoxContainer.new()
+		send.alignment = BoxContainer.ALIGNMENT_END
+		var fetch := UIKit.make_primary_button("Send Rosa  %s" % UIKit.money(total))
+		fetch.disabled = not Game.can_afford(total)
+		fetch.tooltip_text = "Buys the whole list, from every counter above"
+		fetch.pressed.connect(func() -> void: _send_the_runner(house_id))
+		send.add_child(fetch)
+		_sheet_body.add_child(send)
+	else:
+		_sheet_body.add_child(UIKit.wrapped_label(
+			"Buy these at the counters above before you start.", 520, UIKit.MUTED))
+
+
+func _send_the_runner(house_id: String) -> void:
+	var fetched := Game.send_the_runner(house_id, _placed_counts(house_id))
+	if fetched < 0:
+		Audio.play("deny")
+		toast_message("Rosa came back empty — the money is not there")
+		return
+	Audio.play("buy")
+	toast_message("Rosa brought back %d thing%s" % [
+		fetched, "" if fetched == 1 else "s"], 2.2)
 
 
 ## The name of a shop, standing over the things the brief wants from it. Once
@@ -821,24 +847,122 @@ func show_warehouse() -> void:
 ## does is make you leave something behind.
 func show_perks() -> void:
 	var spare := Game.perk_points_left()
-	_begin_sheet("Your trade", "%s to spend, %d of %d earned so far." % [
+	var hired := Game.hired_ids().size()
+	_begin_sheet("Your trade", "%s to spend%s." % [
 		"A point" if spare == 1 else "%d points" % spare,
-		Game.perk_points_earned(), Game.MAX_LEVEL - 1])
+		"" if hired == 0 else ", %d on the books at %d%% of every fee"
+			% [hired, int(round(Game.wage_share() * 100.0))]])
 	_current_sheet = {"kind": "perks"}
 
-	_sheet_body.add_child(UIKit.wrapped_label(
-		"Every level hands you one point, and a point buys the next step of one "
-		+ "line. There are more steps here than there are levels in a career, so "
-		+ "what you leave out is as much a decision as what you take. Nothing "
-		+ "here can be given back.", 460))
+	# Two halves of the same question — what you got good at, and who does the
+	# rest — so they share a sheet rather than a second button on the bar.
+	var tabs := HBoxContainer.new()
+	tabs.add_theme_constant_override("separation", 8)
+	for pair: Array in [["you", "You"], ["staff", "Staff"]]:
+		var key := str(pair[0])
+		var button: Button = (UIKit.make_primary_button(str(pair[1]))
+			if _trade_tab == key else UIKit.make_button(str(pair[1])))
+		button.pressed.connect(func() -> void:
+			_trade_tab = key
+			show_perks())
+		tabs.add_child(button)
+	tabs.add_child(UIKit.spacer())
+	_sheet_body.add_child(tabs)
 
-	for line: Dictionary in Perks.lines():
-		_divider()
-		_sheet_body.add_child(_perk_line(line))
+	if _trade_tab == "you":
+		_sheet_body.add_child(UIKit.wrapped_label(
+			"Every level hands you one point, and a point buys the next step of one "
+			+ "line. There are more steps here than there are levels in a career, so "
+			+ "what you leave out is as much a decision as what you take. Nothing "
+			+ "here can be given back.", 460))
+		for line: Dictionary in Perks.lines():
+			_divider()
+			_sheet_body.add_child(_perk_line(line))
+	else:
+		_sheet_body.add_child(UIKit.wrapped_label(
+			"Four people, each doing one chore you would otherwise tap through by "
+			+ "hand. Nobody is paid by the hour — a share of every fee instead, so "
+			+ "a fortnight away costs nothing. Letting somebody go is free.", 460))
+		_sheet_row("Joining fee today", UIKit.money(Staff.joining_fee(Game.level)),
+			UIKit.GOLD if Game.can_afford(Staff.joining_fee(Game.level)) else UIKit.BAD)
+		for role: Dictionary in Staff.roles():
+			_divider()
+			_sheet_body.add_child(_staff_card(role))
 
 	var close := UIKit.make_button("Close")
 	close.pressed.connect(close_sheet)
 	_sheet_actions.add_child(close)
+
+
+## One person: who they are, what they take, what they do about it, and the
+## button that puts them on the books or takes them off again.
+func _staff_card(role: Dictionary) -> Control:
+	var role_id := str(role["id"])
+	var hired := Game.is_hired(role_id)
+	var tone: Color = role["color"]
+
+	var block := VBoxContainer.new()
+	block.add_theme_constant_override("separation", 2)
+	block.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+
+	var head := HBoxContainer.new()
+	var title := UIKit.label("%s  ·  %s" % [role["name"], role["title"]], 20,
+		tone if hired else UIKit.MUTED)
+	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	head.add_child(title)
+	var wage := UIKit.label("%d%% of a fee" % int(round(float(role["share"]) * 100.0)),
+		15, UIKit.BAD if hired else UIKit.MUTED)
+	wage.clip_text = true
+	wage.custom_minimum_size = Vector2(150, 0)
+	wage.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	wage.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	head.add_child(wage)
+	block.add_child(head)
+
+	block.add_child(UIKit.wrapped_label("“%s”" % role["blurb"], 460, UIKit.MUTED))
+	block.add_child(UIKit.wrapped_label(str(role["does"]), 460,
+		UIKit.TEXT if hired else UIKit.MUTED))
+
+	var foot := HBoxContainer.new()
+	var blocked := Game.hire_blocked(role_id)
+	var status := UIKit.label("On the books" if hired else blocked, 15,
+		UIKit.GOOD if hired else UIKit.BAD)
+	status.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	status.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	status.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	foot.add_child(status)
+
+	if hired:
+		var go := UIKit.make_button("Let go", "Costs nothing, and stops the share at once")
+		go.pressed.connect(func() -> void: _let_go(role_id))
+		foot.add_child(go)
+	else:
+		var take := UIKit.make_primary_button("Take on  %s" % UIKit.money(
+			Staff.joining_fee(Game.level))) if blocked == "" \
+			else UIKit.make_button("Take on", blocked)
+		take.disabled = blocked != ""
+		take.pressed.connect(func() -> void: _hire(role_id))
+		foot.add_child(take)
+	block.add_child(foot)
+	return block
+
+
+func _hire(role_id: String) -> void:
+	if not Game.hire(role_id):
+		Audio.play("deny")
+		return
+	Audio.play("buy")
+	toast_message("%s starts today" % Staff.full_name(role_id), 2.4)
+	show_perks()
+
+
+func _let_go(role_id: String) -> void:
+	if not Game.let_go(role_id):
+		Audio.play("deny")
+		return
+	Audio.play("sell")
+	toast_message("%s is off the books" % Staff.role_name(role_id), 2.2)
+	show_perks()
 
 
 ## One line: its name and what it is worth now, a row of pips for the eight

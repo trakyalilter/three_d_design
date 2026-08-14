@@ -322,7 +322,7 @@ func _show_site(id: String) -> void:
 		_row("Comes up at", "%d %s an hour" % [
 			int(Industry.rate_at(site, tier)), unit], UIKit.GOOD)
 		var waiting := Game.waiting_at(id)
-		var hold := Industry.hold_cap(site, tier)
+		var hold := Game.heap_cap(site, tier)
 		_row("Standing on the ground", "%d of %d" % [waiting, hold],
 			UIKit.GOLD if waiting >= hold else UIKit.TEXT)
 		_bar(Game.fullness_at(id), Industry.get_material(material)["color"])
@@ -341,7 +341,7 @@ func _show_site(id: String) -> void:
 		_sheet_actions.add_child(cart)
 	else:
 		_row("Would come up at", "%d %s an hour" % [int(site["per_job"]), unit])
-		_row("And hold", "%d before it stops" % Industry.hold_cap(site, 1))
+		_row("And hold", "%d before it stops" % Game.heap_cap(site, 1))
 
 	if tier >= Industry.MAX_TIER:
 		_sheet_body.add_child(UIKit.wrapped_label(

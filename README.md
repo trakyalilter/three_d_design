@@ -601,6 +601,36 @@ floor, the card for a piece, the basket total under a brief, the yard's pallets,
 value of your own warehouse. What you sell back is worth exactly what buying it again would
 cost you, so a mistake at the shop is still free.
 
+### Staff
+
+The second tab of the same sheet is the opposite of the first on every axis. The perk tree
+is what *you* got better at: free, permanent, paid for in points. **Staff** are four people
+who do a chore you would otherwise be tapping through by hand, hired and let go whenever
+you like, and paid out of every fee for as long as they are on the books.
+
+| | Opens at | Takes | Does |
+|---|---|---|---|
+| **Rosa**, runner | 6 | 4 % | Puts a button on a brief that buys everything still missing, from every shop at once |
+| **Tomas**, yard hand | 8 | 3 % | Carts every holding in as it fills, and a heap he is working holds three times as much before the ground stops |
+| **Ada**, millwright | 12 | 3 % | Takes each finished run off and puts the next one on, at every works that has the material |
+| **Petar**, joiner | 15 | 4 % | Keeps the workshop bench going: whatever came off it last goes back on, while the trade store can pay for it |
+
+**Nobody is paid by the hour.** A wage on the wall clock would mean coming back from a
+fortnight away to an empty account, which is a punishment for having a life. Everyone takes
+a share of every fee instead, so four people cost you nothing at all until you are actually
+paid — and the share is itemised on the hand-over screen with everything else. Taking
+somebody on costs a joining fee that rises with your level; letting them go is free and
+stops the share at once, so the books are a dial rather than a trap. Hire the joiner for a
+week at the bench and let him go again.
+
+None of them makes a decision for you. Where a piece goes, what colour it is and what a
+room is *for* stay yours — they only do the walking. And Tomas cannot make the yard itself
+bigger: storage is the one ceiling that has to be built rather than hired.
+
+Played with all four on the books and points spread evenly across the perk tree, a full
+career ends on about $154,000 — against $255,000 for the same run with the tree spent and
+the books empty. The convenience is real and so is the bill.
+
 **Free Build** on the map opens the old sandbox: no client, no stock to worry about,
 everything unlocked, with its own save and load.
 
@@ -694,13 +724,15 @@ scripts/
                          bill of materials every piece is worked out to take
     perks.gd             Autoload. The four lines of the trade, their eight
                          steps each, and what a step is worth
+    staff.gd             Autoload. The four people you can put on the books,
+                         what each takes out of a fee and what they do for it
     jobs.gd              Autoload. The six quarters and the 56 houses in them,
                          the requirement evaluator, the shopping list a brief
                          needs, and the generator for repeat contracts
     game_state.gd        Autoload. Money, XP, levels, the warehouse, the
                          quarters bought, the estate, the yard, the trade store,
-                         the workshop bench, the perks taken and the saved
-                         profile
+                         the workshop bench, the perks taken, who is on the
+                         books and the saved profile
     industry.gd          Autoload. The eight holdings, the four works and the
                          workshop: what everything yields, what it costs, and
                          which good a piece of furniture wants
@@ -873,9 +905,12 @@ tree is bigger than a career can afford and none of its steps opens above the le
 that a step cannot be taken a level before it opens or without a point in hand, that
 haggling comes off every price and off the refund with it so buying and selling is still a
 wash, that a perk makes the ground yield faster without making the barn bigger, and that a
-bench with room for two really does make two at once — the career itself is played with the
-points spent, four lines abreast, so the whole city is balanced against a feature nobody
-leaves switched off — that every
+bench with room for two really does make two at once, that a wage comes out of a fee and
+out of nothing else, that the runner buys the whole of a brief's list at the counters' own
+prices and cannot shop on an empty account, and that each of the other three has already
+done their chore by the time you look — the career itself is played with the points spent
+four lines abreast and everybody on the books, so the whole city is balanced against
+features nobody leaves switched off — that every
 piece in the catalogue is worth making and worth about as much to make as every other piece
 is — material between a third and three quarters of the shelf price for all 167 of them —
 and that trade material bought at the merchant goes into a piece when it is started rather
