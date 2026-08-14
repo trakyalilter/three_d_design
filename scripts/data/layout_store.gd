@@ -4,6 +4,10 @@ extends RefCounted
 
 const DIR := "user://layouts"
 const AUTOSAVE := "user://autosave.json"
+## A room the player is part way through, one file per house. These used to be
+## written into the profile, which meant putting one chair down re-serialised
+## every other room in the game along with it — see Game.store_layout().
+const ROOMS := "user://rooms"
 const FORMAT_VERSION := 1
 
 
@@ -65,6 +69,46 @@ static func save_autosave(data: Dictionary) -> bool:
 
 static func load_autosave() -> Dictionary:
 	return _read(AUTOSAVE)
+
+
+# --------------------------------------------------------------- client rooms
+
+static func _room_path(house_id: String) -> String:
+	return "%s/%s.json" % [ROOMS, sanitize(house_id)]
+
+
+static func save_room(house_id: String, data: Dictionary) -> bool:
+	if not DirAccess.dir_exists_absolute(ROOMS):
+		DirAccess.make_dir_recursive_absolute(ROOMS)
+	return _write(_room_path(house_id), data)
+
+
+static func load_room(house_id: String) -> Dictionary:
+	return _read(_room_path(house_id))
+
+
+static func delete_room(house_id: String) -> void:
+	var path := _room_path(house_id)
+	if FileAccess.file_exists(path):
+		DirAccess.remove_absolute(path)
+
+
+## Every house with a room saved against it.
+static func room_ids() -> Array[String]:
+	var out: Array[String] = []
+	var dir := DirAccess.open(ROOMS)
+	if dir == null:
+		return out
+	for file in dir.get_files():
+		if file.ends_with(".json"):
+			out.append(file.get_basename())
+	out.sort()
+	return out
+
+
+static func clear_rooms() -> void:
+	for house_id in room_ids():
+		delete_room(house_id)
 
 
 ## Writes one layout beside itself and then moves it into place.

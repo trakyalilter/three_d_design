@@ -47,7 +47,9 @@ var inventory: Dictionary = {}
 var owned_paints: Dictionary = {}
 ## house id -> {"payout": int, "bonus": int, "xp": int, "installed": int}
 var finished_jobs: Dictionary = {}
-## house id -> serialized layout, so an unfinished job can be resumed.
+## house id -> serialized layout, so an unfinished job can be resumed. Held here
+## and written a file each under user://rooms — see store_layout() for why they
+## are not in the profile with everything else.
 var saved_jobs: Dictionary = {}
 ## house id -> a generated brief the player took on after the original was
 ## finished. Jobs.get_job() lays these over the handcrafted entry.
@@ -123,6 +125,7 @@ var showroom_till := 0.0
 
 func _ready() -> void:
 	load_profile()
+	_load_rooms()
 	_grant_starter_paints()
 	_grant_free_districts()
 
@@ -680,6 +683,7 @@ func take_repeat_contract(house_id: String, contract: Dictionary) -> void:
 	active_contracts[house_id] = contract
 	finished_jobs.erase(house_id)
 	saved_jobs.erase(house_id)
+	LayoutStore.delete_room(house_id)
 	# A new brief here means the plan worked out for the old one is wrong.
 	Jobs.forget_plan(house_id)
 	save_profile()
@@ -1226,13 +1230,41 @@ func improve(item_id: String) -> bool:
 	return true
 
 
+## Keeps the room the player is part way through, after every change they make
+## to it.
+##
+## The room goes in a file of its own. It used to go into the profile, which
+## meant that setting one chair down wrote all fifty-six saved rooms to disk —
+## eight milliseconds at the end of a career, of which six was serialising the
+## other fifty-five. The cost grew with the number of jobs finished, so the
+## designer got choppier the further into the game you were, which is the worst
+## shape a cost can have.
+##
+## The profile is still written here as well, and deliberately. Placing a piece
+## takes it out of the warehouse, and the warehouse lives in the profile — so
+## the room and the stock it came out of have to be saved on the same gesture or
+## a kill between the two leaves the piece standing in the room *and* sitting in
+## the warehouse. The room is written first: the same interruption then loses
+## the placement rather than the piece, and a placement is cheaper to make again
+## than a wardrobe is to buy again. What the profile no longer carries is the
+## fifty-five rooms that had nothing to do with this gesture.
 func store_layout(house_id: String, data: Dictionary) -> void:
 	saved_jobs[house_id] = data
+	LayoutStore.save_room(house_id, data)
 	save_profile()
 
 
 func layout_for(house_id: String) -> Dictionary:
 	return saved_jobs.get(house_id, {})
+
+
+## Fills in rooms that are on disk but not yet in hand. Runs after the profile
+## is read, so a profile that carried its own rooms has already handed them over
+## and this only picks up whatever it did not have.
+func _load_rooms() -> void:
+	for house_id: String in LayoutStore.room_ids():
+		if not saved_jobs.has(house_id):
+			saved_jobs[house_id] = LayoutStore.load_room(house_id)
 
 
 # -------------------------------------------------------------- persistence
@@ -1245,6 +1277,7 @@ func reset() -> void:
 	owned_paints.clear()
 	finished_jobs.clear()
 	saved_jobs.clear()
+	LayoutStore.clear_rooms()
 	active_contracts.clear()
 	Jobs.forget_plan()
 	repeats.clear()
@@ -1310,7 +1343,6 @@ func save_profile() -> void:
 		"inventory": inventory,
 		"paints": owned_paints,
 		"finished": finished_jobs,
-		"saved": saved_jobs,
 		"contracts": active_contracts,
 		"repeats": repeats,
 		"districts": owned_districts,
@@ -1384,7 +1416,12 @@ func load_profile() -> void:
 	xp = int(data.get("xp", 0))
 	level = clampi(int(data.get("level", 1)), 1, MAX_LEVEL)
 	finished_jobs = data.get("finished", {})
-	saved_jobs = data.get("saved", {})
+	# Rooms have files of their own now. A profile written before that carries
+	# them inside it and hands them over the first time it is opened; after the
+	# next save they are gone from it for good.
+	for house_id: String in data.get("saved", {}):
+		saved_jobs[house_id] = (data["saved"] as Dictionary)[house_id]
+		LayoutStore.save_room(house_id, saved_jobs[house_id])
 	active_contracts = data.get("contracts", {})
 	# Whatever was worked out against the briefs of a moment ago belongs to a
 	# career that is no longer loaded.

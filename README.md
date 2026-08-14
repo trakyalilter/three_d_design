@@ -816,7 +816,8 @@ scripts/
                          workshop: what everything yields, what it costs, and
                          which good a piece of furniture wants
     room_review.gd       The five things a client notices, scored out of three
-    layout_store.gd      Free-build save files under user://
+    layout_store.gd      Free-build save files under user://, and a file per
+                         half-finished client room under user://rooms
   audio/
     sound_bank.gd        Every sound in the game, synthesised from scratch:
                          blips, thuds, brushed noise, struck bells and the
@@ -985,6 +986,8 @@ expects the money and the level to still be there, off the save kept behind it. 
 free-build saves go through the same door and get the same going over: a room saves, lists,
 reloads, survives a torn write beside it, and — the part that only holds because the write
 goes somewhere else first — is left exactly as it was by a save that could not be written.
+A client's half-finished room gets a file of its own too, which it checks survives a restart
+and moves itself out of a profile written back when rooms lived inside one.
 
 Then it resets the profile and plays the whole city: all 40 jobs, quarter by quarter, buying
 each quarter out of the money it has actually earned — taking repeat contracts at the

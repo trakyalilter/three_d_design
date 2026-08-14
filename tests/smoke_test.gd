@@ -22,6 +22,7 @@ func _ready() -> void:
 	print("=== the save ===")
 	_check_profile()
 	_check_layout_store()
+	_check_rooms()
 
 	print("=== the front page ===")
 	await _check_title()
@@ -295,6 +296,52 @@ func _check_layout_store() -> void:
 	_expect(not LayoutStore.exists(name), "deleting the layout left it behind")
 	DirAccess.remove_absolute(LayoutStore.AUTOSAVE)
 	print("free build      saves, lists, reloads and survives a torn write")
+
+
+## A client's half-finished room, which lives in a file of its own rather than
+## in the profile. Putting one chair down used to write all fifty-six of them.
+func _check_rooms() -> void:
+	var house_id := "maple_studio"
+	var room := {"room": {"w": 4.0, "d": 3.5, "h": 2.6}, "items": [{"id": "chair"}, {"id": "lamp"}]}
+
+	Game.store_layout(house_id, room)
+	_expect(Game.layout_for(house_id).get("items", []).size() == 2,
+		"the room did not come back from the store")
+	_expect(LayoutStore.room_ids().has(house_id), "the room got no file of its own")
+
+	# The profile must not be carrying it. That is the whole point: the profile
+	# is written on the same gesture, and it has to stay small while it is.
+	var profile: Dictionary = Game._read_profile(Game.PROFILE_PATH)
+	_expect(not profile.has("saved"),
+		"the profile is still carrying the rooms it was meant to hand over")
+
+	# It survives the app being closed and opened again.
+	Game.saved_jobs.clear()
+	Game._load_rooms()
+	_expect(Game.layout_for(house_id).get("items", []).size() == 2,
+		"the room did not come back after a restart")
+
+	# And a profile written before rooms had their own files hands them over the
+	# first time it is opened, rather than losing somebody's half-built room.
+	Game.saved_jobs.clear()
+	LayoutStore.clear_rooms()
+	var old := Game._read_profile(Game.PROFILE_PATH)
+	old["saved"] = {"cedar_bathroom": room}
+	var file := FileAccess.open(Game.PROFILE_PATH, FileAccess.WRITE)
+	file.store_string(JSON.stringify(old, "\t"))
+	file.close()
+	Game.load_profile()
+	_expect(Game.layout_for("cedar_bathroom").get("items", []).size() == 2,
+		"an old profile lost the room it was carrying")
+	_expect(LayoutStore.room_ids().has("cedar_bathroom"),
+		"the room from an old profile was not given a file of its own")
+	Game.save_profile()
+	_expect(not Game._read_profile(Game.PROFILE_PATH).has("saved"),
+		"the old profile kept its rooms after being written again")
+
+	Game.reset()
+	_expect(LayoutStore.room_ids().is_empty(), "wiping the career left the rooms behind")
+	print("rooms           a file each, survive a restart, and move out of an old profile")
 
 
 # -------------------------------------------------------------------- the save
