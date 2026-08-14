@@ -69,15 +69,22 @@ jobs:
             HAS_RELEASE=true
             echo "### Release $TAG" >> "$GITHUB_STEP_SUMMARY"
             echo '```' >> "$GITHUB_STEP_SUMMARY"
+            # Printed as the JSON it comes back as, rather than through a
+            # template. A template is another list of field names to get wrong,
+            # and getting one wrong fails the run — which is the right way round,
+            # but it is a poor reason to have to run this twice.
             gh release view "$TAG" -R "$GITHUB_REPOSITORY" \
-              --json name,tagName,isPrerelease,isLatest,publishedAt,assets \
-              --template '{{.name}} ({{.tagName}}){{"\n"}}prerelease: {{.isPrerelease}}   latest: {{.isLatest}}   published: {{.publishedAt}}{{"\n"}}{{range .assets}}asset: {{.name}} — {{.size}} bytes, {{.downloadCount}} downloads{{"\n"}}{{end}}' \
+              --json name,tagName,isPrerelease,isDraft,publishedAt,assets \
               | tee -a "$GITHUB_STEP_SUMMARY"
             echo '```' >> "$GITHUB_STEP_SUMMARY"
 
             # Worth knowing rather than worth blocking: the download link in the
             # README follows whatever is latest, so retiring it moves that link.
-            if [ "$(gh release view "$TAG" -R "$GITHUB_REPOSITORY" --json isLatest -q .isLatest)" = "true" ]; then
+            # Asked of the releases/latest endpoint, because "is this the latest
+            # one" is a property of the repository rather than of the release —
+            # `gh release view` has no field for it.
+            LATEST="$(gh api "repos/$GITHUB_REPOSITORY/releases/latest" -q .tag_name 2>/dev/null || true)"
+            if [ "$LATEST" = "$TAG" ]; then
               echo "::warning::$TAG is the latest release. Retiring it moves the /releases/latest link to whatever is now newest."
             fi
           else
