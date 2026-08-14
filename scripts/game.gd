@@ -99,6 +99,7 @@ func enter_city(focus_house: String = "") -> void:
 	city_ui.free_build.connect(func() -> void: enter_designer(""))
 	city_ui.shop_entered.connect(func(shop_id: String) -> void: enter_shop(shop_id))
 	city_ui.estate_entered.connect(func() -> void: enter_estate())
+	city_ui.showroom_entered.connect(func() -> void: enter_designer(Game.SHOWROOM))
 	# A career reset can hand back quarters as well as money, so redraw the map.
 	city_ui.career_reset.connect(func() -> void: city.rebuild())
 	city_ui.repeat_taken.connect(func(_house_id: String) -> void: city.refresh_markers())
@@ -121,10 +122,14 @@ func enter_designer(house_id: String) -> void:
 		return
 	_changing = true
 
-	var job: Dictionary = Jobs.get_job(house_id) if house_id != "" else {}
+	var showroom := house_id == Game.SHOWROOM
+	var job: Dictionary = Jobs.get_job(house_id) if house_id != "" and not showroom else {}
 	var kicker := "No brief, no budget"
 	var headline := "Free build"
-	if not job.is_empty():
+	if showroom:
+		kicker = "Nobody's brief but your own"
+		headline = "Your showroom"
+	elif not job.is_empty():
 		kicker = "For %s" % job.get("client", "a client")
 		headline = str(job.get("name", "The job"))
 	var screen: LoadingScreen = await _cover(kicker, headline, "Driving over")
@@ -138,7 +143,7 @@ func enter_designer(house_id: String) -> void:
 	await _run_stages(screen, designer.build_stages())
 
 	designer.job_finished.connect(func(finished_id: String) -> void: enter_city(finished_id))
-	designer.left.connect(func() -> void: enter_city(house_id))
+	designer.left.connect(func() -> void: enter_city("" if showroom else house_id))
 
 	await _uncover(screen)
 

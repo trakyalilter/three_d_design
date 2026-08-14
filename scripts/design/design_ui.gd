@@ -2,9 +2,11 @@ class_name DesignerUI
 extends CanvasLayer
 ## Interface for the room designer, built entirely in code.
 ##
-## It runs in two modes. On a job it shows the client's brief, the running bill
-## and the hand-over button; in free build it drops the money entirely and
-## offers the save and load tools instead.
+## It runs in three modes. On a job it shows the client's brief, the running
+## bill and the hand-over button. On the player's own showroom floor it shows
+## what the room is rated and what it will take an hour, and there is nothing
+## to hand over. In free build it drops the money entirely and offers the save
+## and load tools instead.
 
 signal place_item(item_id: String)
 signal command(name: String)
@@ -25,6 +27,9 @@ signal finish_requested()
 signal leave_requested()
 
 var job_mode := false
+## True on the player's own floor: bought out of stock like a job, but there is
+## no brief to tick and nobody to hand it to.
+var showroom_mode := false
 
 var _job: Dictionary = {}
 var _root: Control
@@ -41,6 +46,7 @@ var _stats_label: Label
 var _brief_button: Button
 var _finish_button: Button
 var _free_buttons: Array[Button] = []
+var _new_button: Button
 
 var _brief_sheet: PanelContainer
 var _brief_list: VBoxContainer
@@ -155,11 +161,16 @@ func _build_top_bar() -> void:
 	room_btn.pressed.connect(_open_room_dialog)
 	row.add_child(room_btn)
 
-	for spec in [["Save", _open_save_dialog], ["Open", _open_load_dialog], ["New", _open_new_dialog]]:
+	# Save and Open are the sandbox's own filing cabinet and belong to it alone.
+	# New clears the room, which is worth having anywhere the room is yours.
+	for spec in [["Save", _open_save_dialog], ["Open", _open_load_dialog]]:
 		var b := UIKit.make_button(spec[0])
 		b.pressed.connect(spec[1])
 		row.add_child(b)
 		_free_buttons.append(b)
+	_new_button = UIKit.make_button("New", "Clear the room out")
+	_new_button.pressed.connect(_open_new_dialog)
+	row.add_child(_new_button)
 
 	var help := UIKit.make_button("Help")
 	help.pressed.connect(_open_help_dialog)
@@ -174,10 +185,11 @@ func _build_top_bar() -> void:
 	row.add_child(_finish_button)
 
 
-## Switches between a client job and the free-build sandbox.
-func configure(job: Dictionary) -> void:
+## Switches between a client job, the player's own floor and the sandbox.
+func configure(job: Dictionary, showroom: bool = false) -> void:
 	_job = job
 	job_mode = not job.is_empty()
+	showroom_mode = showroom
 	# Only a floor plan gets a room picker in the paint dialog.
 	_plan.clear()
 	for entry: Variant in job.get("rooms", []):
@@ -185,14 +197,22 @@ func configure(job: Dictionary) -> void:
 			_plan.append(entry as Dictionary)
 	_paint_target = ""
 
-	_job_label.visible = job_mode
-	_bill_label.visible = job_mode
+	# The showroom stands between the two: the tray greys out what you do not
+	# own, the way a job does, and the room is yours to resize, the way the
+	# sandbox is. What it does not have is a brief or a hand-over.
+	_job_label.visible = job_mode or showroom_mode
+	_bill_label.visible = job_mode or showroom_mode
 	_brief_button.visible = job_mode
 	_finish_button.visible = job_mode
-	_money_label.visible = job_mode
+	_money_label.visible = job_mode or showroom_mode
 	for button in _free_buttons:
-		button.visible = not job_mode
-	_job_label.text = "   %s" % job.get("name", "") if job_mode else ""
+		button.visible = not job_mode and not showroom_mode
+	_new_button.visible = not job_mode
+	_job_label.text = ""
+	if job_mode:
+		_job_label.text = "   %s" % job.get("name", "")
+	elif showroom_mode:
+		_job_label.text = "   Your showroom"
 	_brief_sheet.visible = false
 	refresh_bill(0)
 	refresh_stock()
@@ -206,6 +226,21 @@ func refresh_bill(installed: int) -> void:
 	_bill_label.text = "   fitted %s of %s budget" % [UIKit.money(installed), UIKit.money(budget)]
 	_bill_label.add_theme_color_override(
 		"font_color", UIKit.MUTED if installed <= budget else UIKit.BAD)
+
+
+## The showroom's version of the bill: what is standing on the floor, what it is
+## rated, and what that is worth an hour. It moves as you arrange the room,
+## which is the whole point — the design is the number.
+func refresh_takings(rating: Dictionary) -> void:
+	if not showroom_mode:
+		return
+	var take := int(rating["take"])
+	_bill_label.text = "   %s on the floor · %s · %s an hour" % [
+		UIKit.money(int(rating["value"])),
+		RoomReview.stars_text(int(rating["stars"])),
+		UIKit.money(take)]
+	_bill_label.add_theme_color_override(
+		"font_color", UIKit.GOLD if take > 0 else UIKit.BAD)
 
 
 func set_stats(item_count: int, floor_area: float) -> void:
@@ -536,7 +571,7 @@ func refresh_stock() -> void:
 		var strip := button.get_node("Strip") as ColorRect
 		var footprint := Catalog.footprint(item_id)
 
-		if not job_mode:
+		if not job_mode and not showroom_mode:
 			button.disabled = false
 			footer.text = "%.2f × %.2f m" % [footprint.x, footprint.y]
 			footer.add_theme_color_override("font_color", UIKit.MUTED)

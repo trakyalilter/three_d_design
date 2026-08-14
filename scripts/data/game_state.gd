@@ -19,10 +19,18 @@ signal district_unlocked(district_id: String)
 signal estate_changed()
 signal perks_changed()
 signal staff_changed()
+signal showroom_changed()
 
 const PROFILE_PATH := "user://profile.json"
 const STARTING_MONEY := 3000
 const MAX_LEVEL := 30
+## The house id the designer opens the player's own floor under. No real house
+## can collide with it, and it is what tells the designer this room is not
+## anybody's job.
+const SHOWROOM := "_showroom"
+## The level it opens at. Late enough that there is stock worth standing in it
+## and money that can afford to sit still.
+const SHOWROOM_LEVEL := 10
 
 var money: int = STARTING_MONEY
 var xp: int = 0
@@ -89,6 +97,23 @@ var perk_ranks: Dictionary = {}
 var staff: Dictionary = {}
 ## What the workshop bench last had on it, so the joiner knows what to put back.
 var last_made := ""
+
+# ---------------------------------------------------------------- the showroom
+
+## The floor of your own, saved the same way a half-finished job is. The stock
+## standing in it has left the warehouse and stays gone until you take it out
+## again, which is what makes dressing it a decision rather than a free win.
+var showroom: Dictionary = {}
+## What it was taking an hour when you last closed up, and how it was rated.
+## Cached rather than recomputed, because the till fills while the room is not
+## built and there is nothing to measure then.
+var showroom_take := 0
+var showroom_stars := 0
+var showroom_shops := 0
+var showroom_value := 0
+## The wall clock when the till was last settled, and what is in it.
+var showroom_since := 0.0
+var showroom_till := 0.0
 
 
 func _ready() -> void:
@@ -213,6 +238,88 @@ func estate_speed() -> float:
 ## How many pieces the workshop can have under the clamps at once.
 func bench_slots() -> int:
 	return Perks.bench_slots(perk_rank("grafter"))
+
+
+# ---------------------------------------------------------------- the showroom
+
+func showroom_open() -> bool:
+	return level >= SHOWROOM_LEVEL
+
+
+## True when there is something standing on the floor, whether or not it trades.
+func showroom_dressed() -> bool:
+	return not (showroom.get("items", []) as Array).is_empty()
+
+
+## Fills on the wall clock like everything else out of town, and stops at a
+## trading day so a showroom is looked in on rather than farmed.
+func settle_showroom() -> bool:
+	var when := now()
+	if showroom_take <= 0:
+		showroom_since = when
+		return false
+	var cap := float(Showroom.till_cap(showroom_take))
+	if showroom_till >= cap:
+		showroom_since = when
+		return false
+	# A clock that has gone backwards is treated as no time at all, the same
+	# way the holdings treat it.
+	var elapsed: float = clampf(when - showroom_since, 0.0, 60.0 * 60.0 * 24.0 * 30.0)
+	showroom_since = when
+	if elapsed <= 0.0:
+		return false
+	var taken: float = minf(cap, showroom_till + elapsed / Industry.HOUR * float(showroom_take))
+	if taken <= showroom_till:
+		return false
+	showroom_till = taken
+	showroom_changed.emit()
+	return true
+
+
+func till() -> int:
+	return int(floor(showroom_till))
+
+
+func till_cap() -> int:
+	return Showroom.till_cap(showroom_take)
+
+
+func till_fullness() -> float:
+	var cap := float(till_cap())
+	if cap <= 0.0:
+		return 0.0
+	return clampf(float(showroom_till) / cap, 0.0, 1.0)
+
+
+func collect_till() -> int:
+	settle_showroom()
+	var taken := till()
+	if taken <= 0:
+		return 0
+	showroom_till -= float(taken)
+	earn(taken)
+	save_profile()
+	showroom_changed.emit()
+	return taken
+
+
+## Closing up: what the floor looks like now, what it is rated and what it will
+## therefore take an hour. Called by the designer on the way out, because that
+## is the only place the room actually exists to be measured.
+func close_up(layout: Dictionary, stars: int, value: int, shops: int, pieces: int) -> void:
+	settle_showroom()
+	showroom = layout
+	showroom_stars = stars
+	showroom_value = value
+	showroom_shops = shops
+	showroom_take = Showroom.takings(stars, value, shops, pieces)
+	showroom_since = now()
+	# A floor that has just been stripped should not go on paying out of a till
+	# it can no longer fill.
+	if showroom_take <= 0:
+		showroom_till = minf(showroom_till, float(Showroom.till_cap(showroom_take)))
+	save_profile()
+	showroom_changed.emit()
 
 
 # -------------------------------------------------------------------- staff
@@ -1144,6 +1251,13 @@ func reset() -> void:
 	perk_ranks.clear()
 	staff.clear()
 	last_made = ""
+	showroom = {}
+	showroom_take = 0
+	showroom_stars = 0
+	showroom_shops = 0
+	showroom_value = 0
+	showroom_till = 0.0
+	showroom_since = now()
 	_grant_starter_paints()
 	_grant_free_districts()
 	save_profile()
@@ -1152,6 +1266,7 @@ func reset() -> void:
 	progress_changed.emit(level, xp, xp_needed())
 	perks_changed.emit()
 	staff_changed.emit()
+	showroom_changed.emit()
 
 
 func save_profile() -> void:
@@ -1160,7 +1275,7 @@ func save_profile() -> void:
 		push_warning("Could not save the profile (%d)" % FileAccess.get_open_error())
 		return
 	file.store_string(JSON.stringify({
-		"version": 8,
+		"version": 9,
 		"money": money,
 		"xp": xp,
 		"level": level,
@@ -1184,6 +1299,13 @@ func save_profile() -> void:
 		"perks": perk_ranks,
 		"staff": staff,
 		"last_made": last_made,
+		"showroom": showroom,
+		"showroom_take": showroom_take,
+		"showroom_stars": showroom_stars,
+		"showroom_shops": showroom_shops,
+		"showroom_value": showroom_value,
+		"showroom_since": showroom_since,
+		"showroom_till": showroom_till,
 	}, "\t"))
 	file.close()
 
@@ -1237,6 +1359,16 @@ func load_profile() -> void:
 		if not Staff.get_role(role_id).is_empty():
 			staff[role_id] = true
 	last_made = str(data.get("last_made", ""))
+	# A profile written before there was a floor of your own simply has none.
+	showroom = data.get("showroom", {})
+	showroom_take = int(data.get("showroom_take", 0))
+	showroom_stars = int(data.get("showroom_stars", 0))
+	showroom_shops = int(data.get("showroom_shops", 0))
+	showroom_value = int(data.get("showroom_value", 0))
+	showroom_till = float(data.get("showroom_till", 0.0))
+	showroom_since = float(data.get("showroom_since", 0.0))
+	if showroom_since <= 0.0:
+		showroom_since = now()
 	var opened := now()
 	for site: Dictionary in Industry.sites():
 		var site_id := str(site["id"])

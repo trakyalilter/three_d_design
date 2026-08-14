@@ -11,6 +11,7 @@ signal district_bought(district_id: String)
 signal district_focused(district_id: String)
 signal shop_entered(shop_id: String)
 signal estate_entered()
+signal showroom_entered()
 
 var _root: Control
 var _blockers: Array[Control] = []
@@ -170,10 +171,20 @@ func refresh_hud() -> void:
 		var held := Game.total_stock()
 		_stock_button.text = "Stock  %d" % held if held > 0 else "Stock"
 	if _perks_button:
-		# A point sitting unspent is the one thing on this bar worth chasing, so
-		# it goes on the button rather than waiting to be found.
+		# A point sitting unspent, or money sitting in a till nobody has emptied,
+		# are the two things behind this button worth chasing — so they go on it
+		# rather than waiting to be found. Points first: they expire into nothing
+		# if the career ends with them unspent, and the till does not.
 		var spare := Game.perk_points_left()
-		_perks_button.text = "Trade  ●%d" % spare if spare > 0 else "Trade"
+		Game.settle_showroom()
+		var taken := Game.till()
+		if spare > 0:
+			_perks_button.text = "Trade  ●%d" % spare
+		elif taken > 0:
+			_perks_button.text = "Trade  %s" % UIKit.money(taken)
+		else:
+			_perks_button.text = "Trade"
+
 
 
 func _build_hint() -> void:
@@ -840,6 +851,97 @@ func show_warehouse() -> void:
 	_sheet_actions.add_child(close)
 
 
+# ------------------------------------------------------------- the showroom
+
+## A floor of your own, the third tab of the same sheet. Every other room in the
+## game belongs to somebody else; this one keeps whatever you put in it and pays
+## for as long as it is dressed.
+func show_showroom() -> void:
+	_trade_tab = "floor"
+	show_perks()
+
+
+func _showroom_tab() -> void:
+	Game.settle_showroom()
+	if not Game.showroom_dressed():
+		_sheet_body.add_child(UIKit.wrapped_label(
+			"An empty floor takes nothing. Go in and stand your own stock in it — "
+			+ "the furniture leaves the warehouse the way it does on a job, but "
+			+ "nobody takes it away and you can pull it back out whenever you "
+			+ "want it for a client.", 460))
+	else:
+		_sheet_row("On the floor", UIKit.money(Game.showroom_value), UIKit.GOLD)
+		_sheet_row("How it reads", RoomReview.stars_text(Game.showroom_stars),
+			UIKit.GOOD if Game.showroom_stars >= 2 else UIKit.BAD)
+		_sheet_row("Counters shown", Showroom.spread_line(Game.showroom_shops),
+			UIKit.TEXT if Game.showroom_shops >= 3 else UIKit.MUTED)
+		_divider()
+		_sheet_row("Takes", "%s an hour" % UIKit.money(Game.showroom_take),
+			UIKit.GOLD if Game.showroom_take > 0 else UIKit.BAD)
+		_sheet_row("In the till", "%s of %s" % [
+			UIKit.money(Game.till()), UIKit.money(Game.till_cap())],
+			UIKit.GOLD if Game.till() >= Game.till_cap() and Game.till() > 0
+				else UIKit.TEXT)
+		_showroom_bar(Game.till_fullness())
+		if Game.showroom_take <= 0:
+			_sheet_body.add_child(UIKit.wrapped_label(
+				"Nobody would walk into this. It wants at least %d pieces, from a "
+				% Showroom.MIN_PIECES + "spread of counters, arranged well enough "
+				+ "to earn a star.", 460, UIKit.BAD))
+		elif Game.till() >= Game.till_cap():
+			_sheet_body.add_child(UIKit.wrapped_label(
+				"The till is full and has stopped. A floor is something to look in "
+				+ "on, not something to farm.", 460, UIKit.MUTED))
+
+	_divider()
+	_sheet_body.add_child(UIKit.wrapped_label(
+		"What it takes is what the room is worth times how well it reads times "
+		+ "how many counters it represents. A cheap floor arranged well beats an "
+		+ "expensive one thrown together, which is the only thing about this "
+		+ "worth getting good at.", 460, UIKit.MUTED))
+
+	var actions := HBoxContainer.new()
+	actions.alignment = BoxContainer.ALIGNMENT_END
+	_sheet_body.add_child(actions)
+	if Game.till() > 0:
+		var empty := UIKit.make_button("Empty the till  %s" % UIKit.money(Game.till()))
+		empty.pressed.connect(_empty_the_till)
+		actions.add_child(empty)
+	var go := UIKit.make_primary_button("Go in")
+	go.pressed.connect(func() -> void: showroom_entered.emit())
+	actions.add_child(go)
+
+
+func _empty_the_till() -> void:
+	var taken := Game.collect_till()
+	if taken <= 0:
+		Audio.play("deny")
+		return
+	Audio.play("sell")
+	toast_message("%s out of the till" % UIKit.money(taken), 2.2)
+	show_perks()
+
+
+## The till filling, on the same kind of bar the holdings use.
+func _showroom_bar(fraction: float) -> void:
+	var track := PanelContainer.new()
+	track.custom_minimum_size = Vector2(0, 10)
+	track.add_theme_stylebox_override("panel", UIKit.panel_box(Color(1, 1, 1, 0.10), 5))
+	var fill := ColorRect.new()
+	fill.color = UIKit.GOLD
+	fill.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	fill.custom_minimum_size = Vector2(0, 6)
+	var rest := Control.new()
+	rest.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	fill.size_flags_stretch_ratio = maxf(clampf(fraction, 0.0, 1.0), 0.001)
+	rest.size_flags_stretch_ratio = maxf(1.0 - clampf(fraction, 0.0, 1.0), 0.001)
+	var row := HBoxContainer.new()
+	row.add_child(fill)
+	row.add_child(rest)
+	track.add_child(row)
+	_sheet_body.add_child(track)
+
+
 # --------------------------------------------------------------- the trade
 
 ## What levelling up buys. Four lines, eight steps each, one point a level —
@@ -858,7 +960,10 @@ func show_perks() -> void:
 	# rest — so they share a sheet rather than a second button on the bar.
 	var tabs := HBoxContainer.new()
 	tabs.add_theme_constant_override("separation", 8)
-	for pair: Array in [["you", "You"], ["staff", "Staff"]]:
+	var tab_names: Array = [["you", "You"], ["staff", "Staff"]]
+	if Game.showroom_open():
+		tab_names.append(["floor", "Showroom"])
+	for pair: Array in tab_names:
 		var key := str(pair[0])
 		var button: Button = (UIKit.make_primary_button(str(pair[1]))
 			if _trade_tab == key else UIKit.make_button(str(pair[1])))
@@ -869,7 +974,9 @@ func show_perks() -> void:
 	tabs.add_child(UIKit.spacer())
 	_sheet_body.add_child(tabs)
 
-	if _trade_tab == "you":
+	if _trade_tab == "floor" and Game.showroom_open():
+		_showroom_tab()
+	elif _trade_tab == "you":
 		_sheet_body.add_child(UIKit.wrapped_label(
 			"Every level hands you one point, and a point buys the next step of one "
 			+ "line. There are more steps here than there are levels in a career, so "

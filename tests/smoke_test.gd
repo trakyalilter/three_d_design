@@ -63,6 +63,9 @@ func _ready() -> void:
 	print("=== the estate ===")
 	await _check_estate()
 
+	print("=== the showroom ===")
+	await _check_showroom()
+
 	print("=== catalogue ===")
 	_check_winding()
 	_check_catalogue()
@@ -845,6 +848,117 @@ func _check_staff() -> void:
 	print("staff           %d on the books at %d%% of a fee between them; "
 		% [roles.size(), int(round(payroll * 100.0))]
 		+ "joining costs %s at the cap" % UIKit.money(Staff.joining_fee(Game.MAX_LEVEL)))
+
+
+## The floor of your own. Every other room belongs to a client; this one keeps
+## what you stand in it and pays for as long as it is dressed, off the same
+## review that used to fire once at a hand-over and never again.
+func _check_showroom() -> void:
+	var main = get_tree().current_scene
+
+	# The arithmetic first, where it can be pinned down exactly.
+	_expect(Showroom.takings(3, 10000, 6, Showroom.MIN_PIECES - 1) == 0,
+		"a floor with almost nothing on it still traded")
+	_expect(Showroom.takings(0, 10000, 6, 20) == 0,
+		"a floor nobody would walk into still traded")
+	_expect(Showroom.takings(3, 10000, 6, 20) > Showroom.takings(2, 10000, 6, 20),
+		"arranging the floor better was worth nothing")
+	_expect(Showroom.takings(2, 10000, 6, 20) > Showroom.takings(2, 10000, 1, 20),
+		"a spread of counters was worth nothing")
+	_expect(Showroom.takings(2, 20000, 6, 20) > Showroom.takings(2, 10000, 6, 20),
+		"a dearer floor was worth nothing")
+	# A cheap floor arranged well has to beat a dear one thrown together, or the
+	# design is not the mechanic and the money is.
+	_expect(Showroom.takings(3, 12000, 6, 20) > Showroom.takings(1, 20000, 6, 20),
+		"an expensive floor thrown together beats a cheap one arranged well")
+
+	# No reset here: the career's finished houses are still wanted by the checks
+	# that come after this one, and it never touches the floor anyway.
+	Game.earn(90000)
+	_expect(Game.showroom_open(), "the showroom never opens")
+	_expect(not Game.showroom_dressed(), "a fresh career came with a floor already dressed")
+	_expect(Game.showroom_take == 0, "an empty floor takes something an hour")
+
+	# Stock for it, then the floor itself. This is a job's rules without a job:
+	# the furniture leaves the warehouse and nobody takes it away.
+	var kit := ["sofa", "coffee_table", "armchair", "bookshelf", "floor_lamp", "rug"]
+	for item_id in kit:
+		if not Game.buy_item(item_id, 1):
+			_failures.append("the showroom check could not stock %s" % item_id)
+			return
+	var warehouse := Game.total_stock()
+
+	main.enter_designer(Game.SHOWROOM)
+	await _settle()
+	var designer = main.designer
+	_expect(designer != null, "the showroom did not open")
+	if designer == null:
+		return
+	_expect(designer.showroom_mode(), "the showroom opened as something else")
+	_expect(not designer.job_mode(), "the showroom opened as a client's job")
+	_expect(designer.costs_stock(), "the showroom is furnished out of thin air")
+	_expect(not designer.ui._finish_button.visible,
+		"the showroom offered to hand itself over to somebody")
+	_expect(not designer.ui._brief_button.visible, "the showroom came with a brief")
+
+	for item_id in kit:
+		designer._on_place_item(item_id)
+	_expect(Game.total_stock() == warehouse - kit.size(),
+		"dressing the floor did not take the furniture out of the warehouse")
+	var rating: Dictionary = designer.showroom_rating()
+	_expect(int(rating["pieces"]) == kit.size(),
+		"the floor counted %d pieces of the %d standing on it"
+			% [rating["pieces"], kit.size()])
+	_expect(int(rating["value"]) > 0, "the floor is worth nothing with stock on it")
+	_expect(int(rating["shops"]) > 1, "six pieces came from one counter")
+
+	# A piece pulled back off the floor is in the warehouse again, the same as
+	# taking one out of a client's room.
+	designer._select(designer._items()[0])
+	designer._store_selected()
+	_expect(Game.total_stock() == warehouse - kit.size() + 1,
+		"a piece taken off the floor did not come back to the warehouse")
+	designer._on_place_item(kit[0])
+
+	main.enter_city()
+	await _settle()
+
+	# Closing up caches what the floor reads as, because the till goes on filling
+	# while the room is not built and there is nothing to measure then.
+	_expect(Game.showroom_dressed(), "leaving the floor did not save it")
+	_expect(Game.showroom_stars > 0, "a dressed floor was rated at nothing")
+	_expect(Game.showroom_take > 0, "a dressed floor takes nothing an hour")
+	_expect(Game.showroom_value > 0, "a dressed floor is worth nothing")
+	_expect(Game.till() == 0, "the till had money in it before any time passed")
+
+	# It fills on the wall clock, and stops at a trading day.
+	Game.clock_offset += Industry.HOUR * 3.0
+	Game.settle_showroom()
+	var after_three := Game.till()
+	_expect(after_three == Game.showroom_take * 3,
+		"three hours took %d, not the %d it should" % [after_three, Game.showroom_take * 3])
+	Game.clock_offset += Industry.HOUR * 24.0 * 7.0
+	Game.settle_showroom()
+	_expect(Game.till() == Game.till_cap(),
+		"a week on the floor stood at %d, not the %d the till holds"
+			% [Game.till(), Game.till_cap()])
+	_expect(Game.till_cap() == Showroom.till_cap(Game.showroom_take),
+		"the till holds something other than a trading day")
+
+	# And emptying it is money, once.
+	var purse := Game.money
+	var taken := Game.collect_till()
+	_expect(taken == Game.till_cap(), "the till paid out %d of the %d in it"
+		% [taken, Game.till_cap()])
+	_expect(Game.money == purse + taken, "emptying the till paid nothing")
+	_expect(Game.till() == 0, "the till still had money after it was emptied")
+	_expect(Game.collect_till() == 0, "the till paid out twice")
+
+	print("showroom        %s of stock reads %s across %d counters and takes %s "
+		% [UIKit.money(Game.showroom_value),
+		RoomReview.stars_text(Game.showroom_stars), Game.showroom_shops,
+		UIKit.money(Game.showroom_take)]
+		+ "an hour, %s a trading day" % UIKit.money(Game.till_cap()))
 
 
 func _check_estate() -> void:

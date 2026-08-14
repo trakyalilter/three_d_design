@@ -55,14 +55,28 @@ var _paint_target := ""
 var staged_build := false
 
 
+## Three modes, and two questions that separate them. `job_mode` is "somebody
+## briefed this and will take it away"; `costs_stock` is "the furniture in here
+## came out of the warehouse". A job is both, the showroom is only the second,
+## and free build is neither.
 func job_mode() -> bool:
-	return house_id != ""
+	return house_id != "" and house_id != Game.SHOWROOM
+
+
+## The floor of your own: bought out of stock like a job, but nobody's brief
+## and nobody takes it away.
+func showroom_mode() -> bool:
+	return house_id == Game.SHOWROOM
+
+
+func costs_stock() -> bool:
+	return job_mode() or showroom_mode()
 
 
 ## Called before the designer enters the tree. An empty id means free build.
 func setup(id: String) -> void:
 	house_id = id
-	job = Jobs.get_job(id) if id != "" else {}
+	job = Jobs.get_job(id) if id != "" and id != Game.SHOWROOM else {}
 
 
 func _ready() -> void:
@@ -119,19 +133,28 @@ func _shape_room() -> void:
 			room.configure_plan(job["rooms"], float(spec["h"]))
 		else:
 			room.configure(float(spec["w"]), float(spec["d"]), float(spec["h"]))
+	elif showroom_mode():
+		# A shop floor rather than a living room, and yours to resize.
+		room.configure(8.0, 6.0, 3.0)
 	else:
 		room.configure(6.0, 5.0, 2.6)
 
 
 ## Whatever was left here last time, or a starter set in free build.
 func _furnish_room() -> void:
-	var saved: Dictionary = Game.layout_for(house_id) if job_mode() else LayoutStore.load_autosave()
+	var saved: Dictionary = LayoutStore.load_autosave()
+	if job_mode():
+		saved = Game.layout_for(house_id)
+	elif showroom_mode():
+		saved = Game.showroom
 	if not saved.is_empty():
 		_restore(saved)
 	else:
 		room.set_floor_color(_floor_color)
 		room.set_wall_color(_wall_color)
-		if not job_mode():
+		# Free build alone gets a room to start from. A showroom seeded this way
+		# would be a dozen pieces of furniture nobody paid for.
+		if not costs_stock():
 			_seed_starter_room()
 
 
@@ -140,7 +163,7 @@ func _build_ui() -> void:
 	ui.name = "UI"
 	add_child(ui)
 	_connect_ui()
-	ui.configure(job)
+	ui.configure(job, showroom_mode())
 
 
 func _open_job() -> void:
@@ -160,6 +183,9 @@ func _open_job() -> void:
 
 	if job_mode():
 		ui.toast("%s — tap Brief to see what %s wants" % [job["name"], job["client"]], 4.0)
+	elif showroom_mode():
+		ui.toast("Your floor. Dress it out of your own stock — the better it "
+			+ "reads, the more it takes.", 4.0)
 	else:
 		ui.toast("Free build: everything is unlocked and nothing costs anything", 3.5)
 
@@ -543,7 +569,7 @@ func _pick_item(screen_position: Vector2) -> FurnitureItem:
 # ------------------------------------------------------------------ commands
 
 func _on_place_item(item_id: String) -> void:
-	if job_mode():
+	if costs_stock():
 		if not Game.is_item_unlocked(item_id):
 			Audio.play("deny")
 			ui.toast("That needs level %d" % Catalog.effective_unlock_level(item_id), 2.0)
@@ -568,7 +594,7 @@ func _on_place_item(item_id: String) -> void:
 	_select(item)
 	_after_change()
 	Audio.play("place")
-	if job_mode():
+	if costs_stock():
 		ui.toast("%s placed — %d left in stock" % [
 			Catalog.display_name(item_id), Game.stock_of(item_id)], 1.6)
 	else:
@@ -624,7 +650,7 @@ func _store_selected() -> void:
 	items_root.remove_child(doomed)
 	doomed.queue_free()
 	Audio.play("drop")
-	if job_mode():
+	if costs_stock():
 		Game.return_to_stock(item_id)
 		ui.toast("%s back in stock (%d)" % [label, Game.stock_of(item_id)], 1.6)
 	else:
@@ -637,7 +663,7 @@ func _duplicate_selected() -> void:
 	if selected == null:
 		return
 	var item_id := selected.item_id
-	if job_mode() and not Game.take_from_stock(item_id):
+	if costs_stock() and not Game.take_from_stock(item_id):
 		Audio.play("deny")
 		ui.toast("No more %s in stock" % Catalog.display_name(item_id), 2.2)
 		return
@@ -709,7 +735,7 @@ func _on_paint_target(room_id: String) -> void:
 
 ## Colours are bought once at the Colour House; using one costs nothing.
 func _may_paint(surface: String, color: Color) -> bool:
-	if not job_mode() or Game.owns_color(surface, color):
+	if not costs_stock() or Game.owns_color(surface, color):
 		return true
 	var entry := Game.paint_entry_for(surface, color)
 	var label := str(entry.get("name", "That colour"))
@@ -744,7 +770,7 @@ func _on_delete_layout(layout_name: String) -> void:
 
 func _on_new_requested() -> void:
 	_select(null)
-	if job_mode():
+	if costs_stock():
 		var returned := 0
 		for item in _items():
 			Game.return_to_stock(item.item_id)
@@ -803,6 +829,39 @@ func _on_finish() -> void:
 		get_tree().create_timer(1.1).timeout.connect(func() -> void: Audio.play("levelup"))
 	Game.store_layout(house_id, _serialize())
 	ui.show_completion(job, result, review, func() -> void: job_finished.emit(house_id))
+
+
+## Closing up the showroom. The floor is measured on the way out, because this
+## is the only moment it exists to be measured: the till goes on filling while
+## the room is not built, off the rating this leaves behind.
+func _close_up() -> void:
+	var rating := showroom_rating()
+	Game.close_up(_serialize(), int(rating["stars"]), int(rating["value"]),
+		int(rating["shops"]), int(rating["pieces"]))
+
+
+## What the floor is worth right now, so the bar can say so while you dress it.
+##
+## The review is run with no budget, because there is no client to have one — a
+## showroom is judged on whether it is a room somebody would walk into, not on
+## whether it came in under somebody else's number.
+func showroom_rating() -> Dictionary:
+	var value := installed_value()
+	var counters: Dictionary = {}
+	var pieces := 0
+	for item in _items():
+		counters[Catalog.shop_of(item.item_id)] = true
+		pieces += 1
+	var review := RoomReview.score(_review_entries(), room.area(), value, 0)
+	var stars: int = int(review["stars"]) if pieces > 0 else 0
+	return {
+		"stars": stars,
+		"value": value,
+		"shops": counters.size(),
+		"pieces": pieces,
+		"take": Showroom.takings(stars, value, counters.size(), pieces),
+		"notes": review.get("notes", []),
+	}
 
 
 ## What the reviewer needs to know about each piece standing in the room. A
@@ -1010,6 +1069,9 @@ func _context() -> Dictionary:
 
 
 func _evaluate() -> void:
+	if showroom_mode():
+		ui.refresh_takings(showroom_rating())
+		return
 	if not job_mode():
 		return
 	ui.set_requirements(Jobs.evaluate(house_id, _context()))
@@ -1049,7 +1111,7 @@ func _step_history(state: Dictionary, label: String) -> void:
 	_restore(state)
 	var after := _item_counts()
 
-	if job_mode():
+	if costs_stock():
 		var ids: Dictionary = {}
 		for id: String in before:
 			ids[id] = true
@@ -1084,6 +1146,8 @@ func _refresh_stats() -> void:
 func _persist() -> void:
 	if job_mode():
 		Game.store_layout(house_id, _serialize())
+	elif showroom_mode():
+		_close_up()
 	else:
 		LayoutStore.save_autosave(_serialize())
 

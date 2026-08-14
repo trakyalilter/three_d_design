@@ -631,6 +631,35 @@ Played with all four on the books and points spread evenly across the perk tree,
 career ends on about $154,000 — against $255,000 for the same run with the tree spent and
 the books empty. The convenience is real and so is the bill.
 
+### Your showroom
+
+The third tab, from level 10, is a room of your own. Every other room in the game belongs to
+somebody else — you fit it out, hand it over, and the furniture goes with it. This one keeps
+whatever you stand in it and pays for as long as it is dressed.
+
+**Go in** opens the designer on a floor with no brief and nobody to hand it to. It runs by a
+job's rules rather than the sandbox's: the tray greys out what you do not own, and a piece
+you place leaves the warehouse. Pull it back off the floor and it returns, so nothing is
+ever lost — but while it is standing there it is not available for a client, and that is the
+whole cost of the feature. The room is yours to resize, which no client's room is.
+
+**What it takes an hour is the room's own review.** Up to here the six-point verdict fired
+once at a hand-over and was never heard from again; here it is the multiplier on everything
+the floor earns, every hour, until you change it:
+
+    takings = what is standing there × 1.2% × how well it reads × how many counters
+
+Stars are worth ×0.6, ×1.0 and ×1.5, and the spread runs from ×0.8 for a floor out of one
+shop to ×1.3 for six. A floor of fewer than four pieces, or one nobody would walk into,
+takes nothing at all. **A cheap floor arranged well beats an expensive one thrown
+together** — which is the only thing about this worth getting good at, and the reason it is
+the room and not the receipt that pays.
+
+The bar along the top of the designer shows it moving as you work: what is on the floor,
+what it reads as, and what that is an hour. The till fills on the same wall clock as the
+estate and stops after a trading day, so a showroom is something to look in on rather than
+something to farm. **Trade** in the top bar shows what is in it.
+
 **Free Build** on the map opens the old sandbox: no client, no stock to worry about,
 everything unlocked, with its own save and load.
 
@@ -726,13 +755,16 @@ scripts/
                          steps each, and what a step is worth
     staff.gd             Autoload. The four people you can put on the books,
                          what each takes out of a fee and what they do for it
+    showroom.gd          What a floor of your own takes an hour: the review, the
+                         spread of counters and what is standing on it
     jobs.gd              Autoload. The six quarters and the 56 houses in them,
                          the requirement evaluator, the shopping list a brief
                          needs, and the generator for repeat contracts
     game_state.gd        Autoload. Money, XP, levels, the warehouse, the
                          quarters bought, the estate, the yard, the trade store,
                          the workshop bench, the perks taken, who is on the
-                         books and the saved profile
+                         books, the showroom and its till, and the saved
+                         profile
     industry.gd          Autoload. The eight holdings, the four works and the
                          workshop: what everything yields, what it costs, and
                          which good a piece of furniture wants
@@ -768,7 +800,8 @@ scripts/
                          tapped
   design/
     designer.gd          The room: gestures, stock, wall snap, stacking,
-                         overlap tests, hand-over
+                         overlap tests, hand-over. Runs a client's job, the
+                         player's own showroom floor or the free-build sandbox
     design_history.gd    Undo and redo, by snapshot
     design_ui.gd         Tray, brief checklist, dialogs
   world/
@@ -910,7 +943,11 @@ out of nothing else, that the runner buys the whole of a brief's list at the cou
 prices and cannot shop on an empty account, and that each of the other three has already
 done their chore by the time you look — the career itself is played with the points spent
 four lines abreast and everybody on the books, so the whole city is balanced against
-features nobody leaves switched off — that every
+features nobody leaves switched off — that the showroom opens as neither a job nor the
+sandbox, takes its furniture out of the warehouse and gives it back, comes with no starter
+room of free furniture, and that a cheap floor arranged well really does out-earn an
+expensive one thrown together, that its till fills on the clock, stops after a trading day
+and pays out once, that every
 piece in the catalogue is worth making and worth about as much to make as every other piece
 is — material between a third and three quarters of the shelf price for all 167 of them —
 and that trade material bought at the merchant goes into a piece when it is started rather
