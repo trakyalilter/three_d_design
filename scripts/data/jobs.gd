@@ -2150,13 +2150,30 @@ func _cheapest_in(category: String, house_id: String) -> String:
 	return best
 
 
+## What is already standing in a house, as item id -> count. The briefing sheet
+## on the map and the list carried into a shop both start here, so neither can
+## ask the player to buy a piece that is already in the room.
+func placed_counts(house_id: String) -> Dictionary:
+	var counts: Dictionary = {}
+	for entry: Variant in Game.layout_for(house_id).get("items", []):
+		if typeof(entry) != TYPE_DICTIONARY:
+			continue
+		var id := str((entry as Dictionary).get("id", ""))
+		counts[id] = int(counts.get(id, 0)) + 1
+	return counts
+
+
 ## What still has to be bought for a job: the brief's pieces, minus whatever is
 ## already standing in the room and whatever is sitting in the warehouse.
 ## Returns item id -> count.
 func shopping_list(house_id: String, placed: Dictionary = {}) -> Dictionary:
 	var missing: Dictionary = {}
-	for item_id: String in _needed_pieces(house_id):
-		var need := int(_needed_pieces(house_id)[item_id])
+	# The plan behind this is the most expensive thing in the file and it is the
+	# same every time, so it is worked out once — this is now asked for from a
+	# shop floor as well as from the map.
+	var wanted := _needed_pieces(house_id)
+	for item_id: String in wanted:
+		var need := int(wanted[item_id])
 		var have := int(placed.get(item_id, 0)) + Game.stock_of(item_id)
 		if need > have:
 			missing[item_id] = need - have

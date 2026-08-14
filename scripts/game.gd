@@ -89,6 +89,9 @@ func enter_city(focus_house: String = "") -> void:
 	city.rig.snap_to_target()
 
 	city.house_picked.connect(func(house_id: String) -> void:
+		# Tapping a house is the player saying which job they are on, so it is
+		# also the job the shops will show a brief for.
+		_last_house = house_id
 		city_ui.show_house(house_id)
 		city.focus_on(house_id))
 	city.shop_picked.connect(func(shop_id: String) -> void: enter_shop(shop_id))
@@ -163,6 +166,7 @@ func enter_shop(shop_id: String) -> void:
 	var screen: LoadingScreen = await _cover(kicker, str(counter["name"]), "Walking over")
 
 	var from_house := _last_house
+	var brief_house := shopping_for()
 	shop_ui = ShopUI.new()
 	shop_ui.name = "ShopUI"
 	add_child(shop_ui)
@@ -170,12 +174,12 @@ func enter_shop(shop_id: String) -> void:
 	shop = ShopFloor.new()
 	shop.name = "Shop"
 	shop.staged_build = true
-	shop.setup(shop_id)
+	shop.setup(shop_id, brief_house)
 	add_child(shop)
 	shop.ui_probe = shop_ui.is_point_over_ui
 
 	await _run_stages(screen, shop.build_stages())
-	shop_ui.configure(counter)
+	shop_ui.configure(counter, brief_house)
 
 	shop.picked.connect(shop_ui.show_item)
 	shop.picked_paint.connect(shop_ui.show_paint)
@@ -188,8 +192,38 @@ func enter_shop(shop_id: String) -> void:
 	shop_ui.buy_paint_requested.connect(_buy_paint_in_shop)
 	shop_ui.buy_supply_requested.connect(_buy_supply_in_shop)
 	shop_ui.sell_supply_requested.connect(_sell_supply_in_shop)
+	shop_ui.walk_to_requested.connect(_walk_to_in_shop)
+	shop_ui.walk_to_paint_requested.connect(_walk_to_paint_in_shop)
 
 	await _uncover(screen)
+
+
+## The job the shops should be showing a brief for: the house the player last
+## had open on the map or last worked in, so long as there is still work to do
+## in it. A handed-over house has nothing left to buy for.
+func shopping_for() -> String:
+	if _last_house == "" or _last_house == Game.SHOWROOM:
+		return ""
+	if Game.is_job_done(_last_house) and not Jobs.has_repeat_contract(_last_house):
+		return ""
+	var job := Jobs.get_job(_last_house)
+	if job.is_empty() or Game.level < int(job.get("level", 1)):
+		return ""
+	return _last_house
+
+
+## A line of the brief was tapped in the shop: show the player the piece it
+## means, standing on this floor, with its card up ready to buy.
+func _walk_to_in_shop(item_id: String) -> void:
+	if shop == null or not shop.walk_to(item_id):
+		return
+	shop_ui.show_item(item_id)
+
+
+func _walk_to_paint_in_shop(surface: String, entry: Dictionary) -> void:
+	if shop == null or not shop.walk_to_paint(surface, str(entry["name"])):
+		return
+	shop_ui.show_paint(surface, entry)
 
 
 func _buy_in_shop(item_id: String) -> void:
@@ -458,7 +492,10 @@ func _notification(what: int) -> void:
 			if designer != null:
 				return
 			if shop != null:
-				enter_city(_last_house)
+				if shop_ui.is_brief_open():
+					shop_ui.close_brief()
+				else:
+					enter_city(_last_house)
 				return
 			if estate != null:
 				if estate_ui.is_sheet_open():

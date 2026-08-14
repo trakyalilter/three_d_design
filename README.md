@@ -225,6 +225,27 @@ the card gives the price, how much of it is in your store and buttons for one, t
 That material is not for a room; it is for the workshop out of town, which is where it turns
 into furniture. Like everything else, it sells back for exactly what it cost.
 
+**The brief comes shopping with you.** Reading it used to mean driving back to the map,
+tapping the house and driving in again, which is a long walk for one line of text. Tap a
+house and every shop you then walk into carries that client's brief down the left-hand
+side: their own words, what they like, and the list of what is still to buy.
+
+![The brief carried into Little Details: the client's words, what to buy here, and what is left elsewhere](docs/screenshot-shop-brief.png)
+
+The list is split where it matters. Whatever this shop sells is at the top of it, and each
+of those lines is a button — tap it and the camera walks you over to the piece it means,
+with its card already up, so buying still happens on the piece rather than in a list.
+Everything the shop does not sell is underneath, under the name of the counter that does,
+so you know whether this is the last stop or the first of four. Both halves are priced, and
+the button in the top bar says how many of the pieces on the list are standing on this
+floor. The panel opens by itself when there is at least one — a shop with nothing on the
+list in it is a shop to walk out of.
+
+The floor says it too. A piece the client is still short of gets a gold ticket with **On
+the brief** written over its price, and a count when they want more than one. Buy it and
+the ticket goes back to being an ordinary ticket, so a round can be walked and looked at
+rather than read.
+
 Anything you own can be sold straight back at the price you paid, either off the shop floor
 or from **Stock** in the top bar.
 
@@ -806,8 +827,10 @@ scripts/
   shop/
     shop_floor.gd        The inside of a shop: fittings welded into a batch,
                          the stock standing on the floor as real pieces, the
-                         tins for the Colour House and the pallets for the yard
-    shop_ui.gd           The wallet, and the card for whatever was tapped
+                         tins for the Colour House and the pallets for the yard,
+                         and a gold ticket on anything the brief still wants
+    shop_ui.gd           The wallet, the card for whatever was tapped, and the
+                         client's brief and shopping list carried in from the map
   city/
     city_view.gd         The six procedural quarters, their house archetypes,
                          planting, pins, hoardings and pick volumes
@@ -994,7 +1017,11 @@ time behind whatever is already on it, that the
 app opens on the title screen with its buttons wired to the right places, that both
 changes of screen are covered end to end by a loading screen whose bar runs from one end to
 the other, that a brief lists every missing piece under the counter that sells it without
-offering to buy any of it for you, that no piece is in the catalogue twice, that no house
+offering to buy any of it for you, that the brief the player is on is carried into every
+shop — the client's own words, the list split into what that floor sells and what it does
+not, a gold ticket on each piece it wants and no others, a tapped line putting up that
+piece's card, and nothing at all in a shop entered with no job in mind — that a piece
+bought there comes off the list, that no piece is in the catalogue twice, that no house
 opens before the stock its brief asks for does or before the quarter it stands in, and that
 the career ends at the level cap without having reached it before the last quarter opened, and that every cue the game asks for by name is one the sound bank actually
 builds, none of them clipping and none more than half again as loud as the quietest. It

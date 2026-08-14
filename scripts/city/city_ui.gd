@@ -409,22 +409,10 @@ func _take_repeat(house_id: String) -> void:
 	toast_message("%s has a new job for you" % contract["client"], 2.4)
 
 
-## What is already standing in a house, as item id -> count.
-static func _placed_counts(house_id: String) -> Dictionary:
-	var counts: Dictionary = {}
-	var layout := Game.layout_for(house_id)
-	for entry: Variant in layout.get("items", []):
-		if typeof(entry) != TYPE_DICTIONARY:
-			continue
-		var id := str((entry as Dictionary).get("id", ""))
-		counts[id] = int(counts.get(id, 0)) + 1
-	return counts
-
-
 ## The gap between what the brief needs and what the player already has. It is
 ## a list to shop from, not a basket: every piece is bought at its own counter.
 func _build_shopping_list(house_id: String) -> void:
-	var missing := Jobs.shopping_list(house_id, _placed_counts(house_id))
+	var missing := Jobs.shopping_list(house_id, Jobs.placed_counts(house_id))
 	var paints := Jobs.missing_paints(house_id)
 	_divider()
 
@@ -494,7 +482,7 @@ func _build_shopping_list(house_id: String) -> void:
 
 
 func _send_the_runner(house_id: String) -> void:
-	var fetched := Game.send_the_runner(house_id, _placed_counts(house_id))
+	var fetched := Game.send_the_runner(house_id, Jobs.placed_counts(house_id))
 	if fetched < 0:
 		Audio.play("deny")
 		toast_message("Rosa came back empty — the money is not there")

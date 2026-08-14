@@ -47,6 +47,10 @@ const HEIGHT := 3.4
 var depth := MIN_DEPTH
 
 var shop: Dictionary = {}
+## The job the player is shopping for, if any. The floor uses it for one thing
+## only: writing "On the brief" on the tickets of the pieces the client is still
+## short of.
+var house_id := ""
 var rig: CameraRig
 var marker: SelectionMarker
 
@@ -81,8 +85,9 @@ var ui_probe: Callable = Callable()
 var staged_build := false
 
 
-func setup(shop_id: String) -> void:
+func setup(shop_id: String, job_house_id: String = "") -> void:
 	shop = Catalog.get_shop(shop_id)
+	house_id = job_house_id
 
 
 func _ready() -> void:
@@ -485,6 +490,12 @@ func _stock_the_floor() -> void:
 		_stock_yard()
 		return
 
+	# What the client is still short of, so the pieces the player walked in for
+	# can say so on their own tickets rather than only in the panel.
+	var wanted: Dictionary = {}
+	if house_id != "" and not Jobs.get_job(house_id).is_empty():
+		wanted = Jobs.shopping_list(house_id, Jobs.placed_counts(house_id))
+
 	for spot: Dictionary in _spots:
 		var id := str(spot["id"])
 		var available := Game.is_item_unlocked(id)
@@ -498,7 +509,8 @@ func _stock_the_floor() -> void:
 
 		_ticket(at + Vector3(0, 0, float(spot["front"])), Catalog.height(id),
 			Catalog.display_name(id),
-			UIKit.money(Game.buy_price(id)) if available else _lock_line(id), available)
+			UIKit.money(Game.buy_price(id)) if available else _lock_line(id), available,
+			int(wanted.get(id, 0)))
 
 
 ## What a locked piece is waiting for: a level, or a quarter of the city.
@@ -512,14 +524,23 @@ func _lock_line(id: String) -> String:
 ## The card in front of a piece. It stands on a little easel rather than lying
 ## flat: a card on the floor is read at a glancing angle and disappears behind
 ## whatever is in front of it, and this one is turned up towards the camera.
-func _ticket(at: Vector3, tall: float, title: String, price: String, available: bool) -> void:
+##
+## `wanted` is how many of this piece the client's brief is still short of. A
+## card with a number on it is written up in the shop's own hand — gold paper
+## and a line saying so — so the round can be done by walking the floor and
+## looking, without the list open at all.
+func _ticket(at: Vector3, tall: float, title: String, price: String,
+		available: bool, wanted: int = 0) -> void:
 	var card := Node3D.new()
 	card.position = at
 	# The floor it takes up, so a layout check can see it.
 	card.set_meta("span", Vector2(CARD_SIZE.x, TICKET_DEPTH))
+	card.set_meta("wanted", wanted)
 	_tickets.add_child(card)
 
 	var paper := Color(0.96, 0.95, 0.92) if available else Color(0.74, 0.73, 0.72)
+	if wanted > 0 and available:
+		paper = Color(0.99, 0.88, 0.58)
 
 	# How high the card has to sit to be read over the piece it belongs to. A
 	# card on the floor works for a footstool and disappears behind a wardrobe,
@@ -556,11 +577,18 @@ func _ticket(at: Vector3, tall: float, title: String, price: String, available: 
 	# clear of the plate itself.
 	card.set_meta("read_from", Vector3(0, lift + 0.05, 0.06))
 
+	# A card on the brief carries a banner over the name and price. The plate
+	# grows upwards to hold it, so the name, the price and the bottom edge a
+	# layout check reads are all left exactly where they were.
+	var marked := wanted > 0 and available
+	var extra := 0.22 if marked else 0.0
+
 	var plate := MeshInstance3D.new()
 	var box := BoxMesh.new()
-	box.size = Vector3(CARD_SIZE.x, CARD_SIZE.y, 0.02)
+	box.size = Vector3(CARD_SIZE.x, CARD_SIZE.y + extra, 0.02)
 	plate.mesh = box
 	plate.material_override = _matte(paper)
+	plate.position = Vector3(0, extra * 0.5, 0)
 	plate.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	face.add_child(plate)
 
@@ -573,6 +601,19 @@ func _ticket(at: Vector3, tall: float, title: String, price: String, available: 
 	text.outline_size = 0
 	text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	face.add_child(text)
+
+	if marked:
+		var banner := Label3D.new()
+		banner.text = "On the brief" if wanted == 1 else "On the brief × %d" % wanted
+		# Small enough that the longest of them — a count as well as the words —
+		# still sits inside the card rather than hanging off both ends of it.
+		banner.font_size = 30
+		banner.pixel_size = 0.0037
+		banner.position = Vector3(0, CARD_SIZE.y * 0.5 + extra * 0.42, 0.02)
+		banner.modulate = Color(0.44, 0.26, 0.06)
+		banner.outline_size = 0
+		banner.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		face.add_child(banner)
 
 
 static func _matte(colour: Color) -> StandardMaterial3D:
@@ -914,6 +955,36 @@ func reselect_paint(surface: String, name: String) -> void:
 				and str((holder.get_meta("paint") as Dictionary)["name"]) == name:
 			_select_tin(holder)
 			return
+
+
+## Takes the player over to one piece, for a line of the brief they tapped in
+## the panel: the list says a bookshelf, this is the bookshelf, standing here.
+## The rig eases rather than cutting, so the shop stays a place you are walking
+## around rather than a set of views.
+func walk_to(item_id: String) -> bool:
+	for child in _stock.get_children():
+		var piece := child as FurnitureItem
+		if piece == null or piece.item_id != item_id:
+			continue
+		select(piece)
+		rig.focus = Vector3(piece.global_position.x, 0.7, piece.global_position.z)
+		rig.distance = clampf(rig.distance, rig.min_distance, 8.0)
+		return true
+	return false
+
+
+func walk_to_paint(surface: String, name: String) -> bool:
+	for child in _tins.get_children():
+		var holder := child as Node3D
+		if holder == null or str(holder.get_meta("surface")) != surface:
+			continue
+		if str((holder.get_meta("paint") as Dictionary)["name"]) != name:
+			continue
+		_select_tin(holder)
+		rig.focus = Vector3(holder.position.x, 0.7, holder.position.z)
+		rig.distance = clampf(rig.distance, rig.min_distance, 8.0)
+		return true
+	return false
 
 
 ## Puts the stock out again after a purchase, so the tickets and the greying

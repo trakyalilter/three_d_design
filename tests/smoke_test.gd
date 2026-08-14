@@ -29,6 +29,7 @@ func _ready() -> void:
 
 	print("=== the shops ===")
 	await _check_shop()
+	await _check_shop_brief()
 
 	print("=== sound ===")
 	_check_sound()
@@ -226,9 +227,14 @@ func _check_brief_sheet() -> void:
 		wanted.size(), "" if wanted.size() == 1 else "s", ", ".join(actions)])
 
 
+## Everything a panel says, however it is drawn. A line the player can act on is
+## a button rather than a label — the shopping list in a shop is half of each —
+## and the checks below care what the panel says, not which it used.
 static func _collect_text(node: Node, into: Array[String]) -> void:
 	if node is Label:
 		into.append((node as Label).text)
+	elif node is Button:
+		into.append((node as Button).text)
 	for child in node.get_children():
 		_collect_text(child, into)
 
@@ -366,6 +372,101 @@ func _check_shop() -> void:
 	_expect(main.city != null and main.shop == null, "leaving the shop did not land on the map")
 	print("shops           %d pieces on the floor, priced and pickable; %d tins of paint"
 		% [expected, tins])
+
+
+## The brief goes shopping. Walking out to the map to read what the room still
+## needs and walking back in was the longest thing in the game, so the panel on
+## the left of a shop carries the client's words and the list — and the pieces
+## on the list say so on their own tickets.
+func _check_shop_brief() -> void:
+	var main := get_tree().current_scene
+
+	var house_id := str(Jobs.unlocked()[0]["id"])
+	var missing := Jobs.shopping_list(house_id, Jobs.placed_counts(house_id))
+	var item_id := ""
+	for id: String in missing:
+		item_id = id
+		break
+	if item_id == "":
+		_failures.append("the first brief needed nothing, so the shop panel checks nothing")
+		return
+	var shop_id := Catalog.shop_of(item_id)
+
+	# Tapping the house is the player saying which job they are on; the shops
+	# then show that brief. Coming in off the map with nothing in mind shows
+	# none, which is checked further down.
+	main.enter_city(house_id)
+	await _settle()
+	main.enter_shop(shop_id)
+	await _settle()
+	if main.shop == null or main.shop_ui == null:
+		_failures.append("%s did not open with a brief to carry" % shop_id)
+		return
+
+	_expect(main.shop_ui.is_brief_open(),
+		"the brief stayed shut in a shop that sells what it needs")
+
+	var labels: Array[String] = []
+	for row: Node in main.shop_ui._brief_body.get_children():
+		_collect_text(row, labels)
+	var job := Jobs.get_job(house_id)
+	_expect(labels.has("“%s”" % job["brief"]), "the shop did not give the client's own words")
+
+	# Everything the shop sells is at the top of the list, everything it does not
+	# is underneath it, and no piece is on the list twice.
+	var here := 0
+	var elsewhere := 0
+	for id: String in missing:
+		var line := "%d × %s" % [int(missing[id]), Catalog.display_name(id)]
+		if Catalog.shop_of(id) == shop_id:
+			here += 1
+			_expect(labels.has(line), "%s is on the brief but not on this shop's half of the list" % id)
+		else:
+			elsewhere += 1
+			_expect(labels.has("    " + line), "%s was left off the rest of the round" % id)
+	_expect(here > 0, "the shop chosen for this check sells nothing on the list")
+	_expect(labels.has("On this floor — tap to be shown it"),
+		"the list did not separate what is sold here from what is not")
+
+	# The tickets on the floor say it too, so the round can be walked rather than
+	# read. One card per piece the client is short of, and no others.
+	var marked := 0
+	for card: Node in main.shop.get_node("Tickets").get_children():
+		if card.has_meta("wanted") and int(card.get_meta("wanted")) > 0:
+			marked += 1
+	_expect(marked == here,
+		"%d ticket%s marked for %d piece%s on the brief" % [
+			marked, "" if marked == 1 else "s", here, "" if here == 1 else "s"])
+
+	# Tapping a line takes the player to the piece it means and puts its card up,
+	# because buying still happens on the piece rather than in the list.
+	main.shop_ui.walk_to_requested.emit(item_id)
+	await get_tree().process_frame
+	_expect(main.shop_ui._shown_item == item_id,
+		"tapping the list did not put up the card for %s" % item_id)
+
+	# Buying it crosses it off both the list and the ticket.
+	var was := int(missing[item_id])
+	main.shop_ui.buy_requested.emit(item_id)
+	await get_tree().process_frame
+	var left := Jobs.shopping_list(house_id, Jobs.placed_counts(house_id))
+	_expect(int(left.get(item_id, 0)) == was - 1,
+		"buying %s did not come off the brief's list" % item_id)
+	Game.sell_item(item_id, 1)
+
+	# A shop entered with no job in mind is just a shop.
+	main.enter_city()
+	await _settle()
+	main.enter_shop(shop_id)
+	await _settle()
+	_expect(not main.shop_ui.is_brief_open(),
+		"a shop opened a brief for a job nobody had picked")
+
+	main.enter_city()
+	await _settle()
+	print("brief in shop   %s: %d line%s on this floor, %d elsewhere, %d ticket%s marked" % [
+		Catalog.shop_name(shop_id), here, "" if here == 1 else "s", elsewhere,
+		marked, "" if marked == 1 else "s"])
 
 
 ## The ground every piece and every card covers, in one shop. Two of them
