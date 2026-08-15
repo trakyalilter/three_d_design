@@ -268,6 +268,8 @@ func _ready() -> void:
 	_build_second_wave()
 	_build_hanami()
 	_build_hollow()
+	# Last, because it needs every piece and the shop it is sold in to exist.
+	_apply_palettes()
 
 
 func _build() -> void:
@@ -1347,6 +1349,44 @@ func default_tint(id: String) -> Color:
 	return _items.get(id, {}).get("tint", Color.WHITE)
 
 
+## The colours a quarter paints in: the city's three, and its own if it has one.
+func palette_of(district_id: String) -> Array:
+	var out: Array = CORE_PALETTE.duplicate()
+	out.append_array(DISTRICT_ACCENT.get(district_id, []))
+	return out
+
+
+## Puts every piece into one of the colours of the quarter that sells it.
+##
+## Run once, over the finished catalogue, so everything downstream — the shop
+## floor, the thumbnails, a placed piece, the review — reads a plain value and
+## the scheme costs nothing to look up.
+##
+## The colour a piece was authored in still decides which family it lands in and
+## roughly how dark it sits within it, so a near-black television stays the dark
+## end of slate and a pale crib stays the light end of chalk. What it no longer
+## decides is its hue, which is the part that was making every room a paint
+## chart.
+func _apply_palettes() -> void:
+	for id: String in _order:
+		var was: Color = _items[id].get("tint", Color.WHITE)
+		var palette := palette_of(district_of(id))
+		var family: Color = palette[0]
+		var nearest := INF
+		for candidate: Color in palette:
+			var d := Vector3(was.r - candidate.r, was.g - candidate.g, was.b - candidate.b)
+			if d.length_squared() < nearest:
+				nearest = d.length_squared()
+				family = candidate
+		# A quarter of the way back towards the shade it was authored in, which
+		# keeps a piece recognisably light or dark without leaving its bucket.
+		var shade: float = clampf((was.v - family.v) * 0.25, -SHADE_REACH, SHADE_REACH)
+		_items[id]["tint"] = Color(
+			clampf(family.r + shade, 0.0, 1.0),
+			clampf(family.g + shade, 0.0, 1.0),
+			clampf(family.b + shade, 0.0, 1.0))
+
+
 ## Height of this piece's usable top, or 0 when nothing can be put on it.
 func surface_height(id: String) -> float:
 	return float(_items.get(id, {}).get("surface", 0.0))
@@ -1717,6 +1757,48 @@ const STYLES := {
 }
 
 const PLAIN := "plain"
+
+# ------------------------------------------------------------ the city's colours
+
+## What a quarter is allowed to be painted in.
+##
+## Every piece was given its own plausible colour and nothing ever asked whether
+## ten of them in a room agreed. They did not: a room the planner builds spans
+## seven to eleven distinct colours against a review that allows four, so the
+## line about a palette went unsatisfied in 93% of a career and no amount of
+## careful shopping could pass it. Coarser buckets did not help — 84% still
+## failed at a third of the resolution — because the colours are genuinely
+## spread across the spectrum rather than clustered.
+##
+## So a quarter has a scheme, the way it already has a school. Three families
+## are shared by the whole city, and each quarter adds one of its own. Buying a
+## room out of one quarter therefore spans four colours at the most, which is
+## exactly what the review allows, and buying it out of three does not — which
+## is the same lesson the school line already teaches, said twice.
+##
+## Maple gets no colour of its own. It is the plain school, it sits happily next
+## to anything, and leaving it on the shared three is what keeps a room of its
+## stock plus one other quarter's inside the limit.
+##
+## Every channel is a multiple of a sixth. The review buckets colour by sixths,
+## so a family sits in the middle of its bucket and the shade below can wander
+## either side of it without falling into the next one.
+const CORE_PALETTE := [
+	Color(0.667, 0.500, 0.333),  # oak
+	Color(0.333, 0.333, 0.333),  # slate
+	Color(0.833, 0.833, 0.833),  # chalk
+]
+const DISTRICT_ACCENT := {
+	"maple": [],
+	"riverside": [Color(0.833, 0.667, 0.500)],   # rope and canvas
+	"hillside": [Color(0.333, 0.500, 0.333)],    # garden green
+	"skyline": [Color(0.167, 0.167, 0.167)],     # ink
+	"hanami": [Color(0.833, 0.833, 0.667)],      # straw
+	"hollow": [Color(0.333, 0.167, 0.333)],      # plum
+}
+## How far a piece may sit from its family and stay in the same bucket. A sixth
+## is 0.167 wide, so anything under half of that is safe from either side.
+const SHADE_REACH := 0.07
 
 ## A quarter's own look. Anything sold there is of that school.
 const STYLE_BY_DISTRICT := {

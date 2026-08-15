@@ -35,7 +35,7 @@ var _failures: Array[String] = []
 const CRITERIA := [
 	{"name": "nothing overlaps", "ceiling": 0},
 	{"name": "big pieces on walls", "ceiling": 84},
-	{"name": "one palette", "ceiling": 97},
+	{"name": "one palette", "ceiling": 5},
 	{"name": "room to move", "ceiling": 16},
 	{"name": "one school", "ceiling": 22},
 	{"name": "on budget", "ceiling": 0},
@@ -112,6 +112,7 @@ func _ready() -> void:
 	print("=== catalogue ===")
 	_check_winding()
 	_check_catalogue()
+	_check_palettes()
 
 	print("=== floor plans ===")
 	await _check_floor_plan()
@@ -431,6 +432,58 @@ func _check_profile() -> void:
 	_expect(not FileAccess.file_exists(Game.PROFILE_SPARE),
 		"wiping the career left the old one in the spare, where it could come back")
 	print("save            survives a kill mid-write; falls back to the save before it")
+
+
+## Every piece is painted in one of the colours of the quarter that sells it.
+##
+## The point of the schemes is arithmetic: if a quarter spans four families and
+## the review allows four, a room bought out of one quarter passes and a room
+## bought out of three does not. That only holds while every piece really does
+## land in a family's own bucket, which a stray authored colour or a family
+## moved off the sixths would quietly break — and the only thing that would show
+## it is the palette line drifting back up months later.
+func _check_palettes() -> void:
+	var strays := 0
+	var worst := ""
+	for district: Dictionary in Jobs.districts():
+		var district_id := str(district["id"])
+		var buckets: Dictionary = {}
+		for colour: Color in Catalog.palette_of(district_id):
+			buckets[_tone_key(colour)] = true
+		# A family sitting on a bucket edge would let its own shades fall either
+		# side of it, and the quarter would span more colours than it has.
+		_expect(buckets.size() == Catalog.palette_of(district_id).size(),
+			"%s has two colours in one bucket, so it is narrower than it looks" % district_id)
+
+		var spanned: Dictionary = {}
+		for shop: Dictionary in Catalog.shops_in(district_id):
+			for id: String in Catalog.shop_stock(str(shop["id"])):
+				var key := _tone_key(Catalog.default_tint(id))
+				spanned[key] = true
+				if not buckets.has(key):
+					strays += 1
+					worst = "%s in %s" % [id, district_id]
+		_expect(spanned.size() <= buckets.size(),
+			"%s spans %d colours for a scheme of %d"
+				% [district_id, spanned.size(), buckets.size()])
+	_expect(strays == 0,
+		"%d piece%s painted outside the scheme of the quarter that sells it, e.g. %s"
+			% [strays, "" if strays == 1 else "s", worst])
+
+	# Four is what the review allows, so a quarter may not want more than that.
+	for district: Dictionary in Jobs.districts():
+		var size := Catalog.palette_of(str(district["id"])).size()
+		_expect(size <= RoomReview.PALETTE_LIMIT,
+			"%s paints in %d colours against a review that allows %d"
+				% [district["id"], size, RoomReview.PALETTE_LIMIT])
+
+	print("colour          %d shared and one a quarter; every piece inside its own scheme"
+		% Catalog.CORE_PALETTE.size())
+
+
+## The same bucket the review sorts colour into.
+static func _tone_key(c: Color) -> String:
+	return "%d,%d,%d" % [roundi(c.r * 6.0), roundi(c.g * 6.0), roundi(c.b * 6.0)]
 
 
 # ------------------------------------------------- what the client noticed
