@@ -1001,7 +1001,12 @@ survives a save and reload, that every catalogue entry is priced, stocked and
 physically sane, that wall snap lands flush and stacking finds the right height, that undo and redo
 keep the room and the warehouse in step, that a properly arranged room really does reach
 three stars and says so on the bar while it is being worked on rather than only at the door,
-that heaping the whole room into one corner moves that verdict, that a generated repeat
+that heaping the whole room into one corner moves that verdict, that across a whole career
+none of the six things a client notices goes unsatisfied more often than it does today and
+three stars stays reachable — the run satisfies every brief exactly and then arranges
+nothing, so what that guards is the floor a player stands on, which is where the difference
+between a two-star career and a three-star one is decided and which a single lively batch of
+default tints could move for all fifty-six houses at once, that a generated repeat
 contract can be shopped for and finished, and that the
 tray starts closed and can tell a drag along the row from a tap on a piece, that the perk
 tree is bigger than a career can afford and none of its steps opens above the level cap,

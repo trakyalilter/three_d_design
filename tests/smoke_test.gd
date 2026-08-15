@@ -12,6 +12,42 @@ extends Node
 
 var _failures: Array[String] = []
 
+## The six things a client notices, and how often each may go unsatisfied over a
+## whole career before something has gone wrong with the balance.
+##
+## These are a ratchet, not a target. They are the shares the run actually
+## produces today with a few rooms of slack, so a change to the catalogue, the
+## briefs or the review cannot quietly make any of them worse without saying so.
+## Two of them are high because they are genuinely high: the run satisfies every
+## brief to the letter and then makes no attempt to arrange or to tint, which is
+## also the position of a player who has not discovered that either matters.
+## When one of those is fixed, tighten the number here — the check says so when
+## a ceiling has been left far above what the run needs.
+##
+## Shares rather than counts, because how many rooms a career takes is itself a
+## thing balance moves: a run that has to take repeat work to afford the next
+## quarter reviews more rooms than one that does not, and counts would drift up
+## with it and fail for the wrong reason.
+##
+## Overlaps and budget sit at nought and mean it. A room that hands over with
+## pieces inside each other, or over the client's money, is a fault rather than
+## a matter of taste.
+const CRITERIA := [
+	{"name": "nothing overlaps", "ceiling": 0},
+	{"name": "big pieces on walls", "ceiling": 84},
+	{"name": "one palette", "ceiling": 97},
+	{"name": "room to move", "ceiling": 16},
+	{"name": "one school", "ceiling": 22},
+	{"name": "on budget", "ceiling": 0},
+]
+## Three stars has to stay reachable by an honest run, or the top of the review
+## is decoration. A share for the same reason as the ceilings above.
+const THREE_STAR_FLOOR := 15
+
+var _crit_fail: Array[int] = [0, 0, 0, 0, 0, 0]
+var _stars_seen: Dictionary = {1: 0, 2: 0, 3: 0}
+var _rooms_reviewed := 0
+
 
 func _ready() -> void:
 	if not OS.get_cmdline_user_args().has("--smoke"):
@@ -65,6 +101,7 @@ func _ready() -> void:
 	_expect(level_at_last_quarter < Game.MAX_LEVEL,
 		"the level cap was already reached before the last quarter opened, so "
 		+ "the whole of it is played with nothing left to earn")
+	_check_verdict_balance()
 
 	print("=== the estate ===")
 	await _check_estate()
@@ -394,6 +431,61 @@ func _check_profile() -> void:
 	_expect(not FileAccess.file_exists(Game.PROFILE_SPARE),
 		"wiping the career left the old one in the spare, where it could come back")
 	print("save            survives a kill mid-write; falls back to the save before it")
+
+
+# ------------------------------------------------- what the client noticed
+
+## Keeps a tally of the review as each room is handed over.
+func _note_verdict(review: Dictionary) -> void:
+	_rooms_reviewed += 1
+	var stars := int(review["stars"])
+	_stars_seen[stars] = int(_stars_seen[stars]) + 1
+	var notes: Array = review.get("notes", [])
+	for i in mini(notes.size(), _crit_fail.size()):
+		if not bool((notes[i] as Dictionary)["good"]):
+			_crit_fail[i] += 1
+
+
+## Whether the six criteria are still landing the way they are meant to.
+##
+## The run satisfies every brief exactly and arranges nothing, so this measures
+## the floor a player stands on rather than what a careful one gets. That floor
+## is the thing worth guarding: it is where the difference between a two-star
+## career and a three-star one is decided, and it is quietly at the mercy of
+## every change to the catalogue — a batch of pieces with lively default tints
+## moves the palette line for all fifty-six houses at once, and nothing else
+## here would notice.
+func _check_verdict_balance() -> void:
+	if _rooms_reviewed == 0:
+		_failures.append("no room was reviewed, so the balance check checked nothing")
+		return
+
+	for i in CRITERIA.size():
+		var criterion: Dictionary = CRITERIA[i]
+		var failed := _crit_fail[i]
+		var share := int(round(100.0 * float(failed) / float(_rooms_reviewed)))
+		var ceiling := int(criterion["ceiling"])
+		_expect(share <= ceiling,
+			"'%s' went unsatisfied in %d of %d rooms (%d%%), past the %d%% this is held to"
+				% [criterion["name"], failed, _rooms_reviewed, share, ceiling])
+		# A ceiling left far above what the run needs is a ratchet nobody wound
+		# back on, and it stops guarding what it was put there for.
+		if ceiling > 0 and share + 10 < ceiling:
+			print("    note: '%s' now goes unsatisfied in %d%% of rooms — its ceiling of %d%% could come down"
+				% [criterion["name"], share, ceiling])
+
+	var three_star_share := int(round(100.0 * float(_stars_seen[3]) / float(_rooms_reviewed)))
+	_expect(three_star_share >= THREE_STAR_FLOOR,
+		"only %d of %d rooms reached three stars (%d%%), under the %d%% this is held to"
+			% [_stars_seen[3], _rooms_reviewed, three_star_share, THREE_STAR_FLOOR])
+
+	var worst := 0
+	for i in CRITERIA.size():
+		if _crit_fail[i] > _crit_fail[worst]:
+			worst = i
+	print("verdict         %d rooms: %d★★★ %d★★☆ %d★☆☆; most missed '%s' (%d)" % [
+		_rooms_reviewed, _stars_seen[3], _stars_seen[2], _stars_seen[1],
+		CRITERIA[worst]["name"], _crit_fail[worst]])
 
 
 static func _collect_text(node: Node, into: Array[String]) -> void:
@@ -2410,6 +2502,7 @@ func _play(job: Dictionary) -> void:
 	var installed: int = designer.installed_value()
 	var review := RoomReview.score(
 		designer._review_entries(), designer.room.area(), installed, int(job["budget"]))
+	_note_verdict(review)
 	designer._on_finish()
 	main.enter_city()
 	await _settle()
