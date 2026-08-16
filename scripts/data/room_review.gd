@@ -22,7 +22,9 @@ const WALL_REACH := 0.30
 ## Share of the wall-hugging pieces that have to be in place.
 const WALL_SHARE := 0.7
 ## More distinct colours than this and the room stops reading as one scheme.
-const PALETTE_LIMIT := 4
+## One fewer than a quarter sells, so furnishing a room out of one is a choice
+## about which of its colours to leave out rather than a thing that happens.
+const PALETTE_LIMIT := 3
 ## Comfortable share of the floor taken up by furniture.
 const CROWD_MIN := 0.12
 const CROWD_MAX := 0.55

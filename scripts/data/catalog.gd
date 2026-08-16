@@ -1784,7 +1784,7 @@ const PLAIN := "plain"
 ## so a family sits in the middle of its bucket and the shade below can wander
 ## either side of it without falling into the next one.
 const CORE_PALETTE := [
-	Color(0.667, 0.500, 0.333),  # oak
+	Color(0.500, 0.333, 0.167),  # oak
 	Color(0.333, 0.333, 0.333),  # slate
 	Color(0.833, 0.833, 0.833),  # chalk
 ]

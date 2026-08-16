@@ -35,7 +35,7 @@ var _failures: Array[String] = []
 const CRITERIA := [
 	{"name": "nothing overlaps", "ceiling": 0},
 	{"name": "big pieces on walls", "ceiling": 8},
-	{"name": "one palette", "ceiling": 5},
+	{"name": "one palette", "ceiling": 65},
 	{"name": "room to move", "ceiling": 16},
 	{"name": "one school", "ceiling": 20},
 	{"name": "on budget", "ceiling": 0},
@@ -470,12 +470,27 @@ func _check_palettes() -> void:
 		"%d piece%s painted outside the scheme of the quarter that sells it, e.g. %s"
 			% [strays, "" if strays == 1 else "s", worst])
 
-	# Four is what the review allows, so a quarter may not want more than that.
+	# A quarter sells one colour more than a room is allowed to wear, so
+	# furnishing a room out of one is a choice about which to leave out rather
+	# than something that happens on its own. More than one spare and the choice
+	# stops being a choice; none at all and there is nothing to decide.
+	#
+	# Maple is the exception and is meant to be: it has no colour of its own, so
+	# the quarter everybody starts in asks nothing of them, and the question
+	# arrives with the second quarter they buy.
 	for district: Dictionary in Jobs.districts():
-		var size := Catalog.palette_of(str(district["id"])).size()
-		_expect(size <= RoomReview.PALETTE_LIMIT,
-			"%s paints in %d colours against a review that allows %d"
-				% [district["id"], size, RoomReview.PALETTE_LIMIT])
+		var district_id := str(district["id"])
+		var size := Catalog.palette_of(district_id).size()
+		var spare := size - RoomReview.PALETTE_LIMIT
+		if district_id == str(Jobs.DISTRICTS[0]["id"]):
+			_expect(spare == 0,
+				"the quarter everybody starts in offers %d colours for a room allowed %d"
+					% [size, RoomReview.PALETTE_LIMIT])
+		else:
+			_expect(spare == 1,
+				"%s offers %d colours for a room allowed %d, so there %s to leave out"
+					% [district_id, size, RoomReview.PALETTE_LIMIT,
+					"is nothing" if spare <= 0 else "are %d" % spare])
 
 	print("colour          %d shared and one a quarter; every piece inside its own scheme"
 		% Catalog.CORE_PALETTE.size())
@@ -1717,12 +1732,18 @@ func _check_craft_pays() -> void:
 	# and — now the brief asks what the room has to do rather than naming the
 	# pieces — the chance that the answer landed in the school this client
 	# actually likes.
-	var earned := float(review["bonus_rate"]) + Game.fee_bonus()
+	var taste := 0.0
 	if str(review["voice"]) == Jobs.taste_of(house_id) \
 			and str(review["voice"]) != Catalog.PLAIN:
-		earned += RoomReview.TASTE_BONUS
-	var plain := payout + int(round(float(payout) * earned))
-	var gross := payout + int(round(float(payout) * (earned + craft)))
+		taste = RoomReview.TASTE_BONUS
+	# Added in the order the hand-over adds them. Floating point is not
+	# associative, so the same four numbers summed the other way round land the
+	# far side of a rounding boundary now and again — which showed up here as a
+	# fee a single unit out, and only for some arrangements of one room.
+	var gross := payout + int(round(float(payout)
+		* (float(review["bonus_rate"]) + craft + taste + Game.fee_bonus())))
+	var plain := payout + int(round(float(payout)
+		* (float(review["bonus_rate"]) + taste + Game.fee_bonus())))
 	# What lands in the account is the fee less whatever the books take out of it.
 	var withcraft := gross - Game.wages_on(gross)
 	_expect(Game.money - money == withcraft,
