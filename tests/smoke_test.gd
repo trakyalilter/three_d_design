@@ -34,10 +34,10 @@ var _failures: Array[String] = []
 ## a matter of taste.
 const CRITERIA := [
 	{"name": "nothing overlaps", "ceiling": 0},
-	{"name": "big pieces on walls", "ceiling": 84},
+	{"name": "big pieces on walls", "ceiling": 8},
 	{"name": "one palette", "ceiling": 5},
 	{"name": "room to move", "ceiling": 16},
-	{"name": "one school", "ceiling": 22},
+	{"name": "one school", "ceiling": 20},
 	{"name": "on budget", "ceiling": 0},
 ]
 ## Three stars has to stay reachable by an honest run, or the top of the review
@@ -532,13 +532,13 @@ func _check_verdict_balance() -> void:
 		"only %d of %d rooms reached three stars (%d%%), under the %d%% this is held to"
 			% [_stars_seen[3], _rooms_reviewed, three_star_share, THREE_STAR_FLOOR])
 
-	var worst := 0
+	var missed: Array[String] = []
 	for i in CRITERIA.size():
-		if _crit_fail[i] > _crit_fail[worst]:
-			worst = i
-	print("verdict         %d rooms: %d★★★ %d★★☆ %d★☆☆; most missed '%s' (%d)" % [
-		_rooms_reviewed, _stars_seen[3], _stars_seen[2], _stars_seen[1],
-		CRITERIA[worst]["name"], _crit_fail[worst]])
+		missed.append("%s %d%%" % [CRITERIA[i]["name"], int(round(
+			100.0 * float(_crit_fail[i]) / float(_rooms_reviewed)))])
+	print("verdict         %d rooms: %d★★★ %d★★☆ %d★☆☆" % [
+		_rooms_reviewed, _stars_seen[3], _stars_seen[2], _stars_seen[1]])
+	print("                unsatisfied: %s" % ", ".join(missed))
 
 
 static func _collect_text(node: Node, into: Array[String]) -> void:
@@ -2724,17 +2724,41 @@ func _count_in(designer, scope: String) -> int:
 func _place(designer, item_id: String, scope: String) -> void:
 	designer._on_place_item(item_id)
 	var item = designer.selected
-	if item == null or scope == "" or not designer.room.has_room(scope):
+	if item == null:
 		return
-	var rect: Rect2 = designer.room.rect_of(scope)
-	# Sweep the room on a half-metre grid and take the first spot that is clear.
+	# A single room is the whole floor and has no name, which used to mean this
+	# gave up and left the piece wherever it was dropped — at the camera's focus,
+	# in the middle. Thirty-nine of the fifty-six houses are one room, so most of
+	# what the review has ever been shown was furniture piled round the middle of
+	# the floor rather than a room anybody laid out.
+	if scope != "" and not designer.room.has_room(scope):
+		return
+	var whole_floor := scope == ""
+	var rect: Rect2 = designer.room.bounds() if whole_floor else designer.room.rect_of(scope)
 	var step := 0.5
+
+	# A piece that belongs against a wall is put against one, which is what
+	# anybody does with a sofa without being told to. The run used to leave every
+	# one of them wherever the sweep first found space, and the review duly said
+	# the big pieces were stranded mid-floor in three rooms out of four — a fault
+	# in the measuring rather than in the room, and one that made the number
+	# useless for deciding whether that line is hard enough.
+	#
+	# It goes through the designer's own snap, the one a finger triggers by
+	# dragging a piece up to a wall, so what the run produces is a pose a player
+	# can actually make rather than one only the test knows how to reach.
+	if bool(Catalog.get_item(item_id).get("against_wall", false)):
+		if _against_a_wall(designer, item, rect, scope, whole_floor, step):
+			return
+
+	# Otherwise, and for anything that would not fit against one: sweep the room
+	# on a half-metre grid and take the first spot that is clear.
 	var z: float = rect.position.y + step
 	while z < rect.end.y:
 		var x: float = rect.position.x + step
 		while x < rect.end.x:
 			item.global_position = designer._clamp_to_room(item, Vector3(x, 0.0, z))
-			if designer.room.room_id_at(item.footprint_center()) == scope \
+			if (whole_floor or designer.room.room_id_at(item.footprint_center()) == scope) \
 					and not designer._overlaps_any(item):
 				return
 			x += step
@@ -2742,6 +2766,49 @@ func _place(designer, item_id: String, scope: String) -> void:
 	# Nowhere clear: leave it in the right room and let the overlap check speak.
 	var middle := rect.position + rect.size * 0.5
 	item.global_position = designer._clamp_to_room(item, Vector3(middle.x, 0.0, middle.y))
+
+
+## Walks the four walls of a room looking for somewhere the piece will stand
+## with its back to one. Returns whether it found anywhere.
+##
+## Each wall is tried with the yaw that turns the piece's back to it — the same
+## four the designer's snap chooses between — and the piece is offered to the
+## wall edge first, so the snap has it within reach and pulls it flush.
+func _against_a_wall(designer, item, rect: Rect2, scope: String, whole_floor: bool, step: float) -> bool:
+	var walls := [
+		{"yaw": 0.0, "horizontal": true, "at": rect.position.y},
+		{"yaw": PI, "horizontal": true, "at": rect.end.y},
+		{"yaw": deg_to_rad(90.0), "horizontal": false, "at": rect.position.x},
+		{"yaw": deg_to_rad(-90.0), "horizontal": false, "at": rect.end.x},
+	]
+	for wall: Dictionary in walls:
+		var yaw: float = wall["yaw"]
+		item.rotation.y = yaw
+		var half: Vector2 = designer._half_extents(item.footprint(), yaw)
+		var horizontal: bool = wall["horizontal"]
+		var line: float = wall["at"]
+		# Far enough off the wall that the piece's own depth clears it, which is
+		# where the snap expects to find something it can pull in.
+		var inward: float = half.y if horizontal else half.x
+		if line > (rect.position.y if horizontal else rect.position.x):
+			inward = -inward
+		var along: float = (rect.position.x if horizontal else rect.position.y) + step * 0.5
+		var limit: float = rect.end.x if horizontal else rect.end.y
+		while along < limit:
+			var desired := Vector3(along, 0.0, line + inward) if horizontal \
+				else Vector3(line + inward, 0.0, along)
+			# The offset between where a piece is put and where its footprint
+			# actually sits has to come off, or a piece whose origin is not its
+			# middle is offered to the wall by the wrong edge.
+			var centre: Vector2 = designer._center_offset(item, desired)
+			desired -= Vector3(centre.x, 0.0, centre.y)
+			item.global_position = designer._clamp_to_room(
+				item, designer._snap_to_walls(item, desired))
+			if (whole_floor or designer.room.room_id_at(item.footprint_center()) == scope) \
+					and not designer._overlaps_any(item):
+				return true
+			along += step
+	return false
 
 
 ## How much of one open ask the room already answers, in a given scope.
