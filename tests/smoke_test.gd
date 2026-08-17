@@ -2389,14 +2389,14 @@ func _check_three_stars() -> void:
 	var designer = main.designer
 	designer._on_new_requested()
 
-	var half_d: float = designer.room.depth * 0.5
+	# Laid out the way the run lays a room out: each piece put down and then
+	# given somewhere to stand, wall pieces against a wall. Placing all four and
+	# only afterwards shoving the wall ones at the nearest wall worked while a
+	# room was an empty box — this room has a window in the middle of its long
+	# wall now, exactly where the bed used to go, and the bed has to end up
+	# beside it with the rest of the room still walkable.
 	for id in ["bed_single", "nightstand", "plant", "plant"]:
-		designer._on_place_item(id)
-	for item in designer._items():
-		if not Catalog.get_item(item.item_id).get("against_wall", false):
-			continue
-		var target := Vector3(item.global_position.x, 0.0, -half_d + 0.1)
-		item.global_position = designer._clamp_to_room(item, designer._snap_to_walls(item, target))
+		_place(designer, id, "room")
 	for item in designer._items():
 		item.set_tint(Color(0.62, 0.58, 0.50))
 	designer._update_overlaps()

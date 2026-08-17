@@ -346,6 +346,37 @@ level its own brief opens at — not on how far you have got, so a Maple client 
 recommending Hanami cushions the week you buy Hanami. Ignore all of it and buy something
 else; the room is judged on what it does, not on what you bought.
 
+### The room is not an empty box
+
+A rectangle with four blank walls has four identical walls, so putting the big pieces
+against one was a free tick rather than a decision. Every room in the city now has
+something in it before the furniture arrives.
+
+| | |
+|---|---|
+| A chimney breast | Stands in the room, with a mantel and an opening — and leaves an alcove either side, which is where the shelving wants to go |
+| A window | Wants keeping clear rather than blocked; a wardrobe across it is a wardrobe across it |
+| A radiator | The same, in a room too small to give a wall away |
+
+All three are one mechanic: **a piece of floor that furniture may not stand on.** The
+chimney breast is genuinely in the room; the other two are things you keep a wardrobe off.
+So they go through the same overlap test that stops two wardrobes sharing a corner, and the
+client's "nothing overlaps" line does the work without the review learning anything new.
+
+What a room gets is decided by the brief first, and by the quarter after that — the third
+thing a quarter decides about a room, after the school its furniture belongs to and the
+colours it is painted in. Cottages and the old row have fires; the wharf, the tower and the
+ward are about what is outside the window, and half their briefs say so. Maple is ordinary
+houses, and ordinary houses have radiators. A client who mentions a fire gets a fireplace
+and one who mentions the view gets a window, whichever quarter they live in — so the Harbour
+View Lounge finally has the window its brief has always asked for a sofa to face.
+
+Features never straddle a doorway: a wall shared with the room next door has a doorway
+punched through it, so only the outside walls of a plan get anything. And nothing takes more
+than two fifths of the wall it is on — a window sized for a drawing room, put in a room half
+that size, leaves two gaps too narrow to stand a bed in, which is not a room with a window
+in it but a room with nowhere to sleep.
+
 ### The verdict
 
 The brief only says what has to be *in* the room. The stars say whether it is any good.

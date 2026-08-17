@@ -129,11 +129,10 @@ func _build_shell() -> void:
 func _shape_room() -> void:
 	if job_mode():
 		var spec: Dictionary = job["room"]
-		if job.has("rooms"):
-			room.configure_plan(job["rooms"], float(spec["h"]))
-		else:
-			room.configure(float(spec["w"]), float(spec["d"]), float(spec["h"]),
-				spec.get("features", []))
+		# One room or twelve, a job is built the same way now: the plan comes back
+		# with what each room already has in it, so a single room is a plan of one
+		# rather than a second path that forgets about fireplaces.
+		room.configure_plan(Jobs.dressed_rooms(house_id), float(spec["h"]))
 	elif showroom_mode():
 		# A shop floor rather than a living room, and yours to resize.
 		room.configure(8.0, 6.0, 3.0)

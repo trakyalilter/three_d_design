@@ -1809,6 +1809,151 @@ func room_line(house_id: String) -> String:
 	return "%d rooms  (%.0f m²)" % [job["rooms"].size(), floor_area(house_id)]
 
 
+# ------------------------------------------------------------ fixed features
+
+## Words in a client's own brief that decide what their room already has in it.
+## A hearth where they talk about a fire, a window where they talk about the
+## light or the view — so the thing in the room is the thing they asked about
+## rather than something the city handed out at random.
+const FEATURE_WORDS := {
+	"hearth": ["fire", "hearth", "fireplace", "cauldron", "chimney"],
+	"window": ["window", "view", "light", "over the water", "look at the city",
+		"the view does half the work", "sun"],
+}
+## A wall has to be this much longer than the feature on it, or the feature
+## takes the whole side and there is nowhere left to stand a wardrobe.
+const FEATURE_CLEARANCE := 1.1
+
+## And what a quarter puts in a room when the brief does not ask for anything in
+## particular — the third thing a quarter decides about a room, after the school
+## its furniture belongs to and the colours it is painted in.
+##
+## Cottages and the old row have fires. The wharf, the tower and the ward are
+## all about what is outside the window, and two of them say so in half their
+## briefs. Maple is ordinary houses, and ordinary houses have radiators.
+const FEATURE_BY_DISTRICT := {
+	"maple": "radiator",
+	"riverside": "window",
+	"hillside": "hearth",
+	"skyline": "window",
+	"hanami": "window",
+	"hollow": "hearth",
+}
+
+
+## The rooms of a job with what each one already has in it filled in.
+##
+## Every job goes through here, single room or whole floor, so both shapes of
+## room are built the same way. A room that names its own features keeps them —
+## the four that were hand-written still read the way they were written — and
+## everything else is given one that suits it.
+func dressed_rooms(house_id: String) -> Array:
+	var job := get_job(house_id)
+	if job.is_empty():
+		return []
+	var rooms: Array = job.get("rooms", [])
+	if rooms.is_empty():
+		var single: Dictionary = (job["room"] as Dictionary).duplicate()
+		single["id"] = "room"
+		single["name"] = ""
+		single["x"] = 0.0
+		single["z"] = 0.0
+		rooms = [single]
+
+	var out: Array = []
+	for entry: Dictionary in rooms:
+		var room: Dictionary = entry.duplicate()
+		if not (room.get("features", []) as Array).is_empty():
+			out.append(room)
+			continue
+		room["features"] = _derive_features(job, room, rooms)
+		out.append(room)
+	return out
+
+
+## Which of a room's four walls face the outside. A wall shared with the room
+## next door has a doorway punched through it, and standing a chimney breast in
+## a doorway would wall the flat off from itself.
+static func _outside_walls(room: Dictionary, rooms: Array) -> Array[String]:
+	var rect := _rect_of_spec(room)
+	var out: Array[String] = []
+	for wall in ["n", "s", "e", "w"]:
+		var shared := false
+		for other: Dictionary in rooms:
+			if str(other.get("id", "")) == str(room.get("id", "")):
+				continue
+			var far := _rect_of_spec(other)
+			match wall:
+				"n":
+					shared = absf(far.end.y - rect.position.y) < 0.02 \
+						and far.position.x < rect.end.x and far.end.x > rect.position.x
+				"s":
+					shared = absf(far.position.y - rect.end.y) < 0.02 \
+						and far.position.x < rect.end.x and far.end.x > rect.position.x
+				"w":
+					shared = absf(far.end.x - rect.position.x) < 0.02 \
+						and far.position.y < rect.end.y and far.end.y > rect.position.y
+				"e":
+					shared = absf(far.position.x - rect.end.x) < 0.02 \
+						and far.position.y < rect.end.y and far.end.y > rect.position.y
+			if shared:
+				break
+		if not shared:
+			out.append(wall)
+	return out
+
+
+static func _rect_of_spec(spec: Dictionary) -> Rect2:
+	var w := float(spec.get("w", 4.0))
+	var d := float(spec.get("d", 4.0))
+	return Rect2(float(spec.get("x", 0.0)) - w * 0.5,
+		float(spec.get("z", 0.0)) - d * 0.5, w, d)
+
+
+func _derive_features(job: Dictionary, room: Dictionary, rooms: Array) -> Array:
+	var brief := str(job.get("brief", "")).to_lower()
+	var wants := ""
+	for kind: String in FEATURE_WORDS:
+		for word: String in FEATURE_WORDS[kind]:
+			if brief.contains(word):
+				wants = kind
+				break
+		if wants != "":
+			break
+
+	var w := float(room.get("w", 4.0))
+	var d := float(room.get("d", 4.0))
+	# Otherwise it is whatever the quarter puts in a room. A room too small to
+	# give a wall away falls back to a radiator further down, which is what a
+	# small room actually has.
+	if wants == "":
+		wants = str(FEATURE_BY_DISTRICT.get(
+			district_of(str(job.get("id", ""))), "radiator"))
+
+	var nominal: float = 1.5 if wants == "hearth" else (2.0 if wants == "window" else 1.0)
+	var outside := _outside_walls(room, rooms)
+	for wall in outside:
+		var along: float = w if wall == "n" or wall == "s" else d
+		# Never more than a share of the wall it is on. A window sized for a
+		# drawing room, put in a room half that size, leaves two gaps too narrow
+		# to stand a single bed in — which is not a room with a window in it, it
+		# is a room with nowhere to sleep.
+		var width: float = minf(nominal, along * 0.4)
+		if width >= 0.8 and along >= width + FEATURE_CLEARANCE:
+			return [{
+				"kind": wants, "wall": wall,
+				"at": 0.7 if wants == "radiator" else 0.5,
+				"width": width,
+			}]
+	# Nowhere it would fit: a radiator goes on any outside wall that will have
+	# it, and a room with no outside wall at all keeps its four blank ones.
+	for wall in outside:
+		var along: float = w if wall == "n" or wall == "s" else d
+		if along >= 1.0 + FEATURE_CLEARANCE:
+			return [{"kind": "radiator", "wall": wall, "at": 0.7, "width": 1.0}]
+	return []
+
+
 ## The names of the rooms in a plan, for the brief. Empty for a single room.
 func room_names(house_id: String) -> Array[String]:
 	var out: Array[String] = []
