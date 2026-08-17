@@ -19,8 +19,12 @@ const BONUS := {1: 0.0, 2: 0.15, 3: 0.30}
 
 ## How close a piece has to be to a wall to count as against it.
 const WALL_REACH := 0.30
-## Share of the wall-hugging pieces that have to be in place.
-const WALL_SHARE := 0.7
+## Share of the wall-hugging pieces that have to be in place. Nine in ten rather
+## than seven, which for the three or four big pieces most rooms hold means all
+## of them: a sofa stranded mid-floor is the one thing everybody notices walking
+## in, and at seven in ten a room could leave one adrift and still be told it had
+## got the big pieces right.
+const WALL_SHARE := 0.9
 ## More distinct colours than this and the room stops reading as one scheme.
 ## One fewer than a quarter sells, so furnishing a room out of one is a choice
 ## about which of its colours to leave out rather than a thing that happens.
