@@ -440,6 +440,23 @@ And every client wants the look of the street they live on, said out loud on the
 it pays **5 % over the fee**, on top of whatever the stars earned. Somebody in Maple has no
 strong feelings and will take anything, as long as it agrees with itself.
 
+### The paint pot sells the room's scheme
+
+Colour works the same way, and the pot under a selected piece holds the quarter's scheme and
+nothing else: the city's three shared families, plus the quarter's own, at three shades each
+— a row per colour.
+
+The shades are the point. They sit *inside* a colour rather than across the gap to the next
+one, so three shades of oak are three things to look at and one colour to the client. A room
+can have depth without spending one of the three it is allowed.
+
+It used to be a fixed dozen colours, chosen before the catalogue had a scheme at all, and
+only three of them landed on a family — so the one tool for pulling a room together was the
+quickest way to break it. The near misses were the worst of it: the pot's straw and the
+straw every Hanami piece is painted in were a shade apart, close enough to match by eye and
+far enough to count as a fourth colour. Four of the twelve were reds, blues and violets the
+catalogue no longer contains anywhere.
+
 | Gesture | Result |
 |---|---|
 | Tap an item in the tray | Takes one out of stock and drops it into the room |

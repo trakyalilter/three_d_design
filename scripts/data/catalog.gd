@@ -235,21 +235,8 @@ const MATERIALS := {
 	"towel": {"color": Color(0.86, 0.88, 0.92), "rough": 0.95, "metal": 0.0},
 }
 
-## Colour swatches offered for the selected item's tint.
-const SWATCHES: Array[Color] = [
-	Color(0.85, 0.86, 0.88),
-	Color(0.35, 0.38, 0.44),
-	Color(0.18, 0.19, 0.22),
-	Color(0.78, 0.32, 0.29),
-	Color(0.87, 0.60, 0.28),
-	Color(0.90, 0.79, 0.44),
-	Color(0.40, 0.62, 0.42),
-	Color(0.30, 0.53, 0.72),
-	Color(0.45, 0.38, 0.66),
-	Color(0.80, 0.52, 0.63),
-	Color(0.56, 0.38, 0.24),
-	Color(0.62, 0.58, 0.50),
-]
+## How many shades of each family the paint pot offers.
+const SWATCH_SHADES := 3
 
 var _items: Dictionary = {}
 var _order: Array[String] = []
@@ -1353,6 +1340,33 @@ func default_tint(id: String) -> Color:
 func palette_of(district_id: String) -> Array:
 	var out: Array = CORE_PALETTE.duplicate()
 	out.append_array(DISTRICT_ACCENT.get(district_id, []))
+	return out
+
+
+## The paints on offer while working in a room of this quarter: its scheme, and
+## nothing else, at three shades each.
+##
+## The pot used to hold twelve fixed colours chosen before the catalogue had a
+## scheme at all, and only three of them landed on a family — so the one tool a
+## player has for pulling a room together was the quickest way to break it. Worse
+## were the near misses: the pot's straw and the straw every Hanami piece is
+## painted in sat one bucket apart, so matching a colour by eye added a colour to
+## the count.
+##
+## The shades are inside a bucket rather than across one, which is the whole
+## point of them. Three shades of oak are three colours to look at and one colour
+## to the client, so a room can have depth without spending one of its three.
+func swatches_for(district_id: String) -> Array[Color]:
+	var out: Array[Color] = []
+	for family: Color in palette_of(district_id):
+		for i in SWATCH_SHADES:
+			# Lightest first, so a family reads as a run from pale to dark.
+			var shade: float = SHADE_REACH - SHADE_REACH * 2.0 * float(i) \
+				/ float(maxi(SWATCH_SHADES - 1, 1))
+			out.append(Color(
+				clampf(family.r + shade, 0.0, 1.0),
+				clampf(family.g + shade, 0.0, 1.0),
+				clampf(family.b + shade, 0.0, 1.0)))
 	return out
 
 

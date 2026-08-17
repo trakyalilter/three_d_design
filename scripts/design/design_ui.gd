@@ -83,6 +83,7 @@ var _fling := 0.0
 var _toast_label: Label
 var _toast_timer: Timer
 var _swatch_popup: PanelContainer
+var _swatch_grid: GridContainer
 
 var _walls_button: Button
 var _snap_button: Button
@@ -200,6 +201,10 @@ func configure(job: Dictionary, showroom: bool = false) -> void:
 		if typeof(entry) == TYPE_DICTIONARY:
 			_plan.append(entry as Dictionary)
 	_paint_target = ""
+	# Away from a job — the showroom, or a room built for the fun of it — there is
+	# no quarter, and palette_of falls back to the three colours the whole city
+	# shares. Which is the right answer: they are the ones that go with anything.
+	_fill_swatches(str(job.get("district", "")))
 
 	# The showroom stands between the two: the tray greys out what you do not
 	# own, the way a job does, and the room is yours to resize, the way the
@@ -726,15 +731,24 @@ func _build_swatch_popup() -> void:
 	_root.add_child(_swatch_popup)
 	_blockers.append(_swatch_popup)
 
-	var grid := GridContainer.new()
-	grid.columns = 6
-	_swatch_popup.add_child(grid)
-	for color in Catalog.SWATCHES:
+	# A row per colour, because that is what the row is: three shades the client
+	# counts as one. Filled in by configure(), once the quarter is known.
+	_swatch_grid = GridContainer.new()
+	_swatch_grid.columns = Catalog.SWATCH_SHADES
+	_swatch_popup.add_child(_swatch_grid)
+
+
+## Restocks the paint pot with the scheme of the quarter this room is in.
+func _fill_swatches(district_id: String) -> void:
+	for child in _swatch_grid.get_children():
+		child.queue_free()
+		_swatch_grid.remove_child(child)
+	for color: Color in Catalog.swatches_for(district_id):
 		var b := UIKit.swatch_button(color)
 		b.pressed.connect(func() -> void:
 			tint_selected.emit(color)
 			_swatch_popup.visible = false)
-		grid.add_child(b)
+		_swatch_grid.add_child(b)
 
 
 func _toggle_swatch_popup() -> void:

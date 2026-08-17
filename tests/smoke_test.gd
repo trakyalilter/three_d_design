@@ -524,6 +524,25 @@ func _check_palettes() -> void:
 		_expect(buckets.size() == Catalog.palette_of(district_id).size(),
 			"%s has two colours in one bucket, so it is narrower than it looks" % district_id)
 
+		# The paint pot sells the same scheme the shops do. It used to hold a
+		# fixed dozen chosen before the catalogue had a scheme at all, only three
+		# of which landed on a family — so the one tool for pulling a room
+		# together was the quickest way to add a colour to it.
+		var offered: Dictionary = {}
+		var paints := Catalog.swatches_for(district_id)
+		for paint: Color in paints:
+			offered[_tone_key(paint)] = true
+			_expect(buckets.has(_tone_key(paint)),
+				"the paint pot in %s offers a colour the quarter does not sell" % district_id)
+		_expect(offered.size() == buckets.size(),
+			"%s sells %d colours and offers paint in %d of them"
+				% [district_id, buckets.size(), offered.size()])
+		# Every shade of a family in the family's own bucket, which is what makes
+		# shading free: three shades of oak are one colour to the client.
+		_expect(paints.size() == buckets.size() * Catalog.SWATCH_SHADES,
+			"%s offers %d paints for %d colours at %d shades"
+				% [district_id, paints.size(), buckets.size(), Catalog.SWATCH_SHADES])
+
 		var spanned: Dictionary = {}
 		for shop: Dictionary in Catalog.shops_in(district_id):
 			for id: String in Catalog.shop_stock(str(shop["id"])):
@@ -561,7 +580,7 @@ func _check_palettes() -> void:
 					% [district_id, size, RoomReview.PALETTE_LIMIT,
 					"is nothing" if spare <= 0 else "are %d" % spare])
 
-	print("colour          %d shared and one a quarter; every piece inside its own scheme"
+	print("colour          %d shared and one a quarter; shops and paint pot inside the scheme"
 		% Catalog.CORE_PALETTE.size())
 
 
