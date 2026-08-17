@@ -132,7 +132,8 @@ func _shape_room() -> void:
 		if job.has("rooms"):
 			room.configure_plan(job["rooms"], float(spec["h"]))
 		else:
-			room.configure(float(spec["w"]), float(spec["d"]), float(spec["h"]))
+			room.configure(float(spec["w"]), float(spec["d"]), float(spec["h"]),
+				spec.get("features", []))
 	elif showroom_mode():
 		# A shop floor rather than a living room, and yours to resize.
 		room.configure(8.0, 6.0, 3.0)
@@ -992,6 +993,12 @@ func _overlaps_any(item: FurnitureItem, others: Array[FurnitureItem] = []) -> bo
 			continue
 		if _rects_overlap(corners, other.footprint_corners()):
 			return true
+	# What the room already has in it counts too. A chimney breast is furniture
+	# that came with the house as far as the floor is concerned, and a window is
+	# a thing you keep the wardrobe off.
+	for fixed in room.feature_corners():
+		if _rects_overlap(corners, fixed):
+			return true
 	return false
 
 
@@ -1000,6 +1007,7 @@ func _update_overlaps() -> void:
 	var corners: Array[PackedVector2Array] = []
 	for item in list:
 		corners.append(item.footprint_corners())
+	var fixed := room.feature_corners()
 	for i in list.size():
 		var blocked := false
 		if not _ignores_overlap(list[i]):
@@ -1009,6 +1017,15 @@ func _update_overlaps() -> void:
 				if _rects_overlap(corners[i], corners[j]):
 					blocked = true
 					break
+			# And against what the room came with. This runs over every piece
+			# after every change, where _overlaps_any() answers about one piece
+			# being dragged — two paths to the same question, and a feature has
+			# to be in both or a chair sits in the fireplace without complaint.
+			if not blocked:
+				for shape in fixed:
+					if _rects_overlap(corners[i], shape):
+						blocked = true
+						break
 		list[i].set_blocked(blocked)
 	if selected != null:
 		marker.set_blocked(selected.is_blocked())

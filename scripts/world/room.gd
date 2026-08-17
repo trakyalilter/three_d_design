@@ -19,6 +19,38 @@ const DOOR_HEIGHT := 2.05
 ## Rectangles closer than this are treated as sharing an edge exactly.
 const EPS := 0.01
 
+## What a room has in it before any furniture does.
+##
+## A rectangle with four blank walls has four identical walls, so putting the
+## big pieces against one is a free tick rather than a decision — which is
+## exactly what the review found: that line went unsatisfied in none of a
+## career once the run started pushing sofas at walls at all. A chimney breast
+## makes one wall the one with the fireplace on it, and the two gaps either
+## side of it the obvious place for the shelving.
+##
+## Every one of them comes down to the same thing: a piece of floor that
+## furniture may not stand on. The chimney breast is genuinely in the room; a
+## window and a radiator want keeping clear rather than blocked. So they are
+## one mechanic with three depths, and they go through the overlap test that
+## already stops two wardrobes occupying the same corner.
+const FEATURE_DEPTH := {
+	"hearth": 0.46,
+	"window": 0.34,
+	"radiator": 0.20,
+}
+## How high each one stands, for the shell that draws it.
+const FEATURE_HEIGHT := {
+	"hearth": 1.12,
+	"window": 1.30,
+	"radiator": 0.58,
+}
+## And how far off the floor it starts.
+const FEATURE_BASE := {
+	"hearth": 0.0,
+	"window": 0.85,
+	"radiator": 0.14,
+}
+
 var width: float = 6.0
 var depth: float = 5.0
 var height: float = 2.6
@@ -41,6 +73,8 @@ var _walls: Array[MeshInstance3D] = []
 ## the player is looking at.
 var _wall_spans: Array[Dictionary] = []
 var _skirting_material: StandardMaterial3D
+## Every feature's floor in one list, for the overlap test to walk.
+var _all_feature_corners: Array[PackedVector2Array] = []
 ## One floor material per room, and two wall materials per room: walls running
 ## along Z are shaded slightly darker than the ones along X, so the corners of
 ## a room stay readable instead of merging into one surface.
@@ -61,10 +95,11 @@ func _ready() -> void:
 
 
 ## One rectangle, centred. The shape every job had before floor plans existed.
-func configure(w: float, d: float, h: float) -> void:
+func configure(w: float, d: float, h: float, features: Array = []) -> void:
 	configure_plan([{
 		"id": "room", "name": "",
 		"w": clampf(w, 2.0, 20.0), "d": clampf(d, 2.0, 20.0), "x": 0.0, "z": 0.0,
+		"features": features,
 	}], h)
 
 
@@ -90,6 +125,7 @@ func configure_plan(rooms: Array, h: float) -> void:
 			"id": str(spec.get("id", "room%d" % i)),
 			"name": str(spec.get("name", "")),
 			"rect": rect,
+			"features": (spec.get("features", []) as Array).duplicate(),
 		})
 
 	# Recentre, so the rest of the game can keep assuming the room is on the
@@ -101,6 +137,26 @@ func configure_plan(rooms: Array, h: float) -> void:
 		entry["rect"] = rect
 	width = union.size.x
 	depth = union.size.y
+
+	# The floor each feature stands on, worked out after the recentring so it is
+	# in the same coordinates as everything else that has to avoid it.
+	# Both shapes of the same thing, worked out once. feature_corners() is asked
+	# on every overlap test — which is the hottest loop there is while a room is
+	# being laid out — so it must not be building arrays each time it is called.
+	_all_feature_corners = []
+	for entry in plan:
+		var rects := _feature_rects_for(entry)
+		entry["feature_rects"] = rects
+		var corners: Array[PackedVector2Array] = []
+		for rect in rects:
+			corners.append(PackedVector2Array([
+				rect.position,
+				Vector2(rect.end.x, rect.position.y),
+				rect.end,
+				Vector2(rect.position.x, rect.end.y),
+			]))
+		entry["feature_corners"] = corners
+		_all_feature_corners.append_array(corners)
 
 	# Colours belong to the rooms of the plan in front of us. A shell built as
 	# one rectangle and then reconfigured as a flat would otherwise keep the old
@@ -116,6 +172,161 @@ func configure_plan(rooms: Array, h: float) -> void:
 
 	if is_inside_tree():
 		rebuild()
+
+
+# ----------------------------------------------------------- fixed features
+
+## Where one room's features stand, as rectangles of floor.
+##
+## `at` runs 0 to 1 along the wall, `width` is in metres, and `wall` is one of
+## n, s, e, w — the walls as the map sees them, so a brief can say "a window on
+## the south wall" and mean it.
+func _feature_rects_for(entry: Dictionary) -> Array[Rect2]:
+	var out: Array[Rect2] = []
+	var rect: Rect2 = entry["rect"]
+	for feature: Variant in entry.get("features", []):
+		if typeof(feature) != TYPE_DICTIONARY:
+			continue
+		var spec: Dictionary = feature
+		var kind := str(spec.get("kind", "hearth"))
+		var deep: float = float(FEATURE_DEPTH.get(kind, 0.35))
+		var wide: float = clampf(float(spec.get("width", 1.4)), 0.4, 6.0)
+		var at: float = clampf(float(spec.get("at", 0.5)), 0.0, 1.0)
+		match str(spec.get("wall", "n")):
+			"n":
+				out.append(Rect2(
+					rect.position.x + (rect.size.x - wide) * at, rect.position.y,
+					wide, deep))
+			"s":
+				out.append(Rect2(
+					rect.position.x + (rect.size.x - wide) * at, rect.end.y - deep,
+					wide, deep))
+			"w":
+				out.append(Rect2(
+					rect.position.x, rect.position.y + (rect.size.y - wide) * at,
+					deep, wide))
+			"e":
+				out.append(Rect2(
+					rect.end.x - deep, rect.position.y + (rect.size.y - wide) * at,
+					deep, wide))
+	return out
+
+
+## Every fixed feature in the room, or in one room of a plan.
+func feature_rects(room_id: String = "") -> Array[Rect2]:
+	var out: Array[Rect2] = []
+	for entry in plan:
+		if room_id != "" and str(entry["id"]) != room_id:
+			continue
+		out.append_array(entry.get("feature_rects", []) as Array[Rect2])
+	return out
+
+
+## The same, as the four corners the overlap test compares polygons by. Handed
+## straight back rather than rebuilt: the caller is a loop that runs thousands
+## of times while a room is being furnished, and it only reads them.
+func feature_corners(room_id: String = "") -> Array[PackedVector2Array]:
+	if room_id == "":
+		return _all_feature_corners
+	for entry in plan:
+		if str(entry["id"]) == room_id:
+			return entry.get("feature_corners", [])
+	return []
+
+
+## Which way a feature faces: away from whichever wall of the room it is sitting
+## against, and along its shallow axis.
+static func _into_room(room_rect: Rect2, feature: Rect2) -> Vector3:
+	if feature.size.x >= feature.size.y:
+		# Lying along a north or south wall, so it faces up or down the Z axis.
+		return Vector3(0, 0, 1) if absf(feature.position.y - room_rect.position.y) < EPS \
+			else Vector3(0, 0, -1)
+	return Vector3(1, 0, 0) if absf(feature.position.x - room_rect.position.x) < EPS \
+		else Vector3(-1, 0, 0)
+
+
+func has_features() -> bool:
+	for entry in plan:
+		if not (entry.get("feature_rects", []) as Array).is_empty():
+			return true
+	return false
+
+
+func _build_features(entry: Dictionary) -> void:
+	var rects: Array[Rect2] = entry.get("feature_rects", [])
+	var features: Array = entry.get("features", [])
+	for i in mini(rects.size(), features.size()):
+		var spec: Dictionary = features[i]
+		var kind := str(spec.get("kind", "hearth"))
+		var rect: Rect2 = rects[i]
+		var tall: float = float(FEATURE_HEIGHT.get(kind, 1.0))
+		var base: float = float(FEATURE_BASE.get(kind, 0.0))
+		var middle := rect.position + rect.size * 0.5
+
+		var body := MeshInstance3D.new()
+		body.name = "Feature_%s" % kind
+		var box := BoxMesh.new()
+		box.size = Vector3(rect.size.x, tall, rect.size.y)
+		body.mesh = box
+		body.position = Vector3(middle.x, base + tall * 0.5, middle.y)
+		var material := StandardMaterial3D.new()
+		material.roughness = 0.75
+		match kind:
+			"hearth":
+				material.albedo_color = Color(0.80, 0.78, 0.74)
+			"window":
+				# Reads as glass from inside without punching the wall run, which
+				# the doorways already do quite enough of.
+				material.albedo_color = Color(0.72, 0.83, 0.90)
+				material.roughness = 0.15
+				material.metallic = 0.2
+			_:
+				material.albedo_color = Color(0.90, 0.90, 0.89)
+		body.material_override = material
+		add_child(body)
+
+		# A chimney breast carries on to the ceiling, and has a mantel on it.
+		if kind == "hearth":
+			var stack := MeshInstance3D.new()
+			var upper := BoxMesh.new()
+			upper.size = Vector3(rect.size.x * 0.74, height - tall, rect.size.y * 0.8)
+			stack.mesh = upper
+			stack.position = Vector3(middle.x, tall + (height - tall) * 0.5, middle.y)
+			stack.material_override = material
+			add_child(stack)
+
+			var mantel := MeshInstance3D.new()
+			var shelf := BoxMesh.new()
+			shelf.size = Vector3(rect.size.x + 0.12, 0.07, rect.size.y + 0.10)
+			mantel.mesh = shelf
+			mantel.position = Vector3(middle.x, tall, middle.y)
+			var oak := StandardMaterial3D.new()
+			oak.albedo_color = Color(0.42, 0.30, 0.19)
+			oak.roughness = 0.8
+			mantel.material_override = oak
+			add_child(mantel)
+
+			# The opening, on whichever face looks into the room — which is the
+			# one away from the wall the breast is standing against. Without it
+			# the thing reads as a column somebody left in the middle of a wall.
+			# The opening, on whichever face looks into the room — the one away
+			# from the wall the breast stands against. Without it the thing reads
+			# as a column somebody left in the middle of a wall.
+			var into := _into_room(entry["rect"], rect)
+			var fire := MeshInstance3D.new()
+			var mouth := BoxMesh.new()
+			if absf(into.z) > 0.5:
+				mouth.size = Vector3(rect.size.x * 0.52, tall * 0.52, 0.06)
+			else:
+				mouth.size = Vector3(0.06, tall * 0.52, rect.size.y * 0.52)
+			fire.mesh = mouth
+			fire.position = Vector3(middle.x, base + tall * 0.34, middle.y) \
+				+ into * Vector3(rect.size.x, 0.0, rect.size.y) * 0.5
+			var soot := StandardMaterial3D.new()
+			soot.albedo_color = Color(0.14, 0.12, 0.11)
+			soot.roughness = 0.95
+			fire.material_override = soot
+			add_child(fire)
 
 
 ## Paints one room of the plan, or every room when `room_id` is left out. The
@@ -276,6 +487,8 @@ func rebuild() -> void:
 		_materials_for(str(entry["id"]))
 	for entry in plan:
 		_build_floor(entry)
+	for entry in plan:
+		_build_features(entry)
 	_build_grid()
 	_build_walls()
 	if is_multi_room():

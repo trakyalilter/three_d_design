@@ -113,6 +113,7 @@ func _ready() -> void:
 	_check_winding()
 	_check_catalogue()
 	_check_palettes()
+	await _check_fixed_features()
 
 	print("=== floor plans ===")
 	await _check_floor_plan()
@@ -432,6 +433,70 @@ func _check_profile() -> void:
 	_expect(not FileAccess.file_exists(Game.PROFILE_SPARE),
 		"wiping the career left the old one in the spare, where it could come back")
 	print("save            survives a kill mid-write; falls back to the save before it")
+
+
+## A room with something already in it.
+##
+## Four blank walls are four identical walls, so putting the big pieces against
+## one was a free tick — the line went unsatisfied in none of a career. A
+## chimney breast makes one wall the one with the fireplace, and the gaps either
+## side of it somewhere shelving wants to go.
+##
+## What has to hold is that the floor a feature stands on is genuinely spoken
+## for: furniture that lands on it reads as overlapping, which is the same thing
+## that stops two wardrobes sharing a corner, and the client notices.
+func _check_fixed_features() -> void:
+	var main := get_tree().current_scene
+	var house_id := "willow_reading"
+
+	main.enter_designer(house_id)
+	await _settle()
+	var designer = main.designer
+	designer._on_new_requested()
+	var room = designer.room
+
+	_expect(room.has_features(), "%s was built without its fireplace" % house_id)
+	var rects: Array[Rect2] = room.feature_rects()
+	_expect(rects.size() == 1, "%s has %d features, not the one it asks for"
+		% [house_id, rects.size()])
+	if rects.is_empty():
+		main.enter_city()
+		await _settle()
+		return
+
+	# It stands against the wall it was put on, and inside the room.
+	var hearth: Rect2 = rects[0]
+	var bounds: Rect2 = room.bounds()
+	_expect(bounds.encloses(hearth),
+		"the fireplace is not inside the room it belongs to")
+	_expect(absf(hearth.position.y - bounds.position.y) < 0.02,
+		"the fireplace came away from the wall it was put on")
+
+	# A piece standing where the fireplace is counts as overlapping something,
+	# which is the whole mechanism: the review's own no-overlap line does the
+	# work and nothing new had to learn about features.
+	Game.buy_item("armchair", 1)
+	designer._on_place_item("armchair")
+	var item = designer.selected
+	_expect(item != null, "nothing was placed to test the fireplace against")
+	if item != null:
+		var middle := hearth.position + hearth.size * 0.5
+		item.global_position = Vector3(middle.x, 0.0, middle.y)
+		_expect(designer._overlaps_any(item),
+			"a chair standing in the fireplace did not read as overlapping")
+		designer._update_overlaps()
+		_expect(item.is_blocked(), "the chair in the fireplace was not marked as clashing")
+
+		# And clear of it, it is fine — so the feature blocks its own floor and
+		# not the whole wall.
+		item.global_position = Vector3(
+			bounds.end.x - 0.6, 0.0, bounds.position.y + hearth.size.y + 0.5)
+		_expect(not designer._overlaps_any(item),
+			"a chair standing beside the fireplace was blocked by it")
+
+	main.enter_city()
+	await _settle()
+	print("features        %s has a hearth, and the floor under it is spoken for" % house_id)
 
 
 ## Every piece is painted in one of the colours of the quarter that sells it.
