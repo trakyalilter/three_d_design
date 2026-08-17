@@ -355,14 +355,19 @@ Six things a person notices walking in, each either satisfied or not:
 |---|---|
 | Nothing overlaps | No piece is jammed into another |
 | The big pieces sit against the walls | Sofas, beds, wardrobes and the like belong at the edges — at least 70 % of them |
-| The colours hang together | Four distinct tints across the room, at most |
+| The colours hang together | Three distinct tints across the room, at most — and a quarter sells four |
 | There is room to move | Furniture covers between 12 % and 55 % of the floor |
 | The room has a point of view | One school of furniture rather than six — see below |
 | Came in on budget | What you left behind cost no more than the client allowed |
 
-Five out of six is three stars and a 30 % bonus on the fee; three or four is two stars and
+All six is three stars and a 30 % bonus on the fee; three, four or five is two stars and
 15 %; below that, one star and no bonus. Stars scale the experience too. Following the
-checklist gets you paid — arranging the room properly is what earns the third star.
+checklist gets you paid — arranging the room properly is what earns the third star, and
+three stars means faultless rather than nearly. It used to mean five of the six, which made
+one miss free: a career could fail the colours in three rooms out of five and still come out
+at fifty-one rooms in three stars, because the miss it kept making was the one it was
+allowed. Two stars is what a good room gets. Playing the whole city straight now lands about
+a third of it on three.
 
 **The verdict is live.** It used to arrive once, on the hand-over screen, when the room could
 no longer be changed. Every one of the six is mechanical and knowable, so holding them back
@@ -815,7 +820,7 @@ scripts/
     industry.gd          Autoload. The eight holdings, the four works and the
                          workshop: what everything yields, what it costs, and
                          which good a piece of furniture wants
-    room_review.gd       The five things a client notices, scored out of three
+    room_review.gd       The six things a client notices, scored out of three
     layout_store.gd      Free-build save files under user://, and a file per
                          half-finished client room under user://rooms
   audio/

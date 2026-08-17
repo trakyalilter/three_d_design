@@ -139,8 +139,14 @@ static func score(entries: Array, floor_area: float, installed: int, budget: int
 		if note["good"]:
 			passed += 1
 
+	# Three stars means faultless. It used to mean five of the six, which made
+	# one miss free — and a career measured with the palette line failing three
+	# rooms in five still came out at fifty-one rooms in three stars, because the
+	# miss it was failing was the one it was allowed. Two stars is what a good
+	# room gets, and the top of the review is for a room with nothing wrong with
+	# it at all.
 	var stars := 1
-	if passed >= 5:
+	if passed >= notes.size():
 		stars = 3
 	elif passed >= 3:
 		stars = 2
