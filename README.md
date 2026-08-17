@@ -385,7 +385,7 @@ Six things a person notices walking in, each either satisfied or not:
 | | |
 |---|---|
 | Nothing overlaps | No piece is jammed into another |
-| The big pieces sit against the walls | Sofas, beds, wardrobes and the like belong at the edges — at least 70 % of them |
+| The big pieces sit against the walls | Sofas, beds, wardrobes and the like belong at the edges, and the right way round — at least 90 % of them |
 | The colours hang together | Three distinct tints across the room, at most — and a quarter sells four |
 | There is room to move | Furniture covers between 12 % and 55 % of the floor |
 | The room has a point of view | One school of furniture rather than six — see below |

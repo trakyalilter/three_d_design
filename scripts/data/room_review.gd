@@ -25,6 +25,12 @@ const WALL_REACH := 0.30
 ## in, and at seven in ten a room could leave one adrift and still be told it had
 ## got the big pieces right.
 const WALL_SHARE := 0.9
+## How far off square a piece may be and still count as put against the wall
+## rather than parked near it. The four right answers are ninety degrees apart,
+## so thirty is forgiving of a hand-placed piece and unforgiving of a sofa with
+## its back to the room. A piece with no facing recorded is given the benefit of
+## the doubt, so a caller that only knows about distance is judged on distance.
+const FACING_REACH := 30.0
 ## More distinct colours than this and the room stops reading as one scheme.
 ## One fewer than a quarter sells, so furnishing a room out of one is a choice
 ## about which of its colours to leave out rather than a thing that happens.
@@ -42,7 +48,7 @@ const TASTE_BONUS := 0.05
 
 ## `entries` is one dictionary per placed piece:
 ##   {"id": String, "tint": Color, "blocked": bool, "wall_gap": float,
-##    "area": float}
+##    "facing": bool, "area": float}
 ## Returns {"stars": int, "bonus_rate": float, "notes": Array[Dictionary]}
 ## where each note is {"label": String, "good": bool}.
 static func score(entries: Array, floor_area: float, installed: int, budget: int) -> Dictionary:
@@ -62,18 +68,30 @@ static func score(entries: Array, floor_area: float, installed: int, budget: int
 	# 2. The big pieces are against the walls, where they belong.
 	var wall_pieces := 0
 	var wall_placed := 0
+	var adrift := 0
+	var turned := 0
 	for entry: Dictionary in entries:
 		if not Catalog.get_item(str(entry["id"])).get("against_wall", false):
 			continue
 		wall_pieces += 1
-		if float(entry.get("wall_gap", 99.0)) <= WALL_REACH:
+		var near: bool = float(entry.get("wall_gap", 99.0)) <= WALL_REACH
+		var square: bool = bool(entry.get("facing", true))
+		if near and square:
 			wall_placed += 1
+		elif not near:
+			adrift += 1
+		else:
+			turned += 1
 	var wall_ok: bool = wall_pieces == 0 or float(wall_placed) / float(wall_pieces) >= WALL_SHARE
-	notes.append({
-		"good": wall_ok,
-		"label": "The big pieces sit against the walls" if wall_ok
-			else "%d of %d big pieces are stranded mid-floor" % [wall_pieces - wall_placed, wall_pieces],
-	})
+	# Say which of the two it is, because they are different mistakes and a room
+	# that fails on one has nothing to fix about the other. Whichever is the
+	# bigger fault gets named, counting only the pieces that actually have it.
+	var wall_label := "The big pieces sit against the walls"
+	if not wall_ok and adrift >= turned:
+		wall_label = "%d of %d big pieces are stranded mid-floor" % [adrift, wall_pieces]
+	elif not wall_ok:
+		wall_label = "%d of %d big pieces have their backs to the room" % [turned, wall_pieces]
+	notes.append({"good": wall_ok, "label": wall_label})
 
 	# 3. A palette rather than a paint chart.
 	var tones: Dictionary = {}

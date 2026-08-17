@@ -873,16 +873,37 @@ func _review_entries() -> Array:
 		var half := _half_extents(item.footprint(), item.rotation.y)
 		var centre := item.footprint_center()
 		var rect := room.rect_at(centre)
-		var gap: float = minf(
-			minf(centre.x - half.x - rect.position.x, rect.end.x - (centre.x + half.x)),
-			minf(centre.y - half.y - rect.position.y, rect.end.y - (centre.y + half.y))
-		)
+		# Each wall, how far the piece is off it, and the yaw that would put its
+		# back against it — the same four the snap chooses between.
+		var walls := [
+			{"gap": centre.y - half.y - rect.position.y, "yaw": 0.0},
+			{"gap": rect.end.y - (centre.y + half.y), "yaw": PI},
+			{"gap": centre.x - half.x - rect.position.x, "yaw": deg_to_rad(90.0)},
+			{"gap": rect.end.x - (centre.x + half.x), "yaw": deg_to_rad(-90.0)},
+		]
+		# How far off the closest wall it is, and whether its back is turned to one
+		# of the walls it is actually touching. Any of them will do: a sofa in a
+		# corner is against two walls and looks right either way round, so asking
+		# it to face the nearer of the two would be deciding a coin toss.
+		var nearest := INF
+		var facing := false
+		for wall: Dictionary in walls:
+			var gap: float = maxf(float(wall["gap"]), 0.0)
+			nearest = minf(nearest, gap)
+			if gap > RoomReview.WALL_REACH:
+				continue
+			if absf(angle_difference(item.rotation.y, float(wall["yaw"]))) \
+					<= deg_to_rad(RoomReview.FACING_REACH):
+				facing = true
 		var footprint := item.footprint()
 		entries.append({
 			"id": item.item_id,
 			"tint": item.tint,
 			"blocked": item.is_blocked(),
-			"wall_gap": maxf(gap, 0.0),
+			"wall_gap": nearest,
+			# Against a wall with its back to the room is not against a wall; it
+			# is a sofa somebody has turned round.
+			"facing": facing,
 			"area": footprint.x * footprint.y,
 		})
 	return entries

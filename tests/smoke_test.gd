@@ -31,10 +31,14 @@ var _failures: Array[String] = []
 ##
 ## Overlaps and budget sit at nought and mean it. A room that hands over with
 ## pieces inside each other, or over the client's money, is a fault rather than
-## a matter of taste.
+## a matter of taste. The walls sit near it for the same reason: the run puts
+## every sofa and wardrobe against a wall and turns it the right way round, so
+## two per cent is one room in fifty-six going wrong — enough slack for a fixed
+## feature landing awkwardly in one house, and not enough to hide a change that
+## strands furniture across the city.
 const CRITERIA := [
 	{"name": "nothing overlaps", "ceiling": 0},
-	{"name": "big pieces on walls", "ceiling": 8},
+	{"name": "big pieces on walls", "ceiling": 2},
 	{"name": "one palette", "ceiling": 65},
 	{"name": "room to move", "ceiling": 16},
 	{"name": "one school", "ceiling": 20},
@@ -42,7 +46,7 @@ const CRITERIA := [
 ]
 ## Three stars has to stay reachable by an honest run, or the top of the review
 ## is decoration. A share for the same reason as the ceilings above.
-const THREE_STAR_FLOOR := 15
+const THREE_STAR_FLOOR := 25
 
 var _crit_fail: Array[int] = [0, 0, 0, 0, 0, 0]
 var _stars_seen: Dictionary = {1: 0, 2: 0, 3: 0}
@@ -2417,6 +2421,38 @@ func _check_three_stars() -> void:
 			% [live["stars"], review["stars"]])
 	_expect((live.get("notes", []) as Array).size() == (review["notes"] as Array).size(),
 		"the live verdict and the hand-over notice different things")
+
+	# Turning a piece round where it stands is enough to lose that line. A bed
+	# with its headboard to the room is against the wall by the tape measure and
+	# wrong to anybody looking at it, and since the career run turns every piece
+	# the right way as it places it, this is the only place the distinction is
+	# put to the test.
+	var bed = null
+	for item in designer._items():
+		if item.item_id == "bed_single":
+			bed = item
+	_expect(bed != null, "the bed went missing before the facing check")
+	if bed != null:
+		var square: float = bed.rotation.y
+		var stood: Vector2 = bed.footprint_center()
+		bed.rotation.y = square + PI
+		# Turned on the spot, not shoved: a piece whose origin is not its middle
+		# swings its footprint round, and a bed that drifted off the wall would
+		# fail this for the wrong reason.
+		var drift: Vector2 = bed.footprint_center() - stood
+		bed.global_position -= Vector3(drift.x, 0.0, drift.y)
+		designer._update_overlaps()
+		var turned: Dictionary = designer.verdict()
+		_expect(int(turned["stars"]) < 3,
+			"a bed with its back to the room still scored three stars")
+		_expect(_failed_notes(turned).contains("backs to the room"),
+			"turning the bed round was marked down as something else (%s)"
+				% _failed_notes(turned))
+		bed.rotation.y = square
+		bed.global_position += Vector3(drift.x, 0.0, drift.y)
+		designer._update_overlaps()
+		_expect(int(designer.verdict()["stars"]) == 3,
+			"turning the bed back did not put the third star back")
 
 	# And it moves with the room. Pushing everything into one corner breaks the
 	# line about the big pieces standing against the walls.
