@@ -1968,12 +1968,35 @@ func has_repeat_contract(house_id: String) -> bool:
 	return Game.active_contracts.has(house_id)
 
 
+## The clutter a client drags home while you are away, each in a colour no
+## quarter sells — the reds and violets the paint pot itself gave up. Ripping
+## them out, or painting them into the scheme, is half of what a makeover is.
+const MAKEOVER_TAT: Array[Dictionary] = [
+	{"id": "rug", "tint": Color(0.78, 0.32, 0.29)},
+	{"id": "floor_lamp", "tint": Color(0.45, 0.38, 0.66)},
+	{"id": "plant", "tint": Color(0.30, 0.53, 0.72)},
+]
+
+
+## Whether the next visit to a finished house is a makeover: the first return
+## is, and after that they alternate with fresh briefs. The first return is
+## the strongest version of it — the room the client has been living in is one
+## the player laid out themselves, and recognising your own work gone wrong is
+## the point. Decided from the count so the offer the city shows is the offer
+## taking it delivers.
+func makeover_due(house_id: String) -> bool:
+	return Game.repeat_count(house_id) % 2 == 1 \
+		and not (Game.layout_for(house_id).get("items", []) as Array).is_empty()
+
+
 ## Invents a fresh brief for a house that has already been handed over. Only
 ## JSON-safe values go in, because this is saved with the profile.
 func generate_contract(house_id: String, level: int) -> Dictionary:
 	var base: Dictionary = _by_id.get(house_id, {})
 	if base.is_empty():
 		return {}
+	if makeover_due(house_id):
+		return _makeover_contract(house_id, level)
 
 	var random := RandomNumberGenerator.new()
 	random.seed = hash("%s/%d/%d" % [house_id, level, Game.repeat_count(house_id)])
@@ -2032,6 +2055,180 @@ func generate_contract(house_id: String, level: int) -> Dictionary:
 		"requirements": requirements,
 		"repeat": repeats + 1,
 	}
+
+
+## The other kind of return visit: not a new room, the old one gone wrong. The
+## client has lived in it for a season — big pieces turned round and dragged
+## about, some tat brought home in colours the quarter does not sell — and the
+## job is to put it right. The checklist cannot carry that on its own: every
+## line it knows how to ask is satisfied by the room as found, so the brief
+## asks for the one thing a checklist normally cannot — that the room *reads*
+## well when you hand it back.
+##
+## The fee is priced on the furniture standing in the room, because that is
+## the size of the job, but it is pay for work rather than for stock: the
+## player need buy nothing at all to earn it.
+##
+## The brief text stays away from fires, windows and views on purpose — those
+## words decide what fixed feature a room has, and a makeover has to keep the
+## room the furniture was arranged around.
+func _makeover_contract(house_id: String, level: int) -> Dictionary:
+	var base: Dictionary = _by_id.get(house_id, {})
+	var items: Array = Game.layout_for(house_id).get("items", [])
+	var standing := 0
+	for entry: Variant in items:
+		if typeof(entry) == TYPE_DICTIONARY:
+			standing += Game.buy_price(str((entry as Dictionary).get("id", "")))
+	# The budget covers what is already standing there with headroom for a
+	# swap or two; the tat fits inside the headroom, so a room handed back
+	# without additions is always on budget once the tat is dealt with.
+	var budget: int = maxi(int(round(float(standing) * 1.25 / 50.0)) * 50, 300)
+	var payout: int = clampi(int(round(float(standing) * 0.45 / 50.0)) * 50, 300, 6000)
+	return {
+		# The same person who took the room over: a makeover is a house call,
+		# not a stranger's commission.
+		"client": str(base.get("client", CLIENTS[0])),
+		"level": maxi(int(base.get("level", 1)), 1),
+		"brief": "We have not touched a thing, except all of it. Everything has "
+			+ "crept somewhere it should not be and there are some new bits I am "
+			+ "no longer sure about. Put it back the way you had it — or better.",
+		"theme": "makeover",
+		"makeover": true,
+		"budget": budget,
+		"payout": payout,
+		"xp": 60 + level * 30,
+		"requirements": [
+			# As many pieces as the client already owns — which ones is yours to
+			# decide, so the tat can go and better stock can take its place.
+			{"type": "total", "count": items.size()},
+			{"type": "no_overlap"},
+			{"type": "stars", "count": 2},
+		],
+		"repeat": Game.repeat_count(house_id) + 1,
+	}
+
+
+## Does a season of careless living to a stored room, deterministically: the
+## same visit scrambles the same way every time, so what the city offers is
+## what the take delivers and what a test can hold still.
+##
+## Three kinds of wrong, which are the three lines of the verdict it has to
+## bend: a big piece turned where it stands (near its wall, back to the room),
+## a big piece dragged toward the middle of its room, and two pieces shoved
+## together. Then the tat, in colours from outside every scheme, so the
+## palette line breaks without touching a piece the player chose.
+##
+## Which pieces suffer is decided by position in the list rather than drawn
+## from the generator, because the list is stable and a draw would have to be
+## carefully deseeded to be worth less. The generator only jitters positions.
+func disarrange(house_id: String, layout: Dictionary) -> Dictionary:
+	var out := layout.duplicate(true)
+	var items: Array = out.get("items", [])
+	if items.is_empty():
+		return out
+	var random := RandomNumberGenerator.new()
+	random.seed = hash("%s/lived-in/%d" % [house_id, Game.repeat_count(house_id)])
+
+	var rects: Array[Rect2] = []
+	for room: Variant in dressed_rooms(house_id):
+		rects.append(_rect_of_spec(room as Dictionary))
+
+	# Only pieces standing on the floor are moved. A lamp on a table stays with
+	# its table as far as the room file is concerned, and knocking it into the
+	# air would be a fault the player cannot read, let alone fix.
+	var floor_idx: Array[int] = []
+	var wall_idx: Array[int] = []
+	for i in items.size():
+		if typeof(items[i]) != TYPE_DICTIONARY:
+			continue
+		var entry: Dictionary = items[i]
+		if float(entry.get("y", 0.0)) > 0.05:
+			continue
+		floor_idx.append(i)
+		if Catalog.get_item(str(entry.get("id", ""))).get("against_wall", false):
+			wall_idx.append(i)
+
+	var touched: Dictionary = {}
+
+	# Turned round where they stand: still against the wall by the tape
+	# measure, and wrong to anybody walking in.
+	var flips: Array[int] = []
+	if wall_idx.size() >= 1:
+		flips.append(wall_idx[0])
+	if wall_idx.size() >= 4:
+		flips.append(wall_idx[1])
+	for i in flips:
+		var entry: Dictionary = items[i]
+		entry["rot"] = snappedf(wrapf(float(entry.get("rot", 0.0)) + 180.0, -180.0, 180.0), 0.01)
+		touched[i] = true
+
+	# Dragged off its wall toward the middle of whichever room it stands in.
+	if wall_idx.size() >= 2:
+		var i: int = wall_idx[wall_idx.size() - 1]
+		var entry: Dictionary = items[i]
+		var rect := _rect_holding(rects, Vector2(float(entry["x"]), float(entry["z"])))
+		var centre := rect.get_center()
+		entry["x"] = snappedf(clampf(
+			lerpf(float(entry["x"]), centre.x, 0.8) + random.randf_range(-0.4, 0.4),
+			rect.position.x + 0.5, rect.end.x - 0.5), 0.0001)
+		entry["z"] = snappedf(clampf(
+			lerpf(float(entry["z"]), centre.y, 0.8) + random.randf_range(-0.4, 0.4),
+			rect.position.y + 0.5, rect.end.y - 0.5), 0.0001)
+		touched[i] = true
+
+	# Two pieces shoved into each other — the first untouched pair sharing a
+	# room and tall enough for the overlap test to care about either of them.
+	var shoved := false
+	for a in floor_idx:
+		if shoved or touched.has(a):
+			continue
+		var first: Dictionary = items[a]
+		if Catalog.height(str(first["id"])) * float(first.get("scale", 1.0)) < 0.4:
+			continue
+		var home := _rect_holding(rects, Vector2(float(first["x"]), float(first["z"])))
+		for b in floor_idx:
+			if b == a or touched.has(b):
+				continue
+			var second: Dictionary = items[b]
+			if Catalog.height(str(second["id"])) * float(second.get("scale", 1.0)) < 0.4:
+				continue
+			if not home.has_point(Vector2(float(second["x"]), float(second["z"]))):
+				continue
+			second["x"] = snappedf(clampf(float(first["x"]) + 0.2,
+				home.position.x + 0.3, home.end.x - 0.3), 0.0001)
+			second["z"] = snappedf(clampf(float(first["z"]) + 0.15,
+				home.position.y + 0.3, home.end.y - 0.3), 0.0001)
+			touched[a] = true
+			touched[b] = true
+			shoved = true
+			break
+
+	# And the new bits, scattered round the middles of the rooms.
+	for t in MAKEOVER_TAT.size():
+		var tat: Dictionary = MAKEOVER_TAT[t]
+		var rect: Rect2 = rects[t % rects.size()]
+		var centre := rect.get_center()
+		items.append({
+			"id": str(tat["id"]),
+			"x": snappedf(clampf(centre.x + random.randf_range(-0.7, 0.7),
+				rect.position.x + 0.4, rect.end.x - 0.4), 0.0001),
+			"y": 0.0,
+			"z": snappedf(clampf(centre.y + random.randf_range(-0.7, 0.7),
+				rect.position.y + 0.4, rect.end.y - 0.4), 0.0001),
+			"rot": snappedf(random.randf_range(-30.0, 30.0), 0.01),
+			"scale": 1.0,
+			"tint": (tat["tint"] as Color).to_html(false),
+		})
+
+	return out
+
+
+## The room of the plan a point falls in, for scrambling within its walls.
+static func _rect_holding(rects: Array[Rect2], at: Vector2) -> Rect2:
+	for rect in rects:
+		if rect.has_point(at):
+			return rect
+	return rects[0] if rects.size() > 0 else Rect2(-3.0, -3.0, 6.0, 6.0)
 
 
 func _cheapest_price_in(category: String) -> int:
@@ -2583,6 +2780,15 @@ func _check(req: Dictionary, context: Dictionary) -> Dictionary:
 			need = 1
 			label = "Leave nothing overlapping" if met \
 				else "Leave nothing overlapping (%d clash%s)" % [clashes, "" if clashes == 1 else "es"]
+
+		# The one thing a checklist normally cannot ask for: that the room reads
+		# well. A makeover's whole brief, because every other line it could carry
+		# is satisfied by the room as found — the client is not short of
+		# furniture, they are short of a room that works.
+		"stars":
+			have = int(context.get("stars", 0))
+			met = have >= need
+			label = "Leave the room reading %s or better" % RoomReview.stars_text(need)
 
 		_:
 			met = true

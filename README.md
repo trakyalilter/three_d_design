@@ -671,6 +671,22 @@ fresh room in mind — a kitchen, a study, a media room — generated to suit th
 reached, with its own client, brief, budget and fee. That is how you save up for the last
 quarter when the handcrafted work runs dry.
 
+**Every second return is a makeover.** The first time you go back, the client is not after
+a new room — they have been living in the one you made, and it has gone the way rooms go.
+The sofa has been turned round where it stands. Something has been dragged off its wall to
+sit mid-floor. Two things have been shoved into each other. And there is tat: a rug, a lamp,
+a plant, brought home in exactly the reds and violets no quarter in the city sells. The room
+you walk into is your own work gone wrong, and the verdict sheet reads it out — *backs to
+the room*, *stranded mid-floor*, *seven different colours*.
+
+A makeover's brief is the one thing a checklist normally cannot ask: keep as many pieces as
+the client owns, leave nothing overlapping, and **leave the room reading ★★☆ or better**.
+Which pieces stay is yours to call — the tat can be re-tinted into the scheme with the paint
+pot, or hauled off to your own warehouse, which is where anything you carry out of a
+client's house ends up. The fee is priced on the furniture standing in the room, but it is
+pay for judgement rather than stock: a makeover can be earned without buying a thing.
+Every other return alternates back to a fresh brief.
+
 ### Your trade
 
 A level used to be a key and nothing else: it unlocked a shop, a quarter, a holding, and

@@ -677,13 +677,22 @@ func repeat_count(house_id: String) -> int:
 	return int(repeats.get(house_id, 0))
 
 
-## Takes a fresh brief at a house that has already been finished once. The room
-## is emptied back into stock by the caller before this is called.
+## Takes a new brief at a house that has already been finished once. A fresh
+## brief clears the old room away — its furniture was paid for at the last
+## hand-over and is written off with it. A makeover is the opposite: the room
+## is the job, so it stays, and the client's season of careless living is done
+## to it here, on the way in.
 func take_repeat_contract(house_id: String, contract: Dictionary) -> void:
+	# The contract goes in first, so the disarranging below reads the room with
+	# the makeover's own brief — which is written not to move the fixed feature
+	# the furniture was arranged around.
 	active_contracts[house_id] = contract
 	finished_jobs.erase(house_id)
-	saved_jobs.erase(house_id)
-	LayoutStore.delete_room(house_id)
+	if contract.get("makeover", false):
+		store_layout(house_id, Jobs.disarrange(house_id, layout_for(house_id)))
+	else:
+		saved_jobs.erase(house_id)
+		LayoutStore.delete_room(house_id)
 	# A new brief here means the plan worked out for the old one is wrong.
 	Jobs.forget_plan(house_id)
 	save_profile()

@@ -1092,6 +1092,7 @@ func _context() -> Dictionary:
 			# Which room of the plan it is standing in, for briefs that care.
 			"room": room.room_id_at(item.footprint_center()),
 		})
+	var spend := installed_value()
 	return {
 		"items": entries,
 		"room": {
@@ -1101,7 +1102,10 @@ func _context() -> Dictionary:
 			"floors": room.floor_colors.duplicate(),
 			"walls": room.wall_colors.duplicate(),
 		},
-		"spend": installed_value(),
+		"spend": spend,
+		# What the room reads as right now, for the briefs that ask for that
+		# rather than for contents — a makeover's whole ask.
+		"stars": int(verdict(spend)["stars"]),
 	}
 
 

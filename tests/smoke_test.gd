@@ -129,6 +129,7 @@ func _ready() -> void:
 	await _check_placement_aids()
 	await _check_history()
 	await _check_three_stars()
+	await _check_makeover()
 	await _check_repeat_contract()
 	await _check_tray()
 
@@ -1765,6 +1766,16 @@ func _check_workshop() -> void:
 			UIKit.money(Catalog.bill_cost(Catalog.bill_of(made_id)))])
 
 
+## Routes the next generated contract at a house onto the fresh-brief path.
+## The checks that shop and furnish are about pay and briefs, not about which
+## kind of return visit comes up — the makeover kind has a check of its own,
+## and handed one here these would try to shop for a room that needs judging
+## instead.
+func _pin_fresh_brief(house_id: String) -> void:
+	if Jobs.makeover_due(house_id):
+		Game.repeats[house_id] = Game.repeat_count(house_id) + 1
+
+
 ## Improving furniture is meant to lift the fee and the experience of the room
 ## it stands in. Furnishes a repeat job entirely out of improved stock and
 ## checks the money that came back carries the craft bonus.
@@ -1774,6 +1785,7 @@ func _check_craft_pays() -> void:
 	if house_id == "":
 		_failures.append("the craft check needs a finished house to work again")
 		return
+	_pin_fresh_brief(house_id)
 	var contract := Jobs.generate_contract(house_id, Game.level)
 	if contract.is_empty():
 		return
@@ -1884,6 +1896,9 @@ func _take_repeat() -> bool:
 	var house_id := _biggest_finished_house()
 	if house_id == "":
 		return false
+	# The grinder simulates a player shopping and furnishing to close a money
+	# gap; the makeover kind of visit is exercised by its own check.
+	_pin_fresh_brief(house_id)
 	var contract := Jobs.generate_contract(house_id, Game.level)
 	if contract.is_empty():
 		return false
@@ -2614,6 +2629,111 @@ func _tap(ui, strip: ScrollContainer, item_id: String, moves: Array) -> void:
 	ui._on_strip_input(up, strip, on_tap)
 
 
+# ------------------------------------------------------------------ makeover
+
+## The first return to a finished house is the old room gone wrong: pieces
+## turned and dragged about, tat brought home in colours no quarter sells, and
+## a brief that asks for the one thing a checklist cannot — that the room read
+## well when it is handed back. This plays one through: takes the contract,
+## checks the room arrives scrambled in the three ways the verdict names,
+## hauls the tat away, puts the big pieces back, and hands it over.
+##
+## Runs before the classic repeat check on the same house on purpose: it
+## leaves the repeat count even, which is what routes that check onto the
+## fresh-brief path it has always tested.
+func _check_makeover() -> void:
+	var main := get_tree().current_scene
+	# A house no other check enters, so the room standing in it is the one the
+	# career run handed over — the whole point is walking back into your own
+	# work. (The three-star check empties maple_studio, and the craft check
+	# refurnishes the observatory.)
+	var house_id := "harbour_lounge"
+	_expect(Game.is_job_done(house_id), "the career run should have finished %s" % house_id)
+	_expect(Game.repeat_count(house_id) == 1,
+		"%s should be on its first return, not visit %d" % [house_id, Game.repeat_count(house_id)])
+	var owner := str(Jobs.get_job(house_id).get("client", ""))
+
+	var kept: Dictionary = Game.layout_for(house_id)
+	var kept_count: int = (kept.get("items", []) as Array).size()
+	_expect(kept_count > 0, "the career run left %s empty" % house_id)
+
+	# The same visit scrambles the same way every time — the offer the city
+	# shows has to be the room the take delivers.
+	_expect(JSON.stringify(Jobs.disarrange(house_id, kept))
+			== JSON.stringify(Jobs.disarrange(house_id, kept)),
+		"the client's living is not deterministic")
+
+	var contract := Jobs.generate_contract(house_id, Game.level)
+	_expect(bool(contract.get("makeover", false)), "the first return should be a makeover")
+	_expect(str(contract["client"]) == owner,
+		"a makeover should come from %s, who lives there, not %s" % [owner, contract["client"]])
+	Game.take_repeat_contract(house_id, contract)
+
+	var scrambled_count: int = (Game.layout_for(house_id).get("items", []) as Array).size()
+	_expect(scrambled_count > kept_count, "the client should have dragged some tat in")
+
+	main.enter_designer(house_id)
+	await _settle()
+	var designer = main.designer
+	_expect(designer._items().size() == scrambled_count,
+		"the makeover should open with the client's room standing, not empty")
+
+	# Wrong in the ways a lived-in room goes wrong, and the sheet says so: the
+	# big pieces are out of place, the colours no longer hang together, and the
+	# brief cannot be handed over as found.
+	var arrival: Dictionary = designer.verdict()
+	var notes: Array = arrival["notes"]
+	_expect(int(arrival["stars"]) < 3, "the scrambled room should not read as faultless")
+	_expect(not bool((notes[1] as Dictionary)["good"]),
+		"the big pieces should have gone wrong (%s)" % notes[1]["label"])
+	_expect(not bool((notes[2] as Dictionary)["good"]),
+		"the tat should break the palette (%s)" % notes[2]["label"])
+	_expect(not Jobs.all_met(Jobs.evaluate(house_id, designer._context())),
+		"a makeover should not be finishable as found")
+
+	# Hauling the tat away: everything wearing a colour outside the quarter's
+	# scheme goes, and lands in the player's own warehouse.
+	var rugs_before: int = Game.stock_of("rug")
+	var scheme: Dictionary = {}
+	for colour: Color in Catalog.palette_of(Jobs.district_of(house_id)):
+		scheme[_tone_key(colour)] = true
+	for item in designer._items():
+		if not scheme.has(_tone_key(item.tint)):
+			designer._select(item)
+			designer._store_selected()
+	_expect(designer._items().size() == kept_count, "only the tat should read as off-scheme")
+	_expect(Game.stock_of("rug") == rugs_before + 1,
+		"hauling the client's rug away should put it in your stock")
+
+	# Put the big pieces back against their walls the right way round, and
+	# nudge whatever is left clear of whatever it was shoved into.
+	var rect: Rect2 = designer.room.rect_of("room")
+	for item in designer._items():
+		if bool(Catalog.get_item(item.item_id).get("against_wall", false)):
+			_expect(_against_a_wall(designer, item, rect, "room", false, 0.5),
+				"nowhere to stand the %s back against a wall" % item.item_id)
+	for item in designer._items():
+		item.global_position = designer._find_free_spot(item)
+	designer._update_overlaps()
+
+	var fixed: Dictionary = designer.verdict()
+	_expect(int(fixed["stars"]) >= 2,
+		"the fixed room reads %d star%s (%s)" % [fixed["stars"],
+			"" if int(fixed["stars"]) == 1 else "s", _failed_notes(fixed)])
+	var results := Jobs.evaluate(house_id, designer._context())
+	if not Jobs.all_met(results):
+		_failures.append("makeover unmet after fixing: %s" % _unmet(results))
+	else:
+		var money_before: int = Game.money
+		designer._on_finish()
+		_expect(Game.money > money_before, "handing the makeover back should pay")
+		_expect(Game.repeat_count(house_id) == 2, "a makeover should count as a visit")
+		print("makeover        %s wants the old room put right for %s — tat hauled off, big pieces turned back, handed over" % [
+			contract["client"], UIKit.money(int(contract["payout"]))])
+	main.enter_city()
+	await _settle()
+
+
 # ------------------------------------------------------------ repeat contract
 
 ## After the ten handcrafted jobs the map has to keep offering work.
@@ -2622,6 +2742,7 @@ func _check_repeat_contract() -> void:
 	var house_id := "maple_studio"
 	_expect(Game.is_job_done(house_id), "the career run should have finished %s" % house_id)
 
+	_pin_fresh_brief(house_id)
 	var before := Game.repeat_count(house_id)
 	var contract := Jobs.generate_contract(house_id, Game.level)
 	_expect(not contract.is_empty(), "no repeat contract was generated")
